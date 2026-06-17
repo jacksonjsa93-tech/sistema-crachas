@@ -3,12 +3,6 @@
 import React, { useState, useRef } from 'react';
 
 export default function PainelRH() {
-  const [logado, setLogado] = useState(false);
-  const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
-  const [erroLogin, setErroLogin] = useState('');
-  const [carregandoLogin, setCarregandoLogin] = useState(false);
-
   const [busca, setBusca] = useState('');
   const [colaborador, setColaborador] = useState<any>(null);
   const [erro, setErro] = useState('');
@@ -20,26 +14,6 @@ export default function PainelRH() {
 
   const URL = "https://dpndtwutvkaxrxrkyeyw.supabase.co";
   const KEY = "sb_publishable_6Ss9lNdcbyeE2o3U5jcJ7w_qI61wmIr";
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErroLogin('');
-    setCarregandoLogin(true);
-    try {
-      const response = await fetch(`${URL}/auth/v1/token?grant_type=password`, {
-        method: 'POST',
-        headers: { 'apikey': KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: senha })
-      });
-      const data = await response.json();
-      if (data.access_token) setLogado(true);
-      else setErroLogin('E-mail ou senha incorretos. Acesso negado.');
-    } catch (error) {
-      setErroLogin('Erro de conexão com o servidor.');
-    } finally {
-      setCarregandoLogin(false);
-    }
-  };
 
   const handleBusca = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,42 +82,12 @@ export default function PainelRH() {
     return `${partes[0]} ${partes[partes.length - 1]}`;
   };
 
-  if (!logado) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4" style={{ backgroundColor: '#02182b' }}>
-        <div className="bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-700 w-full max-w-md">
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-white">SGSO Premium</h1>
-            <p className="text-slate-400 text-sm mt-1">Acesso Restrito - RH & Gestão</p>
-          </div>
-          <form onSubmit={handleLogin} className="space-y-5">
-            <div>
-              <label className="block text-sm font-semibold mb-2 text-slate-300">E-mail Corporativo</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-sky-500" placeholder="usuario@dinamo.srv.br" />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold mb-2 text-slate-300">Senha</label>
-              <input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} required className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-sky-500" placeholder="••••••••" />
-            </div>
-            {erroLogin && <p className="text-red-400 text-sm text-center bg-red-950/50 p-2 rounded">{erroLogin}</p>}
-            <button type="submit" disabled={carregandoLogin} className="w-full text-white font-bold px-8 py-3 rounded-lg transition-all" style={{ backgroundColor: '#023A58' }}>
-              {carregandoLogin ? 'Autenticando...' : 'Entrar no Sistema'}
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 p-8 font-sans screen-only">
       <div className="max-w-6xl mx-auto">
-        <header className="mb-8 border-b border-slate-700 pb-4 flex justify-between items-end">
-          <div>
-            <h1 className="text-3xl font-bold text-sky-400">SGSO Premium — Emissão</h1>
-            <p className="text-slate-400 text-sm">Integração Smart-51 & Base de Dados</p>
-          </div>
-          <button onClick={() => setLogado(false)} className="text-slate-400 hover:text-red-400 text-sm font-semibold transition-colors">Sair (Logout)</button>
+        <header className="mb-8 border-b border-slate-700 pb-4">
+          <h1 className="text-3xl font-bold text-sky-400">SGSO Premium — Emissão</h1>
+          <p className="text-slate-400 text-sm">Integração Smart-51 & Base de Dados</p>
         </header>
 
         <form onSubmit={handleBusca} className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg mb-8 flex gap-4 items-end">
