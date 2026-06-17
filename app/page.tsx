@@ -20,8 +20,8 @@ export default function PainelRH() {
     setCarregando(true);
     
     try {
-      const URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const URL = "https://dpndtwtvkaxrxrkyeyw.supabase.co";
+const KEY = "sb_publishable_6Ss9lNdcbyeE2o3U5jcJ7w_qI61wmIr";
 
       const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${busca}&select=*`, {
         headers: {
