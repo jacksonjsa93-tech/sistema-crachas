@@ -144,33 +144,34 @@ export default function PainelRH() {
               <div className="flex flex-col md:flex-row gap-8 justify-center items-center bg-slate-900 p-8 rounded-lg overflow-x-auto print-container">
                 
                 {/* --- FRENTE --- */}
-                <div className="cracha-card w-[54mm] h-[86mm] bg-white relative flex flex-col items-center overflow-hidden" style={{ border: '1px solid #ccc' }}>
+                <div className="cracha-card w-[54mm] h-[86mm] bg-white relative flex flex-col items-center overflow-hidden box-border" style={{ border: '1px solid #ccc' }}>
                   
-                  <div className="mt-[7mm] w-[26mm] h-[35mm] flex items-center justify-center overflow-hidden z-10 border border-slate-300">
+                  {/* Foto puxada mais para cima (mt-[4mm]) para dar espaço */}
+                  <div className="mt-[4mm] w-[26mm] h-[35mm] flex items-center justify-center overflow-hidden z-10 border border-slate-300 bg-white">
                     {fotoCapturada && <img src={fotoCapturada} className="w-full h-full object-cover" alt="Foto" />}
                   </div>
                   
-                  <div className="mt-[3mm] text-center z-10 w-full px-2">
+                  {/* Nome puxado mais para perto da foto (mt-[2mm]) */}
+                  <div className="mt-[2mm] text-center z-10 w-full px-2">
                     <div className="text-[#051e42] font-black text-[18px] leading-[1.0]" style={{ fontFamily: 'Arial, sans-serif' }}>
                       {formatarNomeCurto(colaborador.nome_completo).split(' ')[0]}<br/>
                       {formatarNomeCurto(colaborador.nome_completo).split(' ')[1] || ''}
                     </div>
                   </div>
 
-                  {/* Fundo Imagem1.png ocupando toda a base */}
                   <div className="absolute bottom-0 left-0 w-full h-[32mm] z-0">
                      <img src="/Imagem1.png" className="w-full h-full object-fill" alt="Fundo" />
                   </div>
 
-                  {/* Logo da Dínamo alinhada com a Equatorial. Se precisar subir ou descer, altere o valor do "bottom-[8.5mm]" */}
-                  <div className="absolute bottom-[8.5mm] left-[5mm] z-10 w-[20mm] h-[6mm] flex items-center justify-start">
+                  {/* LOGO DÍNAMO: Subida para 13mm (alinhada com Equatorial) */}
+                  <div className="absolute bottom-[13mm] left-[4mm] z-10 w-[20mm] h-[6mm] flex items-center justify-start">
                     <img src="/dinamo.png" className="max-h-full max-w-full object-contain" alt="Dínamo" />
                   </div>
 
                 </div>
 
                 {/* --- VERSO --- */}
-                <div className="cracha-card w-[54mm] h-[86mm] bg-white relative flex flex-col box-border" style={{ padding: '3mm', border: '1px solid #ccc' }}>
+                <div className="cracha-card w-[54mm] h-[86mm] bg-white relative flex flex-col box-border" style={{ padding: '2mm', border: '1px solid #ccc' }}>
                   
                   <div className="mt-[1mm] w-full">
                     
@@ -206,8 +207,7 @@ export default function PainelRH() {
 
                   </div>
 
-                  {/* QR Code perfeitamente alinhado à direita e tamanho travado */}
-                  <div className="absolute right-[3mm] bottom-[15mm] bg-white border border-slate-300 p-[0.5mm] z-10 w-[14mm] h-[14mm]">
+                  <div className="absolute right-[2mm] bottom-[15mm] bg-white border border-slate-300 p-[0.5mm] z-10 w-[14mm] h-[14mm]">
                     <img 
                       src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https://sgso.dinamo.srv.br/colaborador/${colaborador.matricula}`} 
                       className="w-full h-full object-contain"
@@ -215,9 +215,8 @@ export default function PainelRH() {
                     />
                   </div>
 
-                  {/* Rodapé - Adicionado o "pr-[18mm]" que atua como parede para o texto não invadir o QR Code */}
-                  <div className="absolute bottom-[2mm] left-[3mm] w-[48mm] z-0">
-                    <div className="text-[5px] text-black leading-tight mb-[2mm] text-justify font-medium pr-[18mm]">
+                  <div className="absolute bottom-[2mm] left-[2mm] w-[49mm] z-0">
+                    <div className="text-[5px] text-black leading-[1.1] mb-[2mm] text-justify font-medium pr-[18mm]">
                       Este crachá é de uso pessoal e intransferível. O colaborador terceiro deverá usá-lo obrigatoriamente nas dependências do Grupo Equatorial Energia ou fora dela a seu serviço. Em caso de perda, por favor comunicar imediatamente o setor de Segurança Empresarial.
                     </div>
                     <div className="text-center w-full">
@@ -239,7 +238,6 @@ export default function PainelRH() {
 
       <style jsx global>{`
         @media print {
-          /* Esconde tudo do site */
           body * { visibility: hidden; }
           .print-container, .print-container * { visibility: visible; }
           
@@ -248,7 +246,6 @@ export default function PainelRH() {
             margin: 0 !important;
           }
 
-          /* Tira margens fantasmas do Chrome */
           html, body {
             width: 54mm !important;
             height: 86mm !important;
@@ -283,7 +280,6 @@ export default function PainelRH() {
             float: none !important;
           }
 
-          /* ESSA REGRA MATA A TERCEIRA PÁGINA */
           .cracha-card:last-of-type {
             page-break-after: avoid !important;
           }
