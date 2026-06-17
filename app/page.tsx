@@ -146,12 +146,10 @@ export default function PainelRH() {
                 {/* --- FRENTE --- */}
                 <div className="cracha-card w-[54mm] h-[86mm] bg-white relative flex flex-col items-center overflow-hidden box-border" style={{ border: '1px solid #ccc' }}>
                   
-                  {/* Foto puxada mais para cima (mt-[4mm]) para dar espaço */}
                   <div className="mt-[4mm] w-[26mm] h-[35mm] flex items-center justify-center overflow-hidden z-10 border border-slate-300 bg-white">
                     {fotoCapturada && <img src={fotoCapturada} className="w-full h-full object-cover" alt="Foto" />}
                   </div>
                   
-                  {/* Nome puxado mais para perto da foto (mt-[2mm]) */}
                   <div className="mt-[2mm] text-center z-10 w-full px-2">
                     <div className="text-[#051e42] font-black text-[18px] leading-[1.0]" style={{ fontFamily: 'Arial, sans-serif' }}>
                       {formatarNomeCurto(colaborador.nome_completo).split(' ')[0]}<br/>
@@ -163,8 +161,8 @@ export default function PainelRH() {
                      <img src="/Imagem1.png" className="w-full h-full object-fill" alt="Fundo" />
                   </div>
 
-                  {/* LOGO DÍNAMO: Subida para 13mm (alinhada com Equatorial) */}
-                  <div className="absolute bottom-[13mm] left-[4mm] z-10 w-[20mm] h-[6mm] flex items-center justify-start">
+                  {/* LOGO DÍNAMO: Tamanho aumentado de w-[20mm] para w-[24mm] */}
+                  <div className="absolute bottom-[13mm] left-[4mm] z-10 w-[24mm] h-[8mm] flex items-center justify-start">
                     <img src="/dinamo.png" className="max-h-full max-w-full object-contain" alt="Dínamo" />
                   </div>
 
@@ -173,41 +171,43 @@ export default function PainelRH() {
                 {/* --- VERSO --- */}
                 <div className="cracha-card w-[54mm] h-[86mm] bg-white relative flex flex-col box-border" style={{ padding: '2mm', border: '1px solid #ccc' }}>
                   
-                  <div className="mt-[1mm] w-full">
+                  <div className="mt-[1mm] w-full relative z-10">
                     
-                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0">
+                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0 w-full">
                       <legend className="text-[6px] font-bold px-[1mm] ml-[1mm] text-black leading-none">Nome</legend>
                       <div className="text-[8px] text-black font-semibold uppercase leading-none">{colaborador.nome_completo}</div>
                     </fieldset>
 
-                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0">
+                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0 w-full">
                       <legend className="text-[6px] font-bold px-[1mm] ml-[1mm] text-black leading-none">CPF</legend>
                       <div className="text-[8px] text-black font-semibold uppercase leading-none">{colaborador.cpf || '000.000.000-00'}</div>
                     </fieldset>
 
-                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0 w-[65%]">
+                    {/* Caixas de 65% para deixar o lado direito livre para o QR Code */}
+                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0 w-[63%]">
                       <legend className="text-[6px] font-bold px-[1mm] ml-[1mm] text-black leading-none">Função</legend>
                       <div className="text-[7.5px] text-black font-semibold uppercase leading-none truncate">{colaborador.desc_funcao}</div>
                     </fieldset>
 
-                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0 w-[65%]">
+                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0 w-[63%]">
                       <legend className="text-[6px] font-bold px-[1mm] ml-[1mm] text-black leading-none">Car. Identidade</legend>
                       <div className="text-[8px] text-black font-semibold uppercase leading-none">{colaborador.rg || '0000000000'}</div>
                     </fieldset>
 
-                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0 w-[65%]">
+                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0 w-[63%]">
                       <legend className="text-[6px] font-bold px-[1mm] ml-[1mm] text-black leading-none">Matrícula</legend>
                       <div className="text-[8px] text-black font-semibold uppercase leading-none">{String(colaborador.matricula).padStart(8, '0')}</div>
                     </fieldset>
 
-                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0 w-[65%]">
+                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0 w-[63%]">
                       <legend className="text-[6px] font-bold px-[1mm] ml-[1mm] text-black leading-none">Empresa</legend>
                       <div className="text-[8px] text-black font-semibold uppercase leading-none">DÍNAMO ENGENHARIA</div>
                     </fieldset>
 
                   </div>
 
-                  <div className="absolute right-[2mm] bottom-[15mm] bg-white border border-slate-300 p-[0.5mm] z-10 w-[14mm] h-[14mm]">
+                  {/* QR Code posicionado no alto (lado direito), alinhado com a Função */}
+                  <div className="absolute right-[2mm] top-[22mm] bg-white border border-slate-300 p-[0.5mm] z-10 w-[15mm] h-[15mm]">
                     <img 
                       src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https://sgso.dinamo.srv.br/colaborador/${colaborador.matricula}`} 
                       className="w-full h-full object-contain"
@@ -215,9 +215,10 @@ export default function PainelRH() {
                     />
                   </div>
 
-                  <div className="absolute bottom-[2mm] left-[2mm] w-[49mm] z-0">
-                    <div className="text-[5px] text-black leading-[1.1] mb-[2mm] text-justify font-medium pr-[18mm]">
-                      Este crachá é de uso pessoal e intransferível. O colaborador terceiro deverá usá-lo obrigatoriamente nas dependências do Grupo Equatorial Energia ou fora dela a seu serviço. Em caso de perda, por favor comunicar imediatamente o setor de Segurança Empresarial.
+                  {/* Texto do rodapé livre para ocupar toda a largura e com texto atualizado/maior */}
+                  <div className="absolute bottom-[2mm] left-[2mm] w-[50mm] z-0">
+                    <div className="text-[6px] text-black leading-[1.2] mb-[2.5mm] text-justify font-medium">
+                      Este crachá é de uso pessoal e intransferível. O colaborador terceiro deverá usá-lo obrigatoriamente nas dependências do Grupo Equatorial Energia ou fora dela a seu serviço. Em caso de perda, por favor comunicar imediatamente o departamento pessoal ao setor de Segurança Empresarial.
                     </div>
                     <div className="text-center w-full">
                       <div className="text-[6px] font-bold text-black">www.dinamo.srv.br</div>
