@@ -3,10 +3,9 @@
 "use client";
 
 import React, { useState, useRef } from 'react';
-import * as XLSX from 'xlsx'; // Importamos o motor de Excel
 
 export default function PortalRH() {
-  const [abaAtiva, setAbaAtiva] = useState('importacao');
+  const [abaAtiva, setAbaAtiva] = useState('importacao'); // Alterado para abrir direto na Importação
 
   const menuItens = [
     { id: 'dashboard', nome: 'Painel de Controlo', icone: 'fa-chart-pie' },
@@ -18,7 +17,6 @@ export default function PortalRH() {
     { id: 'configuracoes', nome: 'Configurações', icone: 'fa-cogs' },
   ];
 
-  // Estados Gerais
   const [busca, setBusca] = useState('');
   const [colaborador, setColaborador] = useState<any>(null);
   const [erro, setErro] = useState('');
@@ -26,108 +24,15 @@ export default function PortalRH() {
   const [fotoCapturada, setFotoCapturada] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
 
-  // Estados da Importação Excel
+  // Estados da Importação
   const [ficheiroExcel, setFicheiroExcel] = useState<File | null>(null);
   const [arrastando, setArrastando] = useState(false);
-  const [importando, setImportando] = useState(false);
-  const [resultadoMsg, setResultadoMsg] = useState({ tipo: '', texto: '' });
 
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const URL = "https://dpndtwutvkaxrxrkyeyw.supabase.co";
   const KEY = "sb_publishable_6Ss9lNdcbyeE2o3U5jcJ7w_qI61wmIr";
 
-  // ==========================================
-  // LÓGICA DE IMPORTAÇÃO EXCEL
-  // ==========================================
-  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setArrastando(true); };
-  const handleDragLeave = () => setArrastando(false);
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setArrastando(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setFicheiroExcel(e.dataTransfer.files[0]);
-      setResultadoMsg({ tipo: '', texto: '' });
-    }
-  };
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFicheiroExcel(e.target.files[0]);
-      setResultadoMsg({ tipo: '', texto: '' });
-    }
-  };
-
-  const processarFicheiro = async () => {
-    if (!ficheiroExcel) return;
-    setImportando(true);
-    setResultadoMsg({ tipo: 'loading', texto: 'A ler ficheiro Excel...' });
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        
-        // Converte o Excel num array de objetos (JSON)
-        const json: any[] = XLSX.utils.sheet_to_json(worksheet);
-
-        if (json.length === 0) {
-          setResultadoMsg({ tipo: 'erro', texto: 'O ficheiro Excel está vazio.' });
-          setImportando(false);
-          return;
-        }
-
-        setResultadoMsg({ tipo: 'loading', texto: `A processar ${json.length} registos. A enviar para a base de dados...` });
-
-        // Mapeamento EXATO das colunas que você mandou na imagem
-        const payload = json.map((row) => ({
-          matricula: String(row['Matricula'] || row['MATRICULA'] || '').trim(),
-          nome_completo: String(row['Nome completo'] || row['NOME COMPLETO'] || row['Nome Completo'] || '').trim().toUpperCase(),
-          cpf: String(row['CPF'] || '').trim(),
-          rg: String(row['RG'] || '').trim(),
-          desc_funcao: String(row['Desc.Funcao'] || row['DESC.FUNCAO'] || row['Desc. Funcao'] || '').trim().toUpperCase(),
-        })).filter(row => row.matricula && row.nome_completo); // Só envia se tiver matrícula e nome
-
-        if (payload.length === 0) {
-          setResultadoMsg({ tipo: 'erro', texto: 'Nenhum dado válido encontrado. Verifique o nome das colunas.' });
-          setImportando(false);
-          return;
-        }
-
-        // Envia para o Supabase (O 'resolution=merge-duplicates' faz o Upsert automático)
-        const response = await fetch(`${URL}/rest/v1/colaboradores`, {
-          method: 'POST',
-          headers: {
-            'apikey': KEY,
-            'Authorization': `Bearer ${KEY}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'resolution=merge-duplicates' 
-          },
-          body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-          throw new Error('Falha ao comunicar com o servidor.');
-        }
-
-        setResultadoMsg({ tipo: 'sucesso', texto: `${payload.length} colaboradores importados/atualizados com sucesso!` });
-        setTimeout(() => setFicheiroExcel(null), 3000); // Limpa o ficheiro após 3 segundos
-
-      } catch (error) {
-        console.error(error);
-        setResultadoMsg({ tipo: 'erro', texto: 'Ocorreu um erro ao importar os dados. Verifique a sua ligação.' });
-      } finally {
-        setImportando(false);
-      }
-    };
-    reader.readAsArrayBuffer(ficheiroExcel);
-  };
-
-  // ==========================================
-  // RESTANTE DA LÓGICA (CRACHÁS E CÂMERA)
-  // ==========================================
   const handleBusca = async (e: React.FormEvent) => {
     e.preventDefault();
     setErro('');
@@ -202,6 +107,20 @@ export default function PortalRH() {
     return `${dataFormatada} ${horaFormatada}`;
   };
 
+  // Funções de Arrastar e Soltar (Drag and Drop)
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setArrastando(true); };
+  const handleDragLeave = () => setArrastando(false);
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setArrastando(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      setFicheiroExcel(e.dataTransfer.files[0]);
+    }
+  };
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) setFicheiroExcel(e.target.files[0]);
+  };
+
   return (
     <div className="flex h-screen bg-[#eceff1] font-poppins text-[#263238] overflow-hidden screen-only">
       
@@ -251,29 +170,40 @@ export default function PortalRH() {
                   <div className="w-14 h-14 rounded-full bg-[#e3f2fd] flex items-center justify-center text-[#023A58] text-2xl"><i className="fas fa-users"></i></div>
                   <div><p className="text-sm text-slate-500 font-semibold uppercase tracking-wide">Total na Base</p><h3 className="text-3xl font-bold text-[#263238]">0</h3></div>
                 </div>
+                <div className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm flex items-center gap-5 border-l-4 border-l-[#2ecc71]">
+                  <div className="w-14 h-14 rounded-full bg-[#e8f5e9] flex items-center justify-center text-[#2ecc71] text-2xl"><i className="fas fa-id-card"></i></div>
+                  <div><p className="text-sm text-slate-500 font-semibold uppercase tracking-wide">Crachás Emitidos</p><h3 className="text-3xl font-bold text-[#263238]">0</h3></div>
+                </div>
+                <div className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm flex items-center gap-5 border-l-4 border-l-[#f39c12]">
+                  <div className="w-14 h-14 rounded-full bg-[#fff8e1] flex items-center justify-center text-[#f39c12] text-2xl"><i className="fas fa-link"></i></div>
+                  <div><p className="text-sm text-slate-500 font-semibold uppercase tracking-wide">QR Codes Ativos</p><h3 className="text-3xl font-bold text-[#263238]">0</h3></div>
+                </div>
               </div>
             </div>
           )}
 
-          {/* === ABA DE IMPORTAÇÃO COM O MOTOR LIGADO === */}
+          {/* NOVA ABA: IMPORTAÇÃO EXCEL */}
           {abaAtiva === 'importacao' && (
             <div className="animation-fade-in max-w-4xl mx-auto hide-on-print">
               <div className="bg-white rounded-xl border border-[#cfd8dc] shadow-sm overflow-hidden">
                 <div className="p-6 border-b border-[#eceff1] bg-[#fafafa]">
                   <h3 className="font-bold text-[#023A58] text-lg"><i className="fas fa-upload mr-2"></i> Importação de Colaboradores em Lote</h3>
-                  <p className="text-sm text-slate-500 mt-1">Carregue a base de dados do sistema principal (XLSX, CSV) para atualizar o SGSO Premium automaticamente.</p>
+                  <p className="text-sm text-slate-500 mt-1">Carregue a base de dados do sistema principal para atualizar o SGSO Premium automaticamente.</p>
                 </div>
                 
                 <div className="p-8">
+                  {/* Área de Drag and Drop */}
                   <div 
-                    onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
                     className={`border-2 border-dashed rounded-xl p-10 flex flex-col items-center justify-center transition-all cursor-pointer
                       ${arrastando ? 'border-[#2ecc71] bg-[#e8f5e9]' : 'border-[#b0bec5] bg-[#f8f9fa] hover:bg-[#eceff1]'}`}
                   >
                     <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center text-[#035B8B] text-4xl shadow-sm mb-4">
                       <i className="fas fa-file-excel"></i>
                     </div>
-                    <h4 className="text-lg font-bold text-[#023A58] mb-2">Arraste e solte a planilha Excel aqui</h4>
+                    <h4 className="text-lg font-bold text-[#023A58] mb-2">Arraste e solte o ficheiro Excel aqui</h4>
                     <p className="text-sm text-slate-500 mb-6">ou clique no botão abaixo para selecionar do seu computador.</p>
                     
                     <label className="bg-[#023A58] text-white px-8 py-3 rounded-lg font-bold hover:bg-[#035B8B] transition-colors shadow-sm cursor-pointer">
@@ -282,6 +212,7 @@ export default function PortalRH() {
                     </label>
                   </div>
 
+                  {/* Pré-visualização do Ficheiro Selecionado */}
                   {ficheiroExcel && (
                     <div className="mt-8 p-4 bg-[#e8f5e9] border border-[#2ecc71] rounded-lg flex items-center justify-between">
                       <div className="flex items-center gap-4">
@@ -292,37 +223,24 @@ export default function PortalRH() {
                         </div>
                       </div>
                       <div className="flex gap-3">
-                        <button onClick={() => {setFicheiroExcel(null); setResultadoMsg({tipo: '', texto: ''})}} disabled={importando} className="px-4 py-2 text-sm font-bold text-[#e74c3c] hover:bg-[#ffebee] rounded-lg transition-colors disabled:opacity-50">Remover</button>
-                        <button onClick={processarFicheiro} disabled={importando} className="px-6 py-2 text-sm font-bold bg-[#2ecc71] text-white rounded-lg hover:bg-[#27ae60] transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2">
-                          {importando ? <><i className="fas fa-spinner fa-spin"></i> Processando...</> : <><i className="fas fa-database"></i> Enviar para Base</>}
+                        <button onClick={() => setFicheiroExcel(null)} className="px-4 py-2 text-sm font-bold text-[#e74c3c] hover:bg-[#ffebee] rounded-lg transition-colors">Remover</button>
+                        <button className="px-6 py-2 text-sm font-bold bg-[#2ecc71] text-white rounded-lg hover:bg-[#27ae60] transition-colors shadow-sm">
+                          Processar Dados <i className="fas fa-arrow-right ml-2"></i>
                         </button>
                       </div>
                     </div>
                   )}
 
-                  {/* Mensagens de Feedback */}
-                  {resultadoMsg.texto && (
-                    <div className={`mt-6 p-4 rounded-lg flex items-center gap-3 font-medium border
-                      ${resultadoMsg.tipo === 'sucesso' ? 'bg-[#e8f5e9] text-[#27ae60] border-[#2ecc71]' : ''}
-                      ${resultadoMsg.tipo === 'erro' ? 'bg-[#fdeced] text-[#c0392b] border-[#e74c3c]' : ''}
-                      ${resultadoMsg.tipo === 'loading' ? 'bg-[#e3f2fd] text-[#035B8B] border-[#3498db]' : ''}
-                    `}>
-                      {resultadoMsg.tipo === 'sucesso' && <i className="fas fa-check-circle text-xl"></i>}
-                      {resultadoMsg.tipo === 'erro' && <i className="fas fa-exclamation-circle text-xl"></i>}
-                      {resultadoMsg.tipo === 'loading' && <i className="fas fa-sync fa-spin text-xl"></i>}
-                      {resultadoMsg.texto}
-                    </div>
-                  )}
-
+                  {/* Informações de Layout (Instruções) */}
                   <div className="mt-8 bg-[#fff8e1] border border-[#f39c12] rounded-lg p-5">
-                    <h4 className="font-bold text-[#d35400] mb-2 flex items-center gap-2"><i className="fas fa-info-circle"></i> Padrão Automático Identificado</h4>
-                    <p className="text-sm text-[#7f8c8d] mb-3">O sistema já está configurado para ler automaticamente o modelo de extração oficial da Dínamo. Colunas detectadas:</p>
+                    <h4 className="font-bold text-[#d35400] mb-2 flex items-center gap-2"><i className="fas fa-info-circle"></i> Padrão do Ficheiro</h4>
+                    <p className="text-sm text-[#7f8c8d] mb-3">Para garantir que a importação funciona perfeitamente, a primeira linha do seu ficheiro Excel deve conter os seguintes cabeçalhos:</p>
                     <div className="flex flex-wrap gap-2">
-                      <span className="bg-white px-3 py-1 rounded text-xs font-bold border border-[#f39c12] text-[#d35400]">Matricula</span>
-                      <span className="bg-white px-3 py-1 rounded text-xs font-bold border border-[#f39c12] text-[#d35400]">Nome completo</span>
+                      <span className="bg-white px-3 py-1 rounded text-xs font-bold border border-[#f39c12] text-[#d35400]">NOME_COMPLETO</span>
+                      <span className="bg-white px-3 py-1 rounded text-xs font-bold border border-[#f39c12] text-[#d35400]">MATRICULA</span>
                       <span className="bg-white px-3 py-1 rounded text-xs font-bold border border-[#f39c12] text-[#d35400]">CPF</span>
                       <span className="bg-white px-3 py-1 rounded text-xs font-bold border border-[#f39c12] text-[#d35400]">RG</span>
-                      <span className="bg-white px-3 py-1 rounded text-xs font-bold border border-[#f39c12] text-[#d35400]">Desc.Funcao</span>
+                      <span className="bg-white px-3 py-1 rounded text-xs font-bold border border-[#f39c12] text-[#d35400]">DESC_FUNCAO</span>
                     </div>
                   </div>
 
@@ -365,6 +283,7 @@ export default function PortalRH() {
                     </div>
 
                     <div className="flex flex-col md:flex-row gap-8 justify-center items-center bg-[#f8f9fa] p-8 rounded-lg overflow-x-auto print-container border border-[#eceff1]">
+                      {/* FRENTE */}
                       <div className="cracha-card w-[54mm] h-[86mm] bg-white relative flex flex-col items-center overflow-hidden box-border" style={{ border: '1px solid #ccc' }}>
                         <div className="mt-[4mm] w-[26mm] h-[35mm] flex items-center justify-center overflow-hidden z-10 border border-slate-300 bg-white">
                           {fotoCapturada && <img src={fotoCapturada} className="w-full h-full object-cover" alt="Foto" />}
@@ -378,6 +297,7 @@ export default function PortalRH() {
                         <div className="absolute bottom-[13mm] left-[1mm] z-10 w-[24mm] h-[8mm] flex items-center justify-start"><img src="/dinamo.png" className="max-h-full max-w-full object-contain" alt="Dínamo" /></div>
                       </div>
 
+                      {/* VERSO */}
                       <div className="cracha-card w-[54mm] h-[86mm] bg-white relative p-[2mm] flex flex-col box-border" style={{ border: '1px solid #ccc' }}>
                         <div className="mt-[2mm] w-full flex flex-col gap-[3mm]">
                           <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span><div className="text-[7.5px] text-black font-semibold uppercase">{colaborador.nome_completo}</div></div>
