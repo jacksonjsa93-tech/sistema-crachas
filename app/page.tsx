@@ -82,6 +82,14 @@ export default function PainelRH() {
     return `${partes[0]} ${partes[partes.length - 1]}`;
   };
 
+  // Gerador de Data e Hora no formato dd/mm/aa hh:mm
+  const obterDataHoraAtual = () => {
+    const data = new Date();
+    const dataFormatada = data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    const horaFormatada = data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    return `${dataFormatada} ${horaFormatada}`;
+  };
+
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 p-8 font-sans screen-only">
       <div className="max-w-6xl mx-auto">
@@ -161,71 +169,78 @@ export default function PainelRH() {
                      <img src="/Imagem1.png" className="w-full h-full object-fill" alt="Fundo" />
                   </div>
 
-                  {/* LOGO DÍNAMO: Puxada totalmente para a esquerda (left-[1mm]) */}
                   <div className="absolute bottom-[13mm] left-[1mm] z-10 w-[24mm] h-[8mm] flex items-center justify-start">
                     <img src="/dinamo.png" className="max-h-full max-w-full object-contain" alt="Dínamo" />
                   </div>
 
                 </div>
 
-                {/* --- VERSO --- */}
-                <div className="cracha-card w-[54mm] h-[86mm] bg-white relative flex flex-col box-border" style={{ padding: '2mm', border: '1px solid #ccc' }}>
+                {/* --- VERSO NOVO (BASEADO NA IMAGEM DE REFERÊNCIA) --- */}
+                <div className="cracha-card w-[54mm] h-[86mm] bg-white relative p-[2mm] flex flex-col box-border" style={{ border: '1px solid #ccc' }}>
                   
-                  <div className="mt-[1mm] w-full relative z-10">
+                  <div className="mt-[2mm] w-full flex flex-col gap-[3mm]">
                     
-                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0 w-full">
-                      <legend className="text-[6px] font-bold px-[1mm] ml-[1mm] text-black leading-none">Nome</legend>
-                      <div className="text-[8px] text-black font-semibold uppercase leading-none">{colaborador.nome_completo}</div>
-                    </fieldset>
-
-                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0 w-full">
-                      <legend className="text-[6px] font-bold px-[1mm] ml-[1mm] text-black leading-none">CPF</legend>
-                      <div className="text-[8px] text-black font-semibold uppercase leading-none">{colaborador.cpf || '000.000.000-00'}</div>
-                    </fieldset>
-
-                    {/* Largura ajustada para 60% para não invadir o QR Code Gigante */}
-                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0 w-[60%]">
-                      <legend className="text-[6px] font-bold px-[1mm] ml-[1mm] text-black leading-none">Função</legend>
-                      <div className="text-[7.5px] text-black font-semibold uppercase leading-none truncate">{colaborador.desc_funcao}</div>
-                    </fieldset>
-
-                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0 w-[60%]">
-                      <legend className="text-[6px] font-bold px-[1mm] ml-[1mm] text-black leading-none">Car. Identidade</legend>
-                      <div className="text-[8px] text-black font-semibold uppercase leading-none">{colaborador.rg || '0000000000'}</div>
-                    </fieldset>
-
-                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0 w-[60%]">
-                      <legend className="text-[6px] font-bold px-[1mm] ml-[1mm] text-black leading-none">Matrícula</legend>
-                      <div className="text-[8px] text-black font-semibold uppercase leading-none">{String(colaborador.matricula).padStart(8, '0')}</div>
-                    </fieldset>
-
-                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0 w-[60%]">
-                      <legend className="text-[6px] font-bold px-[1mm] ml-[1mm] text-black leading-none">Empresa</legend>
-                      <div className="text-[8px] text-black font-semibold uppercase leading-none">DÍNAMO ENGENHARIA</div>
-                    </fieldset>
-
-                  </div>
-
-                  {/* QR Code MAIOR (19mm) posicionado no alto à direita */}
-                  <div className="absolute right-[2mm] top-[21mm] bg-white border border-slate-300 p-[0.5mm] z-10 w-[19mm] h-[19mm]">
-                    <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://sgso.dinamo.srv.br/colaborador/${colaborador.matricula}`} 
-                      className="w-full h-full object-contain"
-                      alt="QR Code"
-                    />
-                  </div>
-
-                  {/* Texto do Rodapé: Maior, Mais em cima e Centralizado */}
-                  <div className="absolute bottom-[4.5mm] left-[1mm] right-[1mm] z-0 flex flex-col items-center">
-                    <div className="text-[6.5px] text-black leading-[1.2] mb-[2mm] text-center font-medium px-[1mm]">
-                      Este crachá é de uso pessoal e intransferível. O colaborador terceiro deverá usá-lo obrigatoriamente nas dependências do Grupo Equatorial Energia ou fora dela a seu serviço. Em caso de perda, por favor comunicar imediatamente o departamento pessoal ao setor de Segurança Empresarial.
+                    {/* Linha 1: Nome (100% de largura, centralizado) */}
+                    <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full">
+                      <span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span>
+                      <div className="text-[7.5px] text-black font-semibold uppercase">{colaborador.nome_completo}</div>
                     </div>
-                    <div className="text-center w-full">
-                      <div className="text-[6.5px] font-bold text-black">www.dinamo.srv.br</div>
-                      <div className="text-[6px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div>
-                      <div className="text-[6px] text-black font-bold text-center mt-[0.5mm]">
-                        Emitido em: {new Date().toLocaleDateString('pt-BR')}
-                      </div>
+
+                    {/* Linha 2: CPF (100% de largura, centralizado) */}
+                    <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full">
+                      <span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">CPF</span>
+                      <div className="text-[8px] text-black font-semibold uppercase">{colaborador.cpf || '000.000.000-00'}</div>
+                    </div>
+
+                    {/* Linha 3: Container Flex (3 Caixas Empilhadas + QR Code do lado) */}
+                    <div className="flex w-full gap-[2mm] items-stretch h-[24mm]">
+                       {/* Coluna Esquerda */}
+                       <div className="flex flex-col flex-1 justify-between">
+                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full">
+                            <span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Função</span>
+                            <div className="text-[7px] text-black font-semibold uppercase truncate px-1">{colaborador.desc_funcao}</div>
+                          </div>
+                          
+                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full">
+                            <span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Car. Identidade</span>
+                            <div className="text-[8px] text-black font-semibold uppercase">{colaborador.rg || '0000000000'}</div>
+                          </div>
+                          
+                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full">
+                            <span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Matrícula</span>
+                            <div className="text-[8px] text-black font-semibold uppercase">{String(colaborador.matricula).padStart(8, '0')}</div>
+                          </div>
+                       </div>
+
+                       {/* Coluna Direita (QR Code Gigante) */}
+                       <div className="w-[24mm] flex-shrink-0 flex items-center justify-center">
+                          <img 
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://sgso.dinamo.srv.br/colaborador/${colaborador.matricula}`} 
+                            className="w-full h-full object-contain"
+                            alt="QR Code"
+                          />
+                       </div>
+                    </div>
+
+                    {/* Linha 4: Empresa (100% de largura, centralizado) */}
+                    <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full">
+                      <span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Empresa</span>
+                      <div className="text-[8px] text-black font-semibold uppercase">DINAMO ENGENHARIA</div>
+                    </div>
+
+                  </div>
+
+                  {/* Textos de Rodapé Oficiais (Iguais à imagem nova) */}
+                  <div className="absolute bottom-[2mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center">
+                    <div className="text-[7px] text-black leading-[1.3] mb-[3mm] text-center font-medium w-full">
+                      Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.
+                    </div>
+                    <div className="text-center w-full mb-[1mm]">
+                      <div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div>
+                      <div className="text-[6.5px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div>
+                    </div>
+                    <div className="text-[5.5px] text-black font-bold text-right w-full mt-[1mm]">
+                      Emitido em: {obterDataHoraAtual()}
                     </div>
                   </div>
 
