@@ -146,11 +146,11 @@ export default function PainelRH() {
                 {/* --- FRENTE --- */}
                 <div className="cracha-card w-[54mm] h-[86mm] bg-white relative flex flex-col items-center overflow-hidden" style={{ border: '1px solid #ccc' }}>
                   
-                  <div className="mt-[8mm] w-[26mm] h-[35mm] flex items-center justify-center overflow-hidden z-10 border border-slate-300">
+                  <div className="mt-[7mm] w-[26mm] h-[35mm] flex items-center justify-center overflow-hidden z-10 border border-slate-300">
                     {fotoCapturada && <img src={fotoCapturada} className="w-full h-full object-cover" alt="Foto" />}
                   </div>
                   
-                  <div className="mt-4 text-center z-10 w-full px-2">
+                  <div className="mt-[3mm] text-center z-10 w-full px-2">
                     <div className="text-[#051e42] font-black text-[18px] leading-[1.0]" style={{ fontFamily: 'Arial, sans-serif' }}>
                       {formatarNomeCurto(colaborador.nome_completo).split(' ')[0]}<br/>
                       {formatarNomeCurto(colaborador.nome_completo).split(' ')[1] || ''}
@@ -158,21 +158,21 @@ export default function PainelRH() {
                   </div>
 
                   {/* Fundo Imagem1.png ocupando toda a base */}
-                  <div className="absolute bottom-0 left-0 w-full h-[28mm] z-0">
+                  <div className="absolute bottom-0 left-0 w-full h-[32mm] z-0">
                      <img src="/Imagem1.png" className="w-full h-full object-fill" alt="Fundo" />
                   </div>
 
-                  {/* Logo da Dínamo sobreposta na Imagem1.png do lado esquerdo */}
-                  <div className="absolute bottom-[5mm] left-[4mm] z-10 w-[20mm] h-[8mm] flex items-center justify-center">
+                  {/* Logo da Dínamo alinhada com a Equatorial. Se precisar subir ou descer, altere o valor do "bottom-[8.5mm]" */}
+                  <div className="absolute bottom-[8.5mm] left-[5mm] z-10 w-[20mm] h-[6mm] flex items-center justify-start">
                     <img src="/dinamo.png" className="max-h-full max-w-full object-contain" alt="Dínamo" />
                   </div>
 
                 </div>
 
                 {/* --- VERSO --- */}
-                <div className="cracha-card w-[54mm] h-[86mm] bg-white relative p-[3mm] flex flex-col" style={{ border: '1px solid #ccc' }}>
+                <div className="cracha-card w-[54mm] h-[86mm] bg-white relative flex flex-col box-border" style={{ padding: '3mm', border: '1px solid #ccc' }}>
                   
-                  <div className="mt-[1mm] w-full pr-[1mm]">
+                  <div className="mt-[1mm] w-full">
                     
                     <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0">
                       <legend className="text-[6px] font-bold px-[1mm] ml-[1mm] text-black leading-none">Nome</legend>
@@ -199,23 +199,25 @@ export default function PainelRH() {
                       <div className="text-[8px] text-black font-semibold uppercase leading-none">{String(colaborador.matricula).padStart(8, '0')}</div>
                     </fieldset>
 
-                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0 w-full">
+                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0 w-[65%]">
                       <legend className="text-[6px] font-bold px-[1mm] ml-[1mm] text-black leading-none">Empresa</legend>
                       <div className="text-[8px] text-black font-semibold uppercase leading-none">DÍNAMO ENGENHARIA</div>
                     </fieldset>
 
                   </div>
 
-                  <div className="absolute right-[3mm] bottom-[16mm] bg-white border border-slate-300 p-[0.5mm]">
+                  {/* QR Code perfeitamente alinhado à direita e tamanho travado */}
+                  <div className="absolute right-[3mm] bottom-[15mm] bg-white border border-slate-300 p-[0.5mm] z-10 w-[14mm] h-[14mm]">
                     <img 
                       src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https://sgso.dinamo.srv.br/colaborador/${colaborador.matricula}`} 
-                      className="w-[13mm] h-[13mm]"
+                      className="w-full h-full object-contain"
                       alt="QR Code"
                     />
                   </div>
 
-                  <div className="absolute bottom-[2mm] left-[3mm] w-[48mm]">
-                    <div className="text-[5.5px] text-black leading-[1.1] mb-[2mm] text-justify pr-[16mm] font-medium">
+                  {/* Rodapé - Adicionado o "pr-[18mm]" que atua como parede para o texto não invadir o QR Code */}
+                  <div className="absolute bottom-[2mm] left-[3mm] w-[48mm] z-0">
+                    <div className="text-[5px] text-black leading-tight mb-[2mm] text-justify font-medium pr-[18mm]">
                       Este crachá é de uso pessoal e intransferível. O colaborador terceiro deverá usá-lo obrigatoriamente nas dependências do Grupo Equatorial Energia ou fora dela a seu serviço. Em caso de perda, por favor comunicar imediatamente o setor de Segurança Empresarial.
                     </div>
                     <div className="text-center w-full">
@@ -237,6 +239,7 @@ export default function PainelRH() {
 
       <style jsx global>{`
         @media print {
+          /* Esconde tudo do site */
           body * { visibility: hidden; }
           .print-container, .print-container * { visibility: visible; }
           
@@ -245,7 +248,10 @@ export default function PainelRH() {
             margin: 0 !important;
           }
 
-          body, html {
+          /* Tira margens fantasmas do Chrome */
+          html, body {
+            width: 54mm !important;
+            height: 86mm !important;
             margin: 0 !important;
             padding: 0 !important;
             background: white !important;
@@ -255,11 +261,10 @@ export default function PainelRH() {
             position: absolute;
             left: 0;
             top: 0;
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            gap: 0;
+            width: 54mm;
+            display: block !important;
             padding: 0 !important;
+            margin: 0 !important;
             background: transparent !important;
           }
 
@@ -268,16 +273,18 @@ export default function PainelRH() {
             print-color-adjust: exact !important;
             width: 54mm !important;
             height: 86mm !important;
+            box-sizing: border-box !important;
             margin: 0 !important;
             border: none !important;
             box-shadow: none !important;
-            page-break-after: always !important;
             page-break-inside: avoid !important;
+            page-break-after: always !important;
             overflow: hidden !important;
+            float: none !important;
           }
 
-          /* TRAVA PARA EVITAR A 3ª PÁGINA EM BRANCO */
-          .cracha-card:last-child {
+          /* ESSA REGRA MATA A TERCEIRA PÁGINA */
+          .cracha-card:last-of-type {
             page-break-after: avoid !important;
           }
         }
