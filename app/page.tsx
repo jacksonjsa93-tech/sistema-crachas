@@ -1,12 +1,11 @@
+/* eslint-disable @next/next/no-img-element */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useState, useRef } from 'react';
 
 export default function PortalRH() {
-  // ==========================================
-  // ESTADOS DO PORTAL RH
-  // ==========================================
-  const [abaAtiva, setAbaAtiva] = useState('dashboard');
+  const [abaAtiva, setAbaAtiva] = useState('emissao'); // Já vai abrir direto na aba de Emissão para você testar
 
   const menuItens = [
     { id: 'dashboard', nome: 'Painel de Controlo', icone: 'fa-chart-pie' },
@@ -18,9 +17,6 @@ export default function PortalRH() {
     { id: 'configuracoes', nome: 'Configurações', icone: 'fa-cogs' },
   ];
 
-  // ==========================================
-  // ESTADOS E FUNÇÕES DA EMISSÃO DE CRACHÁS
-  // ==========================================
   const [busca, setBusca] = useState('');
   const [colaborador, setColaborador] = useState<any>(null);
   const [erro, setErro] = useState('');
@@ -107,22 +103,17 @@ export default function PortalRH() {
     return `${dataFormatada} ${horaFormatada}`;
   };
 
-  // ==========================================
-  // RENDERIZAÇÃO DO SISTEMA
-  // ==========================================
   return (
     <div className="flex h-screen bg-[#eceff1] font-poppins text-[#263238] overflow-hidden screen-only">
       
-      {/* --- MENU LATERAL (SIDEBAR) --- */}
+      {/* MENU LATERAL */}
       <aside className="w-64 flex flex-col shadow-xl z-20 hide-on-print" style={{ backgroundColor: '#023A58' }}>
         <div className="h-20 flex items-center justify-center border-b border-[#035B8B] px-4">
-          <img src="/logodinamobranca.png" alt="Dínamo Engenharia" className="max-h-12 object-contain drop-shadow-md" />
+          <img src="/logodinamobranca.png" alt="Dínamo" className="max-h-12 object-contain drop-shadow-md" />
         </div>
 
         <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-2 custom-scrollbar">
-          <div className="text-[#90a4ae] text-xs font-bold uppercase tracking-wider mb-4 px-3">
-            Gestão Operacional
-          </div>
+          <div className="text-[#90a4ae] text-xs font-bold uppercase tracking-wider mb-4 px-3">Gestão Operacional</div>
           {menuItens.map((item) => (
             <button
               key={item.id}
@@ -145,10 +136,10 @@ export default function PortalRH() {
         </div>
       </aside>
 
-      {/* --- ÁREA PRINCIPAL --- */}
+      {/* ÁREA PRINCIPAL */}
       <main className="flex-1 flex flex-col relative overflow-hidden print-main-adjust">
         
-        {/* CABEÇALHO */}
+        {/* HEADER */}
         <header className="h-20 bg-white shadow-sm border-b border-[#cfd8dc] flex items-center justify-between px-8 z-10 hide-on-print">
           <div>
             <h2 className="text-xl font-bold text-[#023A58] flex items-center gap-2">
@@ -159,9 +150,7 @@ export default function PortalRH() {
           
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-3 bg-[#f8f9fa] px-4 py-2 rounded-full border border-[#eceff1]">
-              <div className="w-8 h-8 rounded-full bg-[#035B8B] flex items-center justify-center text-white font-bold shadow-sm">
-                JA
-              </div>
+              <div className="w-8 h-8 rounded-full bg-[#035B8B] flex items-center justify-center text-white font-bold shadow-sm">JA</div>
               <div className="flex flex-col">
                 <span className="text-sm font-bold text-[#023A58] leading-tight">Jackson Abreu</span>
                 <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Coord. Operacional</span>
@@ -173,10 +162,9 @@ export default function PortalRH() {
           </div>
         </header>
 
-        {/* CONTEÚDO DINÂMICO DAS ABAS */}
+        {/* CONTEÚDO DAS ABAS */}
         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar print-padding-remove">
           
-          {/* 1. ABA DASHBOARD */}
           {abaAtiva === 'dashboard' && (
             <div className="space-y-6 animation-fade-in hide-on-print">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -193,21 +181,9 @@ export default function PortalRH() {
                   <div><p className="text-sm text-slate-500 font-semibold uppercase tracking-wide">QR Codes Ativos</p><h3 className="text-3xl font-bold text-[#263238]">0</h3></div>
                 </div>
               </div>
-
-              <div className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm">
-                <div className="flex justify-between items-center mb-4 border-b border-[#eceff1] pb-4">
-                  <h3 className="font-bold text-[#023A58] text-lg">Últimas Movimentações</h3>
-                  <button className="text-sm text-[#035B8B] font-semibold hover:underline">Ver Histórico Completo</button>
-                </div>
-                <div className="text-center py-10 text-slate-400">
-                  <i className="fas fa-inbox text-4xl mb-3 opacity-50"></i>
-                  <p>Nenhuma movimentação registada no momento.</p>
-                </div>
-              </div>
             </div>
           )}
 
-          {/* 2. ABA EMISSÃO DE CRACHÁS (O nosso módulo milimétrico) */}
           {abaAtiva === 'emissao' && (
             <div className="animation-fade-in max-w-6xl mx-auto">
               <form onSubmit={handleBusca} className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm mb-8 flex gap-4 items-end hide-on-print">
@@ -224,7 +200,6 @@ export default function PortalRH() {
 
               {colaborador && (
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                  {/* Controlo de Câmara */}
                   <div className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm flex flex-col items-center hide-on-print">
                     <h3 className="text-lg font-bold text-[#023A58] mb-4 w-full border-b border-[#eceff1] pb-2">Controlo da Fotografia</h3>
                     <div className="w-48 h-64 bg-[#f8f9fa] border-2 border-dashed border-[#b0bec5] rounded-lg overflow-hidden relative flex items-center justify-center mb-4">
@@ -249,7 +224,6 @@ export default function PortalRH() {
                     </div>
                   </div>
 
-                  {/* Visualização de Impressão CR80 */}
                   <div className="xl:col-span-2 bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm">
                     <div className="flex justify-between items-center mb-6 border-b border-[#eceff1] pb-4 hide-on-print">
                       <h3 className="text-lg font-bold text-[#023A58]">Visualização (Cartão CR80)</h3>
@@ -264,7 +238,7 @@ export default function PortalRH() {
 
                     <div className="flex flex-col md:flex-row gap-8 justify-center items-center bg-[#f8f9fa] p-8 rounded-lg overflow-x-auto print-container border border-[#eceff1]">
                       
-                      {/* --- FRENTE --- */}
+                      {/* FRENTE */}
                       <div className="cracha-card w-[54mm] h-[86mm] bg-white relative flex flex-col items-center overflow-hidden box-border" style={{ border: '1px solid #ccc' }}>
                         <div className="mt-[4mm] w-[26mm] h-[35mm] flex items-center justify-center overflow-hidden z-10 border border-slate-300 bg-white">
                           {fotoCapturada && <img src={fotoCapturada} className="w-full h-full object-cover" alt="Foto" />}
@@ -283,7 +257,7 @@ export default function PortalRH() {
                         </div>
                       </div>
 
-                      {/* --- VERSO --- */}
+                      {/* VERSO */}
                       <div className="cracha-card w-[54mm] h-[86mm] bg-white relative p-[2mm] flex flex-col box-border" style={{ border: '1px solid #ccc' }}>
                         <div className="mt-[2mm] w-full flex flex-col gap-[3mm]">
                           <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full">
@@ -322,7 +296,7 @@ export default function PortalRH() {
                             <div className="text-[8px] text-black font-semibold uppercase">DINAMO ENGENHARIA</div>
                           </div>
                         </div>
-                        <div className="absolute bottom-[2mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center">
+                        <div className="absolute bottom-[2mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center p-b[2mm]">
                           <div className="text-[7px] text-black leading-[1.3] mb-[3mm] text-center font-medium w-[47mm]">
                             Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.
                           </div>
@@ -343,109 +317,41 @@ export default function PortalRH() {
             </div>
           )}
 
-          {/* OUTRAS ABAS (Placeholders) */}
           {['colaboradores', 'cadastro', 'importacao', 'qrcode', 'configuracoes'].includes(abaAtiva) && (
             <div className="bg-white p-10 rounded-xl border border-[#cfd8dc] shadow-sm text-center animation-fade-in flex flex-col items-center justify-center min-h-[400px]">
               <div className="w-20 h-20 bg-[#e3f2fd] rounded-full flex items-center justify-center text-[#023A58] text-3xl mb-4">
                 <i className={`fas ${menuItens.find(m => m.id === abaAtiva)?.icone}`}></i>
               </div>
               <h2 className="text-2xl font-bold text-[#263238] mb-2">Módulo em Construção</h2>
-              <p className="text-slate-500 max-w-md">
-                O ecrã de <strong>{menuItens.find(m => m.id === abaAtiva)?.nome}</strong> será integrado em breve nesta área, seguindo o padrão visual do SGSO Premium.
-              </p>
+              <p className="text-slate-500 max-w-md">O ecrã de <strong>{menuItens.find(m => m.id === abaAtiva)?.nome}</strong> será integrado em breve.</p>
             </div>
           )}
 
         </div>
       </main>
 
-      {/* --- ESTILOS GLOBAIS E DE IMPRESSÃO --- */}
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
         @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css');
         
         .font-poppins { font-family: 'Poppins', sans-serif; }
-
-        .animation-fade-in {
-          animation: fadeIn 0.4s ease-out forwards;
-        }
-
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
+        .animation-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .custom-scrollbar::-webkit-scrollbar { width: 8px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cfd8dc; border-radius: 20px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #b0bec5; }
 
-        /* MÁGICA DA IMPRESSÃO: Esconde o menu e mostra só o crachá */
         @media print {
           body * { visibility: hidden; }
           .hide-on-print { display: none !important; }
-          
           .print-container, .print-container * { visibility: visible; }
-          
-          @page {
-            size: 54mm 86mm;
-            margin: 0 !important;
-          }
-
-          html, body {
-            width: 54mm !important;
-            height: 86mm !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            background: white !important;
-            overflow: hidden !important;
-          }
-
-          .print-main-adjust {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 54mm !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            overflow: visible !important;
-          }
-
-          .print-padding-remove {
-            padding: 0 !important;
-            overflow: visible !important;
-          }
-
-          .print-container {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 54mm !important;
-            display: block !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            background: transparent !important;
-            border: none !important;
-          }
-
-          .cracha-card {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            width: 54mm !important;
-            height: 86mm !important;
-            box-sizing: border-box !important;
-            margin: 0 !important;
-            border: none !important;
-            box-shadow: none !important;
-            page-break-inside: avoid !important;
-            page-break-after: always !important;
-            overflow: hidden !important;
-            float: none !important;
-          }
-
-          .cracha-card:last-of-type {
-            page-break-after: avoid !important;
-          }
+          @page { size: 54mm 86mm; margin: 0 !important; }
+          html, body { width: 54mm !important; height: 86mm !important; margin: 0 !important; padding: 0 !important; background: white !important; overflow: hidden !important; }
+          .print-main-adjust { position: absolute !important; left: 0 !important; top: 0 !important; width: 54mm !important; padding: 0 !important; margin: 0 !important; overflow: visible !important; }
+          .print-padding-remove { padding: 0 !important; overflow: visible !important; }
+          .print-container { position: absolute !important; left: 0 !important; top: 0 !important; width: 54mm !important; display: block !important; padding: 0 !important; margin: 0 !important; background: transparent !important; border: none !important; }
+          .cracha-card { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; width: 54mm !important; height: 86mm !important; box-sizing: border-box !important; margin: 0 !important; border: none !important; box-shadow: none !important; page-break-inside: avoid !important; page-break-after: always !important; overflow: hidden !important; float: none !important; }
+          .cracha-card:last-of-type { page-break-after: avoid !important; }
         }
       `}</style>
     </div>
