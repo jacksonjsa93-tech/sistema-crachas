@@ -20,7 +20,7 @@ export default function PainelRH() {
     setCarregando(true);
     
     try {
-const URL = "https://dpndtwtvkaxrxrkyeyw.supabase.co";
+const URL = "https://dpndtwutvkaxrxrkyeyw.supabase.co";
 const KEY = "sb_publishable_6Ss9lNdcbyeE2o3U5jcJ7w_qI61wmIr";
 
       const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${busca}&select=*`, {
