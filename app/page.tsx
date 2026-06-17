@@ -30,9 +30,8 @@ export default function PortalRH() {
 
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  const URL = "https://dpndtwutvkaxrxrkyeyw.supabase.co";
+const URL = "https://dpndtwutvkaxrxrkyeyw.supabase.co";
   const KEY = "sb_publishable_6Ss9lNdcbyeE2o3U5jcJ7w_qI61wmIr";
-
   const handleBusca = async (e: React.FormEvent) => {
     e.preventDefault();
     setErro('');
