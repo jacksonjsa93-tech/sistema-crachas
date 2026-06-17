@@ -5,7 +5,7 @@
 import React, { useState, useRef } from 'react';
 
 export default function PortalRH() {
-  const [abaAtiva, setAbaAtiva] = useState('emissao'); // Já vai abrir direto na aba de Emissão para você testar
+  const [abaAtiva, setAbaAtiva] = useState('importacao'); // Alterado para abrir direto na Importação
 
   const menuItens = [
     { id: 'dashboard', nome: 'Painel de Controlo', icone: 'fa-chart-pie' },
@@ -23,6 +23,10 @@ export default function PortalRH() {
   const [cameraAtiva, setCameraAtiva] = useState(false);
   const [fotoCapturada, setFotoCapturada] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
+
+  // Estados da Importação
+  const [ficheiroExcel, setFicheiroExcel] = useState<File | null>(null);
+  const [arrastando, setArrastando] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -103,6 +107,20 @@ export default function PortalRH() {
     return `${dataFormatada} ${horaFormatada}`;
   };
 
+  // Funções de Arrastar e Soltar (Drag and Drop)
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setArrastando(true); };
+  const handleDragLeave = () => setArrastando(false);
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setArrastando(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      setFicheiroExcel(e.dataTransfer.files[0]);
+    }
+  };
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) setFicheiroExcel(e.target.files[0]);
+  };
+
   return (
     <div className="flex h-screen bg-[#eceff1] font-poppins text-[#263238] overflow-hidden screen-only">
       
@@ -111,29 +129,16 @@ export default function PortalRH() {
         <div className="h-20 flex items-center justify-center border-b border-[#035B8B] px-4">
           <img src="/logodinamobranca.png" alt="Dínamo" className="max-h-12 object-contain drop-shadow-md" />
         </div>
-
         <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-2 custom-scrollbar">
           <div className="text-[#90a4ae] text-xs font-bold uppercase tracking-wider mb-4 px-3">Gestão Operacional</div>
           {menuItens.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setAbaAtiva(item.id)}
+            <button key={item.id} onClick={() => setAbaAtiva(item.id)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 font-medium text-sm
-                ${abaAtiva === item.id 
-                  ? 'bg-[#035B8B] text-white shadow-md transform translate-x-1' 
-                  : 'text-slate-300 hover:bg-[#035B8B]/50 hover:text-white'
-                }`}
-            >
-              <i className={`fas ${item.icone} w-5 text-center text-lg`}></i>
-              {item.nome}
+                ${abaAtiva === item.id ? 'bg-[#035B8B] text-white shadow-md transform translate-x-1' : 'text-slate-300 hover:bg-[#035B8B]/50 hover:text-white'}`}>
+              <i className={`fas ${item.icone} w-5 text-center text-lg`}></i> {item.nome}
             </button>
           ))}
         </nav>
-
-        <div className="p-4 border-t border-[#035B8B] text-center">
-          <div className="text-[10px] text-slate-400 font-medium">SGSO Premium v2.0</div>
-          <div className="text-[10px] text-slate-500">Regional Norte (PA)</div>
-        </div>
       </aside>
 
       {/* ÁREA PRINCIPAL */}
@@ -141,13 +146,9 @@ export default function PortalRH() {
         
         {/* HEADER */}
         <header className="h-20 bg-white shadow-sm border-b border-[#cfd8dc] flex items-center justify-between px-8 z-10 hide-on-print">
-          <div>
-            <h2 className="text-xl font-bold text-[#023A58] flex items-center gap-2">
-              <i className={`fas ${menuItens.find(m => m.id === abaAtiva)?.icone} text-[#035B8B]`}></i>
-              {menuItens.find(m => m.id === abaAtiva)?.nome}
-            </h2>
-          </div>
-          
+          <h2 className="text-xl font-bold text-[#023A58] flex items-center gap-2">
+            <i className={`fas ${menuItens.find(m => m.id === abaAtiva)?.icone} text-[#035B8B]`}></i> {menuItens.find(m => m.id === abaAtiva)?.nome}
+          </h2>
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-3 bg-[#f8f9fa] px-4 py-2 rounded-full border border-[#eceff1]">
               <div className="w-8 h-8 rounded-full bg-[#035B8B] flex items-center justify-center text-white font-bold shadow-sm">JA</div>
@@ -156,9 +157,6 @@ export default function PortalRH() {
                 <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Coord. Operacional</span>
               </div>
             </div>
-            <button className="text-slate-400 hover:text-[#e74c3c] transition-colors text-xl" title="Sair do Sistema">
-              <i className="fas fa-sign-out-alt"></i>
-            </button>
           </div>
         </header>
 
@@ -184,6 +182,73 @@ export default function PortalRH() {
             </div>
           )}
 
+          {/* NOVA ABA: IMPORTAÇÃO EXCEL */}
+          {abaAtiva === 'importacao' && (
+            <div className="animation-fade-in max-w-4xl mx-auto hide-on-print">
+              <div className="bg-white rounded-xl border border-[#cfd8dc] shadow-sm overflow-hidden">
+                <div className="p-6 border-b border-[#eceff1] bg-[#fafafa]">
+                  <h3 className="font-bold text-[#023A58] text-lg"><i className="fas fa-upload mr-2"></i> Importação de Colaboradores em Lote</h3>
+                  <p className="text-sm text-slate-500 mt-1">Carregue a base de dados do sistema principal para atualizar o SGSO Premium automaticamente.</p>
+                </div>
+                
+                <div className="p-8">
+                  {/* Área de Drag and Drop */}
+                  <div 
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    className={`border-2 border-dashed rounded-xl p-10 flex flex-col items-center justify-center transition-all cursor-pointer
+                      ${arrastando ? 'border-[#2ecc71] bg-[#e8f5e9]' : 'border-[#b0bec5] bg-[#f8f9fa] hover:bg-[#eceff1]'}`}
+                  >
+                    <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center text-[#035B8B] text-4xl shadow-sm mb-4">
+                      <i className="fas fa-file-excel"></i>
+                    </div>
+                    <h4 className="text-lg font-bold text-[#023A58] mb-2">Arraste e solte o ficheiro Excel aqui</h4>
+                    <p className="text-sm text-slate-500 mb-6">ou clique no botão abaixo para selecionar do seu computador.</p>
+                    
+                    <label className="bg-[#023A58] text-white px-8 py-3 rounded-lg font-bold hover:bg-[#035B8B] transition-colors shadow-sm cursor-pointer">
+                      Procurar Ficheiro (.xlsx, .csv)
+                      <input type="file" accept=".xlsx, .xls, .csv" className="hidden" onChange={handleFileSelect} />
+                    </label>
+                  </div>
+
+                  {/* Pré-visualização do Ficheiro Selecionado */}
+                  {ficheiroExcel && (
+                    <div className="mt-8 p-4 bg-[#e8f5e9] border border-[#2ecc71] rounded-lg flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <i className="fas fa-check-circle text-[#2ecc71] text-2xl"></i>
+                        <div>
+                          <p className="font-bold text-[#263238]">{ficheiroExcel.name}</p>
+                          <p className="text-xs text-slate-500">{(ficheiroExcel.size / 1024).toFixed(2)} KB pronto para processamento.</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-3">
+                        <button onClick={() => setFicheiroExcel(null)} className="px-4 py-2 text-sm font-bold text-[#e74c3c] hover:bg-[#ffebee] rounded-lg transition-colors">Remover</button>
+                        <button className="px-6 py-2 text-sm font-bold bg-[#2ecc71] text-white rounded-lg hover:bg-[#27ae60] transition-colors shadow-sm">
+                          Processar Dados <i className="fas fa-arrow-right ml-2"></i>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Informações de Layout (Instruções) */}
+                  <div className="mt-8 bg-[#fff8e1] border border-[#f39c12] rounded-lg p-5">
+                    <h4 className="font-bold text-[#d35400] mb-2 flex items-center gap-2"><i className="fas fa-info-circle"></i> Padrão do Ficheiro</h4>
+                    <p className="text-sm text-[#7f8c8d] mb-3">Para garantir que a importação funciona perfeitamente, a primeira linha do seu ficheiro Excel deve conter os seguintes cabeçalhos:</p>
+                    <div className="flex flex-wrap gap-2">
+                      <span className="bg-white px-3 py-1 rounded text-xs font-bold border border-[#f39c12] text-[#d35400]">NOME_COMPLETO</span>
+                      <span className="bg-white px-3 py-1 rounded text-xs font-bold border border-[#f39c12] text-[#d35400]">MATRICULA</span>
+                      <span className="bg-white px-3 py-1 rounded text-xs font-bold border border-[#f39c12] text-[#d35400]">CPF</span>
+                      <span className="bg-white px-3 py-1 rounded text-xs font-bold border border-[#f39c12] text-[#d35400]">RG</span>
+                      <span className="bg-white px-3 py-1 rounded text-xs font-bold border border-[#f39c12] text-[#d35400]">DESC_FUNCAO</span>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+          )}
+
           {abaAtiva === 'emissao' && (
             <div className="animation-fade-in max-w-6xl mx-auto">
               <form onSubmit={handleBusca} className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm mb-8 flex gap-4 items-end hide-on-print">
@@ -203,41 +268,21 @@ export default function PortalRH() {
                   <div className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm flex flex-col items-center hide-on-print">
                     <h3 className="text-lg font-bold text-[#023A58] mb-4 w-full border-b border-[#eceff1] pb-2">Controlo da Fotografia</h3>
                     <div className="w-48 h-64 bg-[#f8f9fa] border-2 border-dashed border-[#b0bec5] rounded-lg overflow-hidden relative flex items-center justify-center mb-4">
-                      {cameraAtiva ? (
-                        <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
-                      ) : fotoCapturada ? (
-                        <img src={fotoCapturada} alt="Pré-visualização" className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="text-slate-400 text-xs text-center px-4 font-medium">Nenhuma foto<br/>capturada.</span>
-                      )}
+                      {cameraAtiva ? <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" /> : fotoCapturada ? <img src={fotoCapturada} alt="Pré-visualização" className="w-full h-full object-cover" /> : <span className="text-slate-400 text-xs text-center px-4 font-medium">Nenhuma foto<br/>capturada.</span>}
                     </div>
                     <div className="w-full space-y-2">
-                      {cameraAtiva ? (
-                        <button onClick={tirarFoto} className="w-full bg-[#2ecc71] hover:bg-[#27ae60] text-white font-bold py-2 rounded-lg shadow-sm">Capturar Foto</button>
-                      ) : (
-                        <button onClick={ligarCamera} className="w-full bg-[#035B8B] hover:bg-[#023A58] text-white font-bold py-2 rounded-lg shadow-sm"><i className="fas fa-camera mr-2"></i> Ligar Câmara</button>
-                      )}
-                      <label className="block w-full bg-[#eceff1] hover:bg-[#cfd8dc] text-[#263238] text-center font-bold py-2 rounded-lg cursor-pointer transition-colors">
-                        <i className="fas fa-upload mr-2"></i> Enviar Ficheiro
-                        <input type="file" accept="image/*" onChange={handleUploadFoto} className="hidden" />
-                      </label>
+                      {cameraAtiva ? <button onClick={tirarFoto} className="w-full bg-[#2ecc71] hover:bg-[#27ae60] text-white font-bold py-2 rounded-lg shadow-sm">Capturar Foto</button> : <button onClick={ligarCamera} className="w-full bg-[#035B8B] hover:bg-[#023A58] text-white font-bold py-2 rounded-lg shadow-sm"><i className="fas fa-camera mr-2"></i> Ligar Câmara</button>}
+                      <label className="block w-full bg-[#eceff1] hover:bg-[#cfd8dc] text-[#263238] text-center font-bold py-2 rounded-lg cursor-pointer transition-colors"><i className="fas fa-upload mr-2"></i> Enviar Ficheiro<input type="file" accept="image/*" onChange={handleUploadFoto} className="hidden" /></label>
                     </div>
                   </div>
 
                   <div className="xl:col-span-2 bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm">
                     <div className="flex justify-between items-center mb-6 border-b border-[#eceff1] pb-4 hide-on-print">
                       <h3 className="text-lg font-bold text-[#023A58]">Visualização (Cartão CR80)</h3>
-                      <button 
-                        onClick={() => window.print()}
-                        disabled={!fotoCapturada}
-                        className={`font-bold px-6 py-2 rounded-lg transition-all shadow-sm ${fotoCapturada ? 'bg-[#023A58] hover:bg-[#035B8B] text-white' : 'bg-[#eceff1] text-[#90a4ae] cursor-not-allowed'}`}
-                      >
-                        <i className="fas fa-print mr-2"></i> Imprimir na Smart-51
-                      </button>
+                      <button onClick={() => window.print()} disabled={!fotoCapturada} className={`font-bold px-6 py-2 rounded-lg transition-all shadow-sm ${fotoCapturada ? 'bg-[#023A58] hover:bg-[#035B8B] text-white' : 'bg-[#eceff1] text-[#90a4ae] cursor-not-allowed'}`}><i className="fas fa-print mr-2"></i> Imprimir na Smart-51</button>
                     </div>
 
                     <div className="flex flex-col md:flex-row gap-8 justify-center items-center bg-[#f8f9fa] p-8 rounded-lg overflow-x-auto print-container border border-[#eceff1]">
-                      
                       {/* FRENTE */}
                       <div className="cracha-card w-[54mm] h-[86mm] bg-white relative flex flex-col items-center overflow-hidden box-border" style={{ border: '1px solid #ccc' }}>
                         <div className="mt-[4mm] w-[26mm] h-[35mm] flex items-center justify-center overflow-hidden z-10 border border-slate-300 bg-white">
@@ -245,71 +290,37 @@ export default function PortalRH() {
                         </div>
                         <div className="mt-[2mm] text-center z-10 w-full px-2">
                           <div className="text-[#051e42] font-black text-[18px] leading-[1.0]" style={{ fontFamily: 'Arial, sans-serif' }}>
-                            {formatarNomeCurto(colaborador.nome_completo).split(' ')[0]}<br/>
-                            {formatarNomeCurto(colaborador.nome_completo).split(' ')[1] || ''}
+                            {formatarNomeCurto(colaborador.nome_completo).split(' ')[0]}<br/>{formatarNomeCurto(colaborador.nome_completo).split(' ')[1] || ''}
                           </div>
                         </div>
-                        <div className="absolute bottom-0 left-0 w-full h-[32mm] z-0">
-                           <img src="/Imagem1.png" className="w-full h-full object-fill" alt="Fundo" />
-                        </div>
-                        <div className="absolute bottom-[13mm] left-[1mm] z-10 w-[24mm] h-[8mm] flex items-center justify-start">
-                          <img src="/dinamo.png" className="max-h-full max-w-full object-contain" alt="Dínamo" />
-                        </div>
+                        <div className="absolute bottom-0 left-0 w-full h-[32mm] z-0"><img src="/Imagem1.png" className="w-full h-full object-fill" alt="Fundo" /></div>
+                        <div className="absolute bottom-[13mm] left-[1mm] z-10 w-[24mm] h-[8mm] flex items-center justify-start"><img src="/dinamo.png" className="max-h-full max-w-full object-contain" alt="Dínamo" /></div>
                       </div>
 
                       {/* VERSO */}
                       <div className="cracha-card w-[54mm] h-[86mm] bg-white relative p-[2mm] flex flex-col box-border" style={{ border: '1px solid #ccc' }}>
                         <div className="mt-[2mm] w-full flex flex-col gap-[3mm]">
-                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full">
-                            <span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span>
-                            <div className="text-[7.5px] text-black font-semibold uppercase">{colaborador.nome_completo}</div>
-                          </div>
-                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full">
-                            <span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">CPF</span>
-                            <div className="text-[8px] text-black font-semibold uppercase">{colaborador.cpf || '000.000.000-00'}</div>
-                          </div>
+                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span><div className="text-[7.5px] text-black font-semibold uppercase">{colaborador.nome_completo}</div></div>
+                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">CPF</span><div className="text-[8px] text-black font-semibold uppercase">{colaborador.cpf || '000.000.000-00'}</div></div>
                           <div className="flex w-full gap-[2mm] items-stretch h-[24mm]">
                              <div className="flex flex-col flex-1 justify-between">
-                                <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full">
-                                  <span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Função</span>
-                                  <div className="text-[7px] text-black font-semibold uppercase truncate px-1">{colaborador.desc_funcao}</div>
-                                </div>
-                                <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full">
-                                  <span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Car. Identidade</span>
-                                  <div className="text-[8px] text-black font-semibold uppercase">{colaborador.rg || '0000000000'}</div>
-                                </div>
-                                <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full">
-                                  <span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Matrícula</span>
-                                  <div className="text-[8px] text-black font-semibold uppercase">{String(colaborador.matricula).padStart(8, '0')}</div>
-                                </div>
+                                <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Função</span><div className="text-[7px] text-black font-semibold uppercase truncate px-1">{colaborador.desc_funcao}</div></div>
+                                <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Car. Identidade</span><div className="text-[8px] text-black font-semibold uppercase">{colaborador.rg || '0000000000'}</div></div>
+                                <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Matrícula</span><div className="text-[8px] text-black font-semibold uppercase">{String(colaborador.matricula).padStart(8, '0')}</div></div>
                              </div>
-                             <div className="w-[21mm] flex-shrink-0 flex items-center justify-center border border-slate-100 p-[0.5mm] bg-white rounded-sm z-10">
-                                <img 
-                                  src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://sgso.dinamo.srv.br/colaborador/${colaborador.matricula}`} 
-                                  className="w-full h-full object-contain"
-                                  alt="QR Code"
-                                />
-                             </div>
+                             <div className="w-[21mm] flex-shrink-0 flex items-center justify-center border border-slate-100 p-[0.5mm] bg-white rounded-sm z-10"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://sgso.dinamo.srv.br/colaborador/${colaborador.matricula}`} className="w-full h-full object-contain" alt="QR Code" /></div>
                           </div>
-                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full">
-                            <span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Empresa</span>
-                            <div className="text-[8px] text-black font-semibold uppercase">DINAMO ENGENHARIA</div>
-                          </div>
+                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Empresa</span><div className="text-[8px] text-black font-semibold uppercase">DINAMO ENGENHARIA</div></div>
                         </div>
                         <div className="absolute bottom-[2mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center p-b[2mm]">
-                          <div className="text-[7px] text-black leading-[1.3] mb-[3mm] text-center font-medium w-[47mm]">
-                            Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.
-                          </div>
+                          <div className="text-[7px] text-black leading-[1.3] mb-[3mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div>
                           <div className="text-center w-full mb-[1mm]">
                             <div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div>
                             <div className="text-[6.5px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div>
                           </div>
-                          <div className="text-[5.5px] text-black font-bold text-right w-full mt-[1mm]">
-                            Emitido em: {obterDataHoraAtual()}
-                          </div>
+                          <div className="text-[5.5px] text-black font-bold text-right w-full mt-[1mm]">Emitido em: {obterDataHoraAtual()}</div>
                         </div>
                       </div>
-
                     </div>
                   </div>
                 </div>
@@ -317,11 +328,9 @@ export default function PortalRH() {
             </div>
           )}
 
-          {['colaboradores', 'cadastro', 'importacao', 'qrcode', 'configuracoes'].includes(abaAtiva) && (
+          {['colaboradores', 'cadastro', 'qrcode', 'configuracoes'].includes(abaAtiva) && (
             <div className="bg-white p-10 rounded-xl border border-[#cfd8dc] shadow-sm text-center animation-fade-in flex flex-col items-center justify-center min-h-[400px]">
-              <div className="w-20 h-20 bg-[#e3f2fd] rounded-full flex items-center justify-center text-[#023A58] text-3xl mb-4">
-                <i className={`fas ${menuItens.find(m => m.id === abaAtiva)?.icone}`}></i>
-              </div>
+              <div className="w-20 h-20 bg-[#e3f2fd] rounded-full flex items-center justify-center text-[#023A58] text-3xl mb-4"><i className={`fas ${menuItens.find(m => m.id === abaAtiva)?.icone}`}></i></div>
               <h2 className="text-2xl font-bold text-[#263238] mb-2">Módulo em Construção</h2>
               <p className="text-slate-500 max-w-md">O ecrã de <strong>{menuItens.find(m => m.id === abaAtiva)?.nome}</strong> será integrado em breve.</p>
             </div>
