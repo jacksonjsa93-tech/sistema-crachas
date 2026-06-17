@@ -212,8 +212,8 @@ export default function PainelRH() {
                           </div>
                        </div>
 
-                       {/* Coluna Direita (QR Code Gigante) */}
-                       <div className="w-[24mm] flex-shrink-0 flex items-center justify-center">
+                       {/* Coluna Direita (QR Code TRAVADO DENTRO DA PÁGINA) */}
+                       <div className="w-[21mm] flex-shrink-0 flex items-center justify-center border border-slate-100 p-[0.5mm] bg-white rounded-sm">
                           <img 
                             src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://sgso.dinamo.srv.br/colaborador/${colaborador.matricula}`} 
                             className="w-full h-full object-contain"
@@ -230,9 +230,9 @@ export default function PainelRH() {
 
                   </div>
 
-                  {/* Textos de Rodapé Oficiais (Iguais à imagem nova) */}
-                  <div className="absolute bottom-[2mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center">
-                    <div className="text-[7px] text-black leading-[1.3] mb-[3mm] text-center font-medium w-full">
+                  {/* Textos de Rodapé Oficiais (BLINDADO CONTRA SOBREPOSIÇÃO) */}
+                  <div className="absolute bottom-[2mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center p-b[2mm]">
+                    <div className="text-[7px] text-black leading-[1.3] mb-[3mm] text-center font-medium w-[47mm]">
                       Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.
                     </div>
                     <div className="text-center w-full mb-[1mm]">
