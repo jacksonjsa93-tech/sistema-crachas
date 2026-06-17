@@ -161,8 +161,8 @@ export default function PainelRH() {
                      <img src="/Imagem1.png" className="w-full h-full object-fill" alt="Fundo" />
                   </div>
 
-                  {/* LOGO DÍNAMO: Tamanho aumentado de w-[20mm] para w-[24mm] */}
-                  <div className="absolute bottom-[13mm] left-[4mm] z-10 w-[24mm] h-[8mm] flex items-center justify-start">
+                  {/* LOGO DÍNAMO: Puxada totalmente para a esquerda (left-[1mm]) */}
+                  <div className="absolute bottom-[13mm] left-[1mm] z-10 w-[24mm] h-[8mm] flex items-center justify-start">
                     <img src="/dinamo.png" className="max-h-full max-w-full object-contain" alt="Dínamo" />
                   </div>
 
@@ -183,47 +183,47 @@ export default function PainelRH() {
                       <div className="text-[8px] text-black font-semibold uppercase leading-none">{colaborador.cpf || '000.000.000-00'}</div>
                     </fieldset>
 
-                    {/* Caixas de 65% para deixar o lado direito livre para o QR Code */}
-                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0 w-[63%]">
+                    {/* Largura ajustada para 60% para não invadir o QR Code Gigante */}
+                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0 w-[60%]">
                       <legend className="text-[6px] font-bold px-[1mm] ml-[1mm] text-black leading-none">Função</legend>
                       <div className="text-[7.5px] text-black font-semibold uppercase leading-none truncate">{colaborador.desc_funcao}</div>
                     </fieldset>
 
-                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0 w-[63%]">
+                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0 w-[60%]">
                       <legend className="text-[6px] font-bold px-[1mm] ml-[1mm] text-black leading-none">Car. Identidade</legend>
                       <div className="text-[8px] text-black font-semibold uppercase leading-none">{colaborador.rg || '0000000000'}</div>
                     </fieldset>
 
-                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0 w-[63%]">
+                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0 w-[60%]">
                       <legend className="text-[6px] font-bold px-[1mm] ml-[1mm] text-black leading-none">Matrícula</legend>
                       <div className="text-[8px] text-black font-semibold uppercase leading-none">{String(colaborador.matricula).padStart(8, '0')}</div>
                     </fieldset>
 
-                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0 w-[63%]">
+                    <fieldset className="border-[1.5px] border-black rounded-[4px] px-[1mm] pb-[1mm] mb-[2mm] m-0 w-[60%]">
                       <legend className="text-[6px] font-bold px-[1mm] ml-[1mm] text-black leading-none">Empresa</legend>
                       <div className="text-[8px] text-black font-semibold uppercase leading-none">DÍNAMO ENGENHARIA</div>
                     </fieldset>
 
                   </div>
 
-                  {/* QR Code posicionado no alto (lado direito), alinhado com a Função */}
-                  <div className="absolute right-[2mm] top-[22mm] bg-white border border-slate-300 p-[0.5mm] z-10 w-[15mm] h-[15mm]">
+                  {/* QR Code MAIOR (19mm) posicionado no alto à direita */}
+                  <div className="absolute right-[2mm] top-[21mm] bg-white border border-slate-300 p-[0.5mm] z-10 w-[19mm] h-[19mm]">
                     <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https://sgso.dinamo.srv.br/colaborador/${colaborador.matricula}`} 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://sgso.dinamo.srv.br/colaborador/${colaborador.matricula}`} 
                       className="w-full h-full object-contain"
                       alt="QR Code"
                     />
                   </div>
 
-                  {/* Texto do rodapé livre para ocupar toda a largura e com texto atualizado/maior */}
-                  <div className="absolute bottom-[2mm] left-[2mm] w-[50mm] z-0">
-                    <div className="text-[6px] text-black leading-[1.2] mb-[2.5mm] text-justify font-medium">
+                  {/* Texto do Rodapé: Maior, Mais em cima e Centralizado */}
+                  <div className="absolute bottom-[4.5mm] left-[1mm] right-[1mm] z-0 flex flex-col items-center">
+                    <div className="text-[6.5px] text-black leading-[1.2] mb-[2mm] text-center font-medium px-[1mm]">
                       Este crachá é de uso pessoal e intransferível. O colaborador terceiro deverá usá-lo obrigatoriamente nas dependências do Grupo Equatorial Energia ou fora dela a seu serviço. Em caso de perda, por favor comunicar imediatamente o departamento pessoal ao setor de Segurança Empresarial.
                     </div>
                     <div className="text-center w-full">
-                      <div className="text-[6px] font-bold text-black">www.dinamo.srv.br</div>
-                      <div className="text-[5.5px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div>
-                      <div className="text-[5.5px] text-black font-bold text-right mt-1">
+                      <div className="text-[6.5px] font-bold text-black">www.dinamo.srv.br</div>
+                      <div className="text-[6px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div>
+                      <div className="text-[6px] text-black font-bold text-center mt-[0.5mm]">
                         Emitido em: {new Date().toLocaleDateString('pt-BR')}
                       </div>
                     </div>
