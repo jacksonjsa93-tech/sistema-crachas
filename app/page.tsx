@@ -6,7 +6,7 @@ import React, { useState, useRef, useEffect } from 'react';
 
 export default function PortalRH() {
   // ========================== ESTADOS DE AUTENTICAÇÃO (LOGIN) ==========================
-  const [usuarioAutenticado, setUsuarioAutenticado] = useState<any>(null); // NULL significa que está na tela de login
+  const [usuarioAutenticado, setUsuarioAutenticado] = useState<any>(null); // NULL = Tela de Login
   const [loginInput, setLoginInput] = useState('');
   const [senhaInput, setSenhaInput] = useState('');
   const [carregandoLogin, setCarregandoLogin] = useState(false);
@@ -19,7 +19,7 @@ export default function PortalRH() {
   const URL = "https://dpndtwutvkaxrxrkyeyw.supabase.co";
   const KEY = "sb_publishable_6Ss9lNdcbyeE2o3U5jcJ7w_qI61wmIr";
 
-  // ========================== FUNÇÃO DE LOGIN REAL ==========================
+  // ========================== FUNÇÃO DE LOGIN ==========================
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErroLogin('');
@@ -33,33 +33,42 @@ export default function PortalRH() {
       const data = await response.json();
       
       if (data && data.length > 0) {
-        const usuario = data[0];
-        setUsuarioAutenticado(usuario);
-        // Define a aba inicial com base no perfil
-        setAbaAtiva(usuario.perfil === 'ADM' ? 'configuracoes' : 'colaboradores');
+        setUsuarioAutenticado(data[0]);
+        setAbaAtiva('colaboradores'); // Todos entram direto na base após o login
         setLoginInput(''); setSenhaInput('');
       } else {
         setErroLogin('Credenciais inválidas. Verifique o seu login e senha.');
       }
-    } catch (error) {
-      setErroLogin('Erro de ligação ao servidor.');
-    } finally {
-      setCarregandoLogin(false);
+    } catch (error) { setErroLogin('Erro de ligação ao servidor.'); } 
+    finally { setCarregandoLogin(false); }
+  };
+
+  const handleLogout = () => { setUsuarioAutenticado(null); setAbaAtiva('colaboradores'); };
+
+  // ========================== MATRIZ DE PERMISSÕES (MENU DINÂMICO) ==========================
+  const getMenuItens = () => {
+    if (!usuarioAutenticado) return [];
+    
+    // SESMT vê apenas o básico
+    const itensBasicos = [
+      { id: 'colaboradores', nome: 'Base de Colaboradores', icone: 'fa-users' },
+      { id: 'emissao', nome: 'Emissão Individual', icone: 'fa-id-badge' },
+    ];
+
+    // ADM e RH veem tudo
+    if (usuarioAutenticado.perfil === 'ADM' || usuarioAutenticado.perfil === 'RH') {
+      return [
+        ...itensBasicos,
+        { id: 'lote', nome: 'Emissão em Lote', icone: 'fa-layer-group' },
+        { id: 'cadastro', nome: 'Cadastro Manual', icone: 'fa-user-plus' },
+        { id: 'configuracoes', nome: 'Gestão de Acessos', icone: 'fa-shield-alt' },
+      ];
     }
+    
+    return itensBasicos;
   };
 
-  const handleLogout = () => {
-    setUsuarioAutenticado(null);
-    setAbaAtiva('colaboradores');
-  };
-
-  const menuItens = [
-    { id: 'colaboradores', nome: 'Base de Colaboradores', icone: 'fa-users' },
-    { id: 'emissao', nome: 'Emissão Individual', icone: 'fa-id-badge' },
-    { id: 'lote', nome: 'Emissão em Lote', icone: 'fa-layer-group' },
-    { id: 'cadastro', nome: 'Cadastro Manual', icone: 'fa-user-plus' },
-    { id: 'configuracoes', nome: 'Gestão de Acessos', icone: 'fa-shield-alt' },
-  ];
+  const menuItens = getMenuItens();
 
   // ========================== ABA: HUB CENTRAL (COLABORADORES) ==========================
   const [buscaTabela, setBuscaTabela] = useState('');
@@ -81,10 +90,8 @@ export default function PortalRH() {
     }
     try {
       const response = await fetch(fetchUrl, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
-      const data = await response.json();
-      setResultadosBusca(data || []);
-    } catch (error) { console.error("Erro na busca"); } 
-    finally { setCarregandoLista(false); }
+      const data = await response.json(); setResultadosBusca(data || []);
+    } catch (error) { console.error("Erro na busca"); } finally { setCarregandoLista(false); }
   };
 
   const abrirEdicao = (colab: any) => { setColaboradorEditando({ ...colab }); };
@@ -228,7 +235,9 @@ export default function PortalRH() {
   };
 
   useEffect(() => { 
-    if (usuarioAutenticado?.perfil === 'ADM' && abaAtiva === 'configuracoes') carregarUsuarios(); 
+    if ((usuarioAutenticado?.perfil === 'ADM' || usuarioAutenticado?.perfil === 'RH') && abaAtiva === 'configuracoes') {
+      carregarUsuarios(); 
+    }
   }, [abaAtiva, usuarioAutenticado]);
 
   const handleCriarUsuario = async (e: React.FormEvent) => {
@@ -250,8 +259,14 @@ export default function PortalRH() {
     } catch (err: any) { setMsgUsuario({ texto: err.message, tipo: 'erro' }); } finally { setSalvandoUsuario(false); }
   };
 
-  const excluirUsuario = async (id: string, login: string) => {
+  const excluirUsuario = async (id: string, login: string, perfilUsuarioAlvo: string) => {
     if(login === 'admin') { alert("O Administrador principal não pode ser excluído."); return; }
+    
+    // BLINDAGEM DE PERFIL: O RH não pode apagar um ADM
+    if(usuarioAutenticado?.perfil === 'RH' && perfilUsuarioAlvo === 'ADM') {
+      alert("Acesso Negado: O seu perfil (RH) não tem permissão para excluir um Administrador."); return;
+    }
+
     if(!window.confirm("Deseja excluir este acesso?")) return;
     try { await fetch(`${URL}/rest/v1/usuarios_sistema?id=eq.${id}`, { method: 'DELETE', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } }); carregarUsuarios(); } catch (err) { alert("Erro ao excluir."); }
   };
@@ -265,7 +280,6 @@ export default function PortalRH() {
   if (!usuarioAutenticado) {
     return (
       <div className="flex h-screen bg-[#f4f7f6] font-poppins items-center justify-center relative overflow-hidden">
-        {/* Fundo Decorativo */}
         <div className="absolute top-0 left-0 w-full h-1/2 bg-[#023A58]"></div>
         
         <div className="z-10 w-full max-w-md p-8 animation-fade-in">
@@ -316,10 +330,10 @@ export default function PortalRH() {
   return (
     <div className="flex h-screen bg-[#f4f7f6] font-poppins text-slate-800 overflow-hidden screen-only relative">
       
-      {/* OVERLAY MOBILE PARA O MENU */}
+      {/* OVERLAY MOBILE */}
       {menuAberto && <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 md:hidden transition-opacity" onClick={() => setMenuAberto(false)}></div>}
 
-      {/* MENU LATERAL PREMIUM */}
+      {/* MENU LATERAL DINÂMICO */}
       <aside className={`${menuAberto ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed md:relative z-50 w-72 h-full flex flex-col shadow-2xl transition-transform duration-300 ease-out hide-on-print border-r border-[#035B8B]/20`} style={{ backgroundColor: '#023A58' }}>
         <div className="h-24 flex items-center justify-between md:justify-center border-b border-white/10 px-6">
           <img src="/logodinamobranca.png" alt="Dínamo" className="max-h-12 object-contain drop-shadow-lg" />
@@ -338,7 +352,7 @@ export default function PortalRH() {
             </button>
           ))}
         </nav>
-        {/* BOTÃO DE LOGOUT NO RODAPÉ DO MENU */}
+        {/* LOGOUT */}
         <div className="p-4 border-t border-white/10">
           <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white/5 text-white/70 hover:bg-rose-500 hover:text-white rounded-xl transition-all font-bold text-sm">
              <i className="fas fa-sign-out-alt"></i> Encerrar Sessão
@@ -349,18 +363,19 @@ export default function PortalRH() {
       {/* ÁREA PRINCIPAL */}
       <main className="flex-1 flex flex-col relative overflow-hidden print-main-adjust bg-[#f8fafc]">
         
-        {/* HEADER MODERNO */}
+        {/* HEADER */}
         <header className="h-24 bg-white shadow-sm border-b border-slate-200 flex items-center justify-between px-6 md:px-10 z-10 hide-on-print relative">
           <div className="flex items-center gap-4">
             <button className="md:hidden w-10 h-10 flex items-center justify-center rounded-lg bg-slate-100 text-[#023A58] hover:bg-slate-200 transition-colors" onClick={() => setMenuAberto(true)}>
               <i className="fas fa-bars text-lg"></i>
             </button>
             <h2 className="text-xl md:text-2xl font-black text-[#023A58] hidden sm:flex items-center gap-3 tracking-tight">
-              <i className={`fas ${menuItens.find(m => m.id === abaAtiva)?.icone} text-[#0a84ff]`}></i> {menuItens.find(m => m.id === abaAtiva)?.nome}
+              <i className={`fas ${menuItens.find(m => m.id === abaAtiva)?.icone} text-[#0a84ff]`}></i> {menuItens.find(m => m.id === abaAtiva)?.nome || 'Módulo Restrito'}
             </h2>
           </div>
 
           <div className="flex items-center gap-4">
+            {/* O PERFIL REAL É EXIBIDO AQUI (Sem simulador) */}
             <div className="flex items-center gap-3 bg-slate-50 px-2 pr-4 py-2 rounded-full border border-slate-200 shadow-sm">
               <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#023A58] to-[#0a84ff] flex items-center justify-center text-white font-black text-sm shadow-md uppercase">
                 {usuarioAutenticado.nome.substring(0, 2)}
@@ -432,10 +447,8 @@ export default function PortalRH() {
                             <td className="p-4 text-right pr-6 flex justify-end gap-2">
                               <button onClick={() => { setBuscaEmissao(colab.matricula); buscarColaboradorParaEmissao(colab.matricula); }} className="bg-white border border-slate-200 text-[#023A58] hover:bg-slate-100 px-4 py-2 text-xs font-bold rounded-lg shadow-sm transition-colors">Emitir Crachá</button>
                               
-                              {/* PROTEÇÃO REAL: Apenas ADM ou SESMT vêm o botão de edição */}
-                              {(usuarioAutenticado.perfil === 'ADM' || usuarioAutenticado.perfil === 'SESMT') && (
-                                <button onClick={() => abrirEdicao(colab)} className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 text-xs font-bold rounded-lg shadow-sm transition-colors"><i className="fas fa-edit mr-1"></i> Editar Dados</button>
-                              )}
+                              {/* O botão "Editar" agora fica disponível para todos os 3 perfis, pois todos editam ou complementam dados */}
+                              <button onClick={() => abrirEdicao(colab)} className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 text-xs font-bold rounded-lg shadow-sm transition-colors"><i className="fas fa-edit mr-1"></i> Editar Dados</button>
                             </td>
                           </tr>
                         ))
@@ -448,9 +461,9 @@ export default function PortalRH() {
           )}
 
           {/* ========================================================================= */}
-          {/* ABA 2: EMISSÃO EM LOTE                                                    */}
+          {/* ABA 2: EMISSÃO EM LOTE (Bloqueada para SESMT na matriz)                   */}
           {/* ========================================================================= */}
-          {abaAtiva === 'lote' && (
+          {abaAtiva === 'lote' && (usuarioAutenticado.perfil === 'ADM' || usuarioAutenticado.perfil === 'RH') && (
             <div className="animation-fade-in max-w-6xl mx-auto hide-on-print flex flex-col h-full gap-6">
               <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200">
                 <form onSubmit={adicionarAoLote} className="flex flex-col md:flex-row gap-4 items-end">
@@ -514,7 +527,7 @@ export default function PortalRH() {
           )}
 
           {/* ========================================================================= */}
-          {/* ABA 3: EMISSÃO INDIVIDUAL (CÂMARA E FOTO)                                 */}
+          {/* ABA 3: EMISSÃO INDIVIDUAL                                                 */}
           {/* ========================================================================= */}
           {abaAtiva === 'emissao' && (
             <div className="animation-fade-in max-w-6xl mx-auto hide-on-print">
@@ -587,7 +600,6 @@ export default function PortalRH() {
                     )}
                   </div>
 
-                  {/* VISUALIZADOR DE CRACHÁ */}
                   <div className="xl:col-span-2 bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-full">
                     <div className="flex justify-between items-center mb-6">
                       <h3 className="text-lg font-black text-[#023A58]">Crachá Gerado</h3>
@@ -595,6 +607,7 @@ export default function PortalRH() {
                     </div>
 
                     <div className="flex-1 flex flex-col md:flex-row gap-8 justify-center items-center bg-slate-50 p-8 rounded-2xl border border-slate-200 overflow-x-auto">
+                      {/* FRENTE */}
                       <div className="cracha-card w-[54mm] h-[86mm] bg-white relative flex flex-col items-center overflow-hidden box-border" style={{ border: '1px solid #ccc' }}>
                         <div className="mt-[4mm] w-[26mm] h-[35mm] flex items-center justify-center overflow-hidden z-10 border border-slate-300 bg-white">
                           {fotoCapturada ? <img src={fotoCapturada} className="w-full h-full object-cover" alt="Foto" /> : <div className="w-full h-full bg-white"></div>}
@@ -608,6 +621,7 @@ export default function PortalRH() {
                         <div className="absolute bottom-[13mm] left-[1mm] z-10 w-[24mm] h-[8mm] flex items-center justify-start"><img src="/dinamo.png" className="max-h-full max-w-full object-contain" alt="Dínamo" /></div>
                       </div>
 
+                      {/* VERSO */}
                       <div className="cracha-card w-[54mm] h-[86mm] bg-white relative p-[2mm] flex flex-col box-border" style={{ border: '1px solid #ccc' }}>
                         <div className="mt-[2mm] w-full flex flex-col gap-[3mm]">
                           <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span><div className="text-[7.5px] text-black font-semibold uppercase">{colaborador.nome_completo}</div></div>
@@ -644,9 +658,9 @@ export default function PortalRH() {
           )}
 
           {/* ========================================================================= */}
-          {/* ABA 4: CADASTRO MANUAL                                                    */}
+          {/* ABA 4: CADASTRO MANUAL (Bloqueada para SESMT na matriz)                   */}
           {/* ========================================================================= */}
-          {abaAtiva === 'cadastro' && (
+          {abaAtiva === 'cadastro' && (usuarioAutenticado.perfil === 'ADM' || usuarioAutenticado.perfil === 'RH') && (
             <div className="animation-fade-in max-w-4xl mx-auto hide-on-print flex flex-col gap-8">
               <div className="bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center opacity-70 transition-opacity hover:opacity-100">
                 <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4 text-[#0a84ff] text-2xl"><i className="fas fa-file-excel"></i></div>
@@ -680,18 +694,19 @@ export default function PortalRH() {
           )}
 
           {/* ========================================================================= */}
-          {/* ABA 5: CONFIGURAÇÕES (GERENCIAMENTO DE ACESSOS REAL)                      */}
+          {/* ABA 5: GESTÃO DE ACESSOS (Configurações)                                  */}
           {/* ========================================================================= */}
           {abaAtiva === 'configuracoes' && (
             <div className="animation-fade-in max-w-7xl mx-auto hide-on-print">
-              {/* PROTEÇÃO REAL DO PERFIL */}
-              {usuarioAutenticado?.perfil !== 'ADM' ? (
+              
+              {/* PROTEÇÃO RIGOROSA: Apenas ADM ou RH podem ver o painel */}
+              {(usuarioAutenticado?.perfil !== 'ADM' && usuarioAutenticado?.perfil !== 'RH') ? (
                  <div className="bg-white p-16 rounded-2xl border border-slate-200 shadow-sm text-center flex flex-col items-center justify-center h-[60vh]">
                     <div className="w-24 h-24 bg-rose-50 rounded-full flex items-center justify-center mb-6">
                       <i className="fas fa-lock text-rose-500 text-4xl"></i>
                     </div>
                     <h2 className="text-3xl font-black text-slate-800 mb-3">Acesso Restrito</h2>
-                    <p className="text-slate-500 max-w-md text-lg">O seu perfil (<span className="font-bold text-[#023A58]">{usuarioAutenticado?.perfil}</span>) não tem permissão para gerir os acessos da equipa.</p>
+                    <p className="text-slate-500 max-w-md text-lg">O seu perfil (<span className="font-bold text-[#023A58]">{usuarioAutenticado?.perfil}</span>) não tem permissão para gerir a equipa.</p>
                  </div>
               ) : (
                 <div className="flex flex-col xl:flex-row gap-8">
@@ -755,7 +770,7 @@ export default function PortalRH() {
                                     </td>
                                     <td className="p-4 text-right pr-6">
                                       {usr.login !== 'admin' ? (
-                                        <button onClick={() => excluirUsuario(usr.id, usr.login)} className="w-8 h-8 rounded-lg bg-white border border-slate-200 text-rose-500 hover:bg-rose-50 hover:border-rose-200 transition-colors shadow-sm" title="Remover Acesso">
+                                        <button onClick={() => excluirUsuario(usr.id, usr.login, usr.perfil)} className="w-8 h-8 rounded-lg bg-white border border-slate-200 text-rose-500 hover:bg-rose-50 hover:border-rose-200 transition-colors shadow-sm" title="Remover Acesso">
                                           <i className="fas fa-trash-alt"></i>
                                         </button>
                                       ) : (
@@ -777,17 +792,20 @@ export default function PortalRH() {
 
         </div>
 
-        {/* MODAL DE EDIÇÃO */}
+        {/* ========================================================================= */}
+        {/* MODAL DE EDIÇÃO (DISPONÍVEL PARA TODOS QUE FOREM AUTORIZADOS)             */}
+        {/* ========================================================================= */}
         {colaboradorEditando && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animation-fade-in hide-on-print">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col border-t-4 border-[#f39c12]">
               <div className="bg-white border-b border-slate-200 p-6 flex justify-between items-center">
-                <h3 className="font-black text-[#023A58] text-xl flex items-center gap-3"><i className="fas fa-lock text-[#f39c12]"></i>Painel de Complementos</h3>
+                <h3 className="font-black text-[#023A58] text-xl flex items-center gap-3"><i className="fas fa-lock text-[#f39c12]"></i>Edição e Complementos</h3>
                 <button onClick={() => setColaboradorEditando(null)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-rose-100 hover:text-rose-600 transition-colors"><i className="fas fa-times"></i></button>
               </div>
               <form onSubmit={salvarEdicao} className="p-6 flex flex-col gap-6 overflow-y-auto max-h-[75vh] bg-slate-50/50">
+                
                 <div className="bg-white border border-slate-200 p-5 rounded-xl relative shadow-sm">
-                   <div className="absolute -top-3 left-4 bg-white border border-slate-200 px-3 py-0.5 rounded-full text-[9px] font-black text-slate-400 uppercase tracking-widest shadow-sm">Dados do Sistema Base (Inalteráveis)</div>
+                   <div className="absolute -top-3 left-4 bg-white border border-slate-200 px-3 py-0.5 rounded-full text-[9px] font-black text-slate-400 uppercase tracking-widest shadow-sm">Dados do Sistema Base (Inalteráveis pelo Crachá)</div>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                      <div><label className="block text-xs font-bold text-slate-500 mb-1">Matrícula</label><input type="text" value={colaboradorEditando.matricula} disabled className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-slate-500 cursor-not-allowed font-bold" /></div>
                      <div><label className="block text-xs font-bold text-slate-500 mb-1">Nome Completo</label><input type="text" value={colaboradorEditando.nome_completo || ''} disabled className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-slate-500 cursor-not-allowed font-bold" /></div>
@@ -798,20 +816,21 @@ export default function PortalRH() {
                      <div><label className="block text-xs font-bold text-slate-500 mb-1">Função / Cargo</label><input type="text" value={colaboradorEditando.desc_funcao || ''} disabled className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-slate-500 cursor-not-allowed font-bold truncate" /></div>
                    </div>
                 </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
                   <div>
                     <label className="block text-sm font-bold text-rose-600 mb-2"><i className="fas fa-tint mr-1"></i> Tipo Sanguíneo</label>
                     <input type="text" value={colaboradorEditando.tipo_sanguineo || ''} onChange={e => setColaboradorEditando({...colaboradorEditando, tipo_sanguineo: e.target.value})} placeholder="Ex: O+" className="w-full bg-white border border-slate-300 p-3.5 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100 text-slate-800 font-bold uppercase transition-all shadow-sm" />
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-[#0a84ff] mb-2"><i className="fas fa-link mr-1"></i> Link QR Code</label>
+                    <label className="block text-sm font-bold text-[#0a84ff] mb-2"><i className="fas fa-link mr-1"></i> Link QR Code (Acesso pelo telemóvel)</label>
                     <input type="url" placeholder="https://..." value={colaboradorEditando.link_qrcode || ''} onChange={e => setColaboradorEditando({...colaboradorEditando, link_qrcode: e.target.value})} className="w-full bg-white border border-slate-300 p-3.5 rounded-xl focus:outline-none focus:border-[#0a84ff] focus:ring-2 focus:ring-blue-100 text-[#023A58] transition-all shadow-sm" />
                   </div>
                 </div>
                 <div className="flex justify-end gap-3 mt-4 border-t border-slate-200 pt-6">
                   <button type="button" onClick={() => setColaboradorEditando(null)} className="px-8 py-3.5 rounded-xl font-bold text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 transition-all shadow-sm">Cancelar</button>
                   <button type="submit" disabled={salvandoEdicao} className="px-8 py-3.5 rounded-xl font-bold text-white bg-orange-500 hover:bg-orange-600 transition-all flex items-center gap-2 shadow-md">
-                    {salvandoEdicao ? <i className="fas fa-spinner fa-spin text-lg"></i> : <i className="fas fa-save text-lg"></i>} Guardar Complementos
+                    {salvandoEdicao ? <i className="fas fa-spinner fa-spin text-lg"></i> : <i className="fas fa-save text-lg"></i>} Atualizar Dados
                   </button>
                 </div>
               </form>
