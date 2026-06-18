@@ -5,7 +5,7 @@
 import React, { useState, useRef } from 'react';
 
 export default function PortalRH() {
-  const [abaAtiva, setAbaAtiva] = useState('colaboradores');
+  const [abaAtiva, setAbaAtiva] = useState('lote');
   
   // SIMULADOR DE PERFIL DE ACESSO
   const [perfilAcesso, setPerfilAcesso] = useState('ADM'); 
@@ -27,7 +27,6 @@ export default function PortalRH() {
   const [carregandoLista, setCarregandoLista] = useState(false);
   const [pesquisaRealizada, setPesquisaRealizada] = useState(false);
 
-  // Estados do Modal de Edição
   const [colaboradorEditando, setColaboradorEditando] = useState<any>(null);
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
 
@@ -51,33 +50,23 @@ export default function PortalRH() {
     finally { setCarregandoLista(false); }
   };
 
-  const abrirEdicao = (colab: any) => {
-    setColaboradorEditando({ ...colab }); 
-  };
+  const abrirEdicao = (colab: any) => { setColaboradorEditando({ ...colab }); };
 
   const salvarEdicao = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!colaboradorEditando) return;
-    setSalvandoEdicao(true);
+    e.preventDefault(); if (!colaboradorEditando) return; setSalvandoEdicao(true);
     try {
       const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${colaboradorEditando.matricula}`, {
         method: 'PATCH',
         headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
         body: JSON.stringify({
-          tipo_sanguineo: colaboradorEditando.tipo_sanguineo || null, // null caso fique vazio
-          link_qrcode: colaboradorEditando.link_qrcode || null // null caso fique vazio
+          tipo_sanguineo: colaboradorEditando.tipo_sanguineo || null,
+          link_qrcode: colaboradorEditando.link_qrcode || null
         })
       });
-      if (!response.ok) throw new Error('Erro ao salvar edições na base de dados (Verifique se as colunas existem no Supabase)');
-      
-      setColaboradorEditando(null); 
-      handlePesquisaTabela(); 
+      if (!response.ok) throw new Error('Erro');
+      setColaboradorEditando(null); handlePesquisaTabela(); 
       alert("Informações complementares atualizadas com sucesso!");
-    } catch (err) {
-      alert("Erro ao salvar alterações. O Supabase rejeitou a gravação.");
-    } finally {
-      setSalvandoEdicao(false);
-    }
+    } catch (err) { alert("Erro ao salvar alterações."); } finally { setSalvandoEdicao(false); }
   };
 
   // ========================== ABA: EMISSÃO EM LOTE ==========================
@@ -89,11 +78,17 @@ export default function PortalRH() {
   const adicionarAoLote = async (e: React.FormEvent) => {
     e.preventDefault(); setErroLote(''); if (!matriculaLote.trim()) return;
     if (listaLote.find(c => String(c.matricula) === String(matriculaLote.trim()))) { setErroLote('Colaborador já na fila.'); setMatriculaLote(''); return; }
+    
     setCarregandoLote(true);
     try {
       const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${matriculaLote.trim()}&select=*`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
       const data = await response.json();
-      if (data && data.length > 0) { setListaLote([...listaLote, data[0]]); setMatriculaLote(''); } else { setErroLote('Matrícula não encontrada.'); }
+      if (data && data.length > 0) { 
+        const novoColab = data[0];
+        setListaLote([...listaLote, novoColab]); 
+        setMatriculaLote(''); 
+        if (!novoColab.foto_url) { alert(`⚠️ ATENÇÃO: O colaborador ${novoColab.nome_completo} não possui foto no sistema. O crachá sairá em branco na frente!`); }
+      } else { setErroLote('Matrícula não encontrada.'); }
     } catch (error) { setErroLote('Erro ao contactar a base.'); } finally { setCarregandoLote(false); }
   };
   const removerDoLote = (matricula: string) => { setListaLote(listaLote.filter(c => String(c.matricula) !== String(matricula))); };
@@ -193,7 +188,6 @@ export default function PortalRH() {
           </h2>
           <div className="flex items-center gap-6">
             
-            {/* SIMULADOR DE PERMISSÕES */}
             <div className="flex items-center gap-2 bg-[#ffebee] px-3 py-1 rounded border border-[#ffcdd2]">
                <span className="text-[10px] font-bold text-[#c0392b] uppercase">Simular Acesso:</span>
                <select value={perfilAcesso} onChange={(e) => setPerfilAcesso(e.target.value)} className="bg-transparent text-xs font-bold text-[#c0392b] focus:outline-none cursor-pointer">
@@ -216,7 +210,7 @@ export default function PortalRH() {
         <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar print-padding-remove">
 
           {/* ========================================================================= */}
-          {/* ABA 1: BASE DE COLABORADORES (HUB CENTRAL - NOVO FORMATO)                 */}
+          {/* ABA 1: BASE DE COLABORADORES (HUB CENTRAL)                                */}
           {/* ========================================================================= */}
           {abaAtiva === 'colaboradores' && (
             <div className="animation-fade-in max-w-6xl mx-auto hide-on-print flex flex-col h-full">
@@ -258,33 +252,16 @@ export default function PortalRH() {
                           <tr key={colab.matricula} className="border-b border-[#eceff1] hover:bg-[#f8f9fa] transition-colors">
                             <td className="p-4 pl-6 font-semibold text-[#263238]">{colab.nome_completo}</td>
                             <td className="p-4 font-bold text-[#035B8B]">{colab.matricula}</td>
-                            
-                            {/* COLUNA FOTO */}
                             <td className="p-4 text-center">
-                              {colab.foto_url 
-                                ? <span className="text-[#27ae60] font-bold text-xs"><i className="fas fa-check-circle"></i> Possui</span> 
-                                : <span className="text-[#c0392b] font-bold text-xs"><i className="fas fa-times-circle"></i> Sem Foto</span>}
+                              {colab.foto_url ? <span className="text-[#27ae60] font-bold text-xs"><i className="fas fa-check-circle"></i> Possui</span> : <span className="text-[#c0392b] font-bold text-xs"><i className="fas fa-times-circle"></i> Sem Foto</span>}
                             </td>
-                            
-                            {/* COLUNA LINK QR */}
                             <td className="p-4 text-center">
-                              {colab.link_qrcode 
-                                ? <span className="text-[#2980b9] font-bold text-xs"><i className="fas fa-link"></i> Vinculado</span> 
-                                : <span className="text-[#7f8c8d] font-bold text-xs"><i className="fas fa-unlink"></i> Sem Link</span>}
+                              {colab.link_qrcode ? <span className="text-[#2980b9] font-bold text-xs"><i className="fas fa-link"></i> Vinculado</span> : <span className="text-[#7f8c8d] font-bold text-xs"><i className="fas fa-unlink"></i> Sem Link</span>}
                             </td>
-                            
-                            {/* COLUNA AÇÕES */}
                             <td className="p-4 text-right pr-6 flex justify-end gap-2">
-                              {/* Botão de Ver Ficha/Emitir Crachá (Sempre visível) */}
-                              <button onClick={() => { setBuscaEmissao(colab.matricula); buscarColaboradorParaEmissao(colab.matricula); }} className="bg-white border border-[#cfd8dc] text-[#023A58] hover:bg-[#eceff1] px-3 py-1.5 text-xs font-bold rounded shadow-sm transition-colors" title="Abrir no Estúdio">
-                                Emitir Crachá
-                              </button>
-                              
-                              {/* Botão de Editar (SÓ APARECE SE FOR ADM ou SESMT) */}
+                              <button onClick={() => { setBuscaEmissao(colab.matricula); buscarColaboradorParaEmissao(colab.matricula); }} className="bg-white border border-[#cfd8dc] text-[#023A58] hover:bg-[#eceff1] px-3 py-1.5 text-xs font-bold rounded shadow-sm transition-colors" title="Abrir no Estúdio">Emitir Crachá</button>
                               {(perfilAcesso === 'ADM' || perfilAcesso === 'SESMT') && (
-                                <button onClick={() => abrirEdicao(colab)} className="bg-[#f39c12] hover:bg-[#d35400] text-white px-3 py-1.5 text-xs font-bold rounded shadow-sm transition-colors" title="Editar Informações e Link">
-                                  <i className="fas fa-edit mr-1"></i> Adic. Dados
-                                </button>
+                                <button onClick={() => abrirEdicao(colab)} className="bg-[#f39c12] hover:bg-[#d35400] text-white px-3 py-1.5 text-xs font-bold rounded shadow-sm transition-colors" title="Editar Informações e Link"><i className="fas fa-edit mr-1"></i> Adic. Dados</button>
                               )}
                             </td>
                           </tr>
@@ -298,7 +275,7 @@ export default function PortalRH() {
           )}
 
           {/* ========================================================================= */}
-          {/* ABA 2 E 3: EMISSÃO LOTE E INDIVIDUAL MANTIDAS INTACTAS E FUNCIONAIS       */}
+          {/* ABA 2: EMISSÃO EM LOTE                                                    */}
           {/* ========================================================================= */}
           {abaAtiva === 'lote' && (
             <div className="animation-fade-in max-w-6xl mx-auto hide-on-print flex flex-col h-full gap-6">
@@ -329,17 +306,28 @@ export default function PortalRH() {
                       <tr className="text-xs uppercase tracking-wider text-slate-500 font-bold">
                         <th className="p-4 pl-6">Matrícula</th>
                         <th className="p-4">Nome do Colaborador</th>
+                        <th className="p-4 text-center">Status Foto</th>
+                        <th className="p-4 text-center">Status Link QR</th>
                         <th className="p-4 text-center">Ação</th>
                       </tr>
                     </thead>
                     <tbody className="text-sm">
                       {listaLote.length === 0 ? (
-                        <tr><td colSpan={3} className="p-12 text-center text-slate-400 font-medium">A fila de impressão está vazia.</td></tr>
+                        <tr><td colSpan={5} className="p-12 text-center text-slate-400 font-medium"><i className="fas fa-clipboard-list block text-4xl mb-4 opacity-50"></i>A fila de impressão está vazia.</td></tr>
                       ) : (
                         listaLote.map((colab) => (
-                          <tr key={colab.matricula} className="border-b border-[#eceff1] hover:bg-[#f8f9fa]">
+                          <tr key={colab.matricula} className={`border-b border-[#eceff1] transition-colors ${!colab.foto_url ? 'bg-[#ffebee]' : 'hover:bg-[#f8f9fa]'}`}>
                             <td className="p-4 pl-6 font-bold text-[#035B8B]">{colab.matricula}</td>
-                            <td className="p-4 font-semibold text-[#263238]">{colab.nome_completo}</td>
+                            <td className="p-4 font-semibold text-[#263238]">
+                               {colab.nome_completo}
+                               {!colab.foto_url && <span className="ml-2 text-[10px] bg-[#e74c3c] text-white px-2 py-0.5 rounded uppercase font-bold">Sem Foto</span>}
+                            </td>
+                            <td className="p-4 text-center">
+                              {colab.foto_url ? <span className="text-[#27ae60] font-bold text-xs"><i className="fas fa-check-circle"></i> OK</span> : <span className="text-[#c0392b] font-bold text-xs"><i className="fas fa-times-circle"></i> Faltando</span>}
+                            </td>
+                            <td className="p-4 text-center">
+                              {colab.link_qrcode ? <span className="text-[#2980b9] font-bold text-xs"><i className="fas fa-link"></i> Vinculado</span> : <span className="text-[#7f8c8d] font-bold text-xs"><i className="fas fa-unlink"></i> Vazio</span>}
+                            </td>
                             <td className="p-4 text-center">
                               <button onClick={() => removerDoLote(colab.matricula)} className="text-[#e74c3c] hover:text-[#c0392b] text-xl"><i className="fas fa-trash-alt"></i></button>
                             </td>
@@ -353,6 +341,9 @@ export default function PortalRH() {
             </div>
           )}
 
+          {/* ========================================================================= */}
+          {/* ABA 3: EMISSÃO INDIVIDUAL                                                 */}
+          {/* ========================================================================= */}
           {abaAtiva === 'emissao' && (
             <div className="animation-fade-in max-w-6xl mx-auto hide-on-print">
               <form onSubmit={(e) => { e.preventDefault(); buscarColaboradorParaEmissao(buscaEmissao); }} className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm mb-8 flex gap-4 items-end">
@@ -407,7 +398,6 @@ export default function PortalRH() {
                         {fotoCapturada && (
                           <div className="w-full mt-6 border-t border-[#eceff1] pt-4">
                             <button onClick={salvarFotoNoSupabase} disabled={salvandoFoto} className="w-full bg-[#f39c12] text-white font-bold py-3 rounded-lg shadow-sm w-full">Guardar Foto</button>
-                            {msgFoto.texto && <p className={`text-xs text-center mt-2 font-bold ${msgFoto.tipo === 'sucesso' ? 'text-[#27ae60]' : 'text-[#e74c3c]'}`}>{msgFoto.texto}</p>}
                           </div>
                         )}
                       </div>
@@ -417,7 +407,7 @@ export default function PortalRH() {
                   <div className="xl:col-span-2 bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm">
                     <div className="flex justify-between items-center mb-6 border-b border-[#eceff1] pb-4">
                       <h3 className="text-lg font-bold text-[#023A58]">Visualização do Crachá</h3>
-                      <button onClick={() => window.print()} disabled={!fotoCapturada || !!rawFoto} className={`font-bold px-6 py-3 rounded-lg transition-all shadow-sm ${fotoCapturada && !rawFoto ? 'bg-[#023A58] hover:bg-[#035B8B] text-white' : 'bg-[#eceff1] text-[#90a4ae] cursor-not-allowed'}`}><i className="fas fa-print mr-2"></i> Imprimir na Smart-51</button>
+                      <button onClick={() => window.print()} disabled={!fotoCapturada || !!rawFoto} className={`font-bold px-6 py-3 rounded-lg transition-all shadow-sm ${fotoCapturada && !rawFoto ? 'bg-[#023A58] hover:bg-[#035B8B] text-white' : 'bg-[#eceff1] text-[#90a4ae] cursor-not-allowed'}`}><i className="fas fa-print mr-2"></i> Imprimir</button>
                     </div>
 
                     <div className="flex flex-col md:flex-row gap-8 justify-center items-center bg-[#f8f9fa] p-8 rounded-lg overflow-x-auto border border-[#eceff1]">
@@ -435,7 +425,7 @@ export default function PortalRH() {
                         <div className="absolute bottom-[13mm] left-[1mm] z-10 w-[24mm] h-[8mm] flex items-center justify-start"><img src="/dinamo.png" className="max-h-full max-w-full object-contain" alt="Dínamo" /></div>
                       </div>
 
-                      {/* VERSO */}
+                      {/* VERSO COM A NOVA LÓGICA DO QR CODE */}
                       <div className="cracha-card w-[54mm] h-[86mm] bg-white relative p-[2mm] flex flex-col box-border" style={{ border: '1px solid #ccc' }}>
                         <div className="mt-[2mm] w-full flex flex-col gap-[3mm]">
                           <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span><div className="text-[7.5px] text-black font-semibold uppercase">{colaborador.nome_completo}</div></div>
@@ -449,7 +439,18 @@ export default function PortalRH() {
                                 <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Car. Identidade</span><div className="text-[8px] text-black font-semibold uppercase">{colaborador.rg || '0000000000'}</div></div>
                                 <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Matrícula</span><div className="text-[8px] text-black font-semibold uppercase">{String(colaborador.matricula).padStart(8, '0')}</div></div>
                              </div>
-                             <div className="w-[21mm] flex-shrink-0 flex items-center justify-center border border-slate-100 p-[0.5mm] bg-white rounded-sm z-10"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://sgso.dinamo.srv.br/colaborador/${colaborador.matricula}`} className="w-full h-full object-contain" alt="QR Code" /></div>
+                             
+                             {/* SE TIVER LINK GERA O QR CODE. SE NÃO, FICA EM BRANCO (Mudei aqui na visualização) */}
+                             <div className="w-[21mm] flex-shrink-0 flex items-center justify-center border border-slate-100 p-[0.5mm] bg-white rounded-sm z-10">
+                               {colaborador.link_qrcode ? (
+                                 <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(colaborador.link_qrcode)}`} className="w-full h-full object-contain" alt="QR Code" />
+                               ) : (
+                                 <div className="w-full h-full flex items-center justify-center bg-[#f8f9fa] border border-[#eceff1]">
+                                    <span className="text-[6px] text-slate-300 font-bold text-center leading-tight">SEM<br/>LINK</span>
+                                 </div>
+                               )}
+                             </div>
+
                           </div>
                           <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Empresa</span><div className="text-[8px] text-black font-semibold uppercase">DINAMO ENGENHARIA</div></div>
                         </div>
@@ -478,9 +479,7 @@ export default function PortalRH() {
 
         </div>
 
-        {/* ========================================================= */}
-        {/* MODAL DE EDIÇÃO DE COLABORADOR (BLINDADO E CORRIGIDO)     */}
-        {/* ========================================================= */}
+        {/* MODAL DE EDIÇÃO */}
         {colaboradorEditando && (
           <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animation-fade-in hide-on-print">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col border-t-4 border-[#f39c12]">
@@ -490,49 +489,26 @@ export default function PortalRH() {
               </div>
               
               <form onSubmit={salvarEdicao} className="p-6 flex flex-col gap-4 overflow-y-auto max-h-[75vh]">
-                
-                {/* DADOS DO ERP - BLOQUEADOS */}
                 <div className="bg-[#f8f9fa] border border-[#eceff1] p-4 rounded-lg mb-2 relative">
                    <div className="absolute -top-3 left-4 bg-[#f8f9fa] px-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Dados do Sistema Base (Inalteráveis)</div>
-                   
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                     <div>
-                       <label className="block text-xs font-bold text-[#546e7a] mb-1">Matrícula</label>
-                       <input type="text" value={colaboradorEditando.matricula} disabled className="w-full bg-[#eceff1] border border-[#cfd8dc] rounded p-2 text-slate-500 cursor-not-allowed font-bold" />
-                     </div>
-                     <div>
-                       <label className="block text-xs font-bold text-[#546e7a] mb-1">Nome Completo</label>
-                       <input type="text" value={colaboradorEditando.nome_completo || ''} disabled className="w-full bg-[#eceff1] border border-[#cfd8dc] rounded p-2 text-slate-500 cursor-not-allowed font-bold" />
-                     </div>
+                     <div><label className="block text-xs font-bold text-[#546e7a] mb-1">Matrícula</label><input type="text" value={colaboradorEditando.matricula} disabled className="w-full bg-[#eceff1] border border-[#cfd8dc] rounded p-2 text-slate-500 cursor-not-allowed font-bold" /></div>
+                     <div><label className="block text-xs font-bold text-[#546e7a] mb-1">Nome Completo</label><input type="text" value={colaboradorEditando.nome_completo || ''} disabled className="w-full bg-[#eceff1] border border-[#cfd8dc] rounded p-2 text-slate-500 cursor-not-allowed font-bold" /></div>
                    </div>
-
                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                     <div>
-                       <label className="block text-xs font-bold text-[#546e7a] mb-1">CPF</label>
-                       <input type="text" value={colaboradorEditando.cpf || ''} disabled className="w-full bg-[#eceff1] border border-[#cfd8dc] rounded p-2 text-slate-500 cursor-not-allowed font-bold" />
-                     </div>
-                     <div>
-                       <label className="block text-xs font-bold text-[#546e7a] mb-1">RG</label>
-                       <input type="text" value={colaboradorEditando.rg || ''} disabled className="w-full bg-[#eceff1] border border-[#cfd8dc] rounded p-2 text-slate-500 cursor-not-allowed font-bold" />
-                     </div>
-                     <div>
-                       <label className="block text-xs font-bold text-[#546e7a] mb-1">Função / Cargo</label>
-                       <input type="text" value={colaboradorEditando.desc_funcao || ''} disabled title={colaboradorEditando.desc_funcao} className="w-full bg-[#eceff1] border border-[#cfd8dc] rounded p-2 text-slate-500 cursor-not-allowed font-bold truncate" />
-                     </div>
+                     <div><label className="block text-xs font-bold text-[#546e7a] mb-1">CPF</label><input type="text" value={colaboradorEditando.cpf || ''} disabled className="w-full bg-[#eceff1] border border-[#cfd8dc] rounded p-2 text-slate-500 cursor-not-allowed font-bold" /></div>
+                     <div><label className="block text-xs font-bold text-[#546e7a] mb-1">RG</label><input type="text" value={colaboradorEditando.rg || ''} disabled className="w-full bg-[#eceff1] border border-[#cfd8dc] rounded p-2 text-slate-500 cursor-not-allowed font-bold" /></div>
+                     <div><label className="block text-xs font-bold text-[#546e7a] mb-1">Função / Cargo</label><input type="text" value={colaboradorEditando.desc_funcao || ''} disabled className="w-full bg-[#eceff1] border border-[#cfd8dc] rounded p-2 text-slate-500 cursor-not-allowed font-bold truncate" /></div>
                    </div>
                 </div>
 
-                {/* DADOS COMPLEMENTARES - EDITÁVEIS */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                   <div className="border-2 border-[#cfd8dc] hover:border-[#c0392b] transition-colors p-4 rounded-lg bg-white">
                     <label className="block text-sm font-bold text-[#c0392b] mb-2"><i className="fas fa-tint mr-1"></i> Tipo Sanguíneo</label>
-                    {/* Não é obrigatório (sem 'required') */}
                     <input type="text" value={colaboradorEditando.tipo_sanguineo || ''} onChange={e => setColaboradorEditando({...colaboradorEditando, tipo_sanguineo: e.target.value})} placeholder="Ex: O+" className="w-full bg-[#fafafa] border border-[#b0bec5] p-3 rounded focus:outline-none focus:border-[#c0392b] text-[#263238] font-bold text-center uppercase" />
                   </div>
-                  
                   <div className="border-2 border-[#3498db] p-4 rounded-lg bg-[#e3f2fd]">
-                    <label className="block text-sm font-bold text-[#2980b9] mb-2"><i className="fas fa-link mr-1"></i> Link QR Code</label>
-                    {/* Texto do label alterado, e não é obrigatório */}
+                    <label className="block text-sm font-bold text-[#2980b9] mb-2"><i className="fas fa-link mr-1"></i> Link QR Code (Abre direto do telemóvel)</label>
                     <input type="url" placeholder="https://..." value={colaboradorEditando.link_qrcode || ''} onChange={e => setColaboradorEditando({...colaboradorEditando, link_qrcode: e.target.value})} className="w-full bg-white border border-[#85c1e9] p-3 rounded focus:outline-none focus:ring-2 focus:ring-[#2980b9] text-[#023A58]" />
                   </div>
                 </div>
@@ -548,11 +524,10 @@ export default function PortalRH() {
           </div>
         )}
 
-        {/* MOTOR DE IMPRESSÃO INVISÍVEL (LOTE E INDIVIDUAL) */}
+        {/* MOTOR DE IMPRESSÃO INVISÍVEL */}
         <div className="print-container hidden">
            {colaboradoresParaImprimir.map((c, index) => (
              <React.Fragment key={index}>
-                {/* FRENTE */}
                 <div className="cracha-card w-[54mm] h-[86mm] bg-white relative flex flex-col items-center overflow-hidden box-border" style={{ border: '1px solid #ccc' }}>
                   <div className="mt-[4mm] w-[26mm] h-[35mm] flex items-center justify-center overflow-hidden z-10 border border-slate-300 bg-white">
                     {c.foto_url && <img src={c.foto_url} className="w-full h-full object-cover" alt="Foto" />}
@@ -566,23 +541,29 @@ export default function PortalRH() {
                   <div className="absolute bottom-[13mm] left-[1mm] z-10 w-[24mm] h-[8mm] flex items-center justify-start"><img src="/dinamo.png" className="max-h-full max-w-full object-contain" alt="Dínamo" /></div>
                 </div>
 
-                {/* VERSO */}
                 <div className="cracha-card w-[54mm] h-[86mm] bg-white relative p-[2mm] flex flex-col box-border" style={{ border: '1px solid #ccc' }}>
                   <div className="mt-[2mm] w-full flex flex-col gap-[3mm]">
                     <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span><div className="text-[7.5px] text-black font-semibold uppercase">{c.nome_completo}</div></div>
-                    
                     <div className="flex w-full gap-[2mm]">
                       <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex-1 flex items-center justify-center"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">CPF</span><div className="text-[8px] text-black font-semibold uppercase">{c.cpf || '000.000.000-00'}</div></div>
                       <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] w-[14mm] flex items-center justify-center bg-[#ffebee] border-[#e74c3c]"><span className="absolute -top-[2.5mm] left-[1mm] bg-white px-[0.5mm] text-[5px] font-bold text-[#c0392b] leading-none">Tp. Sangue</span><div className="text-[8px] text-[#c0392b] font-black uppercase">{c.tipo_sanguineo || 'O+'}</div></div>
                     </div>
-
                     <div className="flex w-full gap-[2mm] items-stretch h-[24mm]">
                         <div className="flex flex-col flex-1 justify-between">
                           <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Função</span><div className="text-[7px] text-black font-semibold uppercase truncate px-1">{c.desc_funcao}</div></div>
                           <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Car. Identidade</span><div className="text-[8px] text-black font-semibold uppercase">{c.rg || '0000000000'}</div></div>
                           <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Matrícula</span><div className="text-[8px] text-black font-semibold uppercase">{String(c.matricula).padStart(8, '0')}</div></div>
                         </div>
-                        <div className="w-[21mm] flex-shrink-0 flex items-center justify-center border border-slate-100 p-[0.5mm] bg-white rounded-sm z-10"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://sgso.dinamo.srv.br/colaborador/${c.matricula}`} className="w-full h-full object-contain" alt="QR Code" /></div>
+                        
+                        {/* SE TIVER LINK GERA O QR CODE. SE NÃO, FICA EM BRANCO (Mudei aqui na impressora também) */}
+                        <div className="w-[21mm] flex-shrink-0 flex items-center justify-center border border-slate-100 p-[0.5mm] bg-white rounded-sm z-10">
+                          {c.link_qrcode ? (
+                            <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(c.link_qrcode)}`} className="w-full h-full object-contain" alt="QR Code" />
+                          ) : (
+                            <div className="w-full h-full bg-white"></div>
+                          )}
+                        </div>
+
                     </div>
                     <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Empresa</span><div className="text-[8px] text-black font-semibold uppercase">DINAMO ENGENHARIA</div></div>
                   </div>
