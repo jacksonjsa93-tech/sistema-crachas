@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useRef } from 'react';
-import * as XLSX from 'xlsx'; // 📌 Import adicionado para o Excel funcionar!
+import * as XLSX from 'xlsx'; // 📌 Import para o Excel funcionar!
 
 export default function PortalRH() {
   const [abaAtiva, setAbaAtiva] = useState('emissao');
