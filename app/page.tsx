@@ -2,17 +2,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 export default function PortalRH() {
-  const [abaAtiva, setAbaAtiva] = useState('emissao');
+  const [abaAtiva, setAbaAtiva] = useState('colaboradores'); // Abre na nova aba de Colaboradores
 
+  // Menu atualizado sem o Painel de Controlo
   const menuItens = [
-    { id: 'dashboard', nome: 'Painel de Controlo', icone: 'fa-chart-pie' },
     { id: 'colaboradores', nome: 'Colaboradores', icone: 'fa-users' },
     { id: 'cadastro', nome: 'Cadastro Manual', icone: 'fa-user-plus' },
     { id: 'emissao', nome: 'Emissão de Crachás', icone: 'fa-id-badge' },
-    { id: 'qrcode', nome: 'Gestão QR Code', icone: 'fa-qrcode' },
+    { id: 'qrcode', nome: 'Gestão QR Code (SESMT)', icone: 'fa-qrcode' },
     { id: 'configuracoes', nome: 'Configurações', icone: 'fa-cogs' },
   ];
 
@@ -21,6 +21,12 @@ export default function PortalRH() {
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(false);
 
+  // Estados da Lista de Colaboradores
+  const [listaColaboradores, setListaColaboradores] = useState<any[]>([]);
+  const [filtroFoto, setFiltroFoto] = useState('todos'); // 'todos', 'sem_foto', 'com_foto'
+  const [carregandoLista, setCarregandoLista] = useState(false);
+
+  // Estados da Câmara
   const [cameraAtiva, setCameraAtiva] = useState(false);
   const [fotoCapturada, setFotoCapturada] = useState<string | null>(null);
   const [rawFoto, setRawFoto] = useState<string | null>(null); 
@@ -36,18 +42,54 @@ export default function PortalRH() {
   const URL = "https://dpndtwutvkaxrxrkyeyw.supabase.co";
   const KEY = "sb_publishable_6Ss9lNdcbyeE2o3U5jcJ7w_qI61wmIr";
 
-  const handleBusca = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // ==========================================
+  // LÓGICA DE LISTAGEM DE COLABORADORES
+  // ==========================================
+  const carregarLista = async () => {
+    setCarregandoLista(true);
+    try {
+      const response = await fetch(`${URL}/rest/v1/colaboradores?select=*&order=nome_completo.asc`, {
+        headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` }
+      });
+      const data = await response.json();
+      setListaColaboradores(data || []);
+    } catch (error) {
+      console.error("Erro ao carregar lista");
+    } finally {
+      setCarregandoLista(false);
+    }
+  };
+
+  // Carrega a lista automaticamente quando se entra na aba 'colaboradores'
+  useEffect(() => {
+    if (abaAtiva === 'colaboradores') {
+      carregarLista();
+    }
+  }, [abaAtiva]);
+
+  const colaboradoresFiltrados = listaColaboradores.filter(c => {
+    if (filtroFoto === 'sem_foto') return !c.foto_url;
+    if (filtroFoto === 'com_foto') return !!c.foto_url;
+    return true; // 'todos'
+  });
+
+  // ==========================================
+  // LÓGICA DE BUSCA E EMISSÃO
+  // ==========================================
+  // Função extraída para poder ser chamada pelo botão da lista
+  const buscarColaboradorPorMatricula = async (matriculaAlvo: string) => {
     setErro(''); setMsgFoto({ texto: '', tipo: '' }); setRawFoto(null);
     setCarregando(true);
+    setBusca(matriculaAlvo);
     try {
-      const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${busca}&select=*`, {
+      const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${matriculaAlvo}&select=*`, {
         headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` }
       });
       const data = await response.json();
       if (data && data.length > 0) {
         setColaborador(data[0]);
         setFotoCapturada(data[0].foto_url || null);
+        setAbaAtiva('emissao'); // Pula automaticamente para a aba de emissão
       } else {
         setColaborador(null);
         setErro('Matrícula não encontrada na base do sistema.');
@@ -56,21 +98,25 @@ export default function PortalRH() {
     finally { setCarregando(false); }
   };
 
+  const handleBuscaForm = (e: React.FormEvent) => {
+    e.preventDefault();
+    if(busca) buscarColaboradorPorMatricula(busca);
+  };
+
+  // ==========================================
+  // ESTÚDIO DE FOTOGRAFIA
+  // ==========================================
   const ligarCamera = async () => {
     setCameraAtiva(true); setRawFoto(null); setMsgFoto({ texto: '', tipo: '' });
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 600, height: 600, facingMode: 'user' } });
       if (videoRef.current) videoRef.current.srcObject = stream;
-    } catch (err) {
-      alert("Permissão de câmara negada ou dispositivo não encontrado.");
-      setCameraAtiva(false);
-    }
+    } catch (err) { alert("Permissão negada ou câmara não encontrada."); setCameraAtiva(false); }
   };
 
   const tirarFoto = () => {
     if (videoRef.current) {
-      const canvas = document.createElement('canvas');
-      canvas.width = 600; canvas.height = 600; 
+      const canvas = document.createElement('canvas'); canvas.width = 600; canvas.height = 600; 
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.drawImage(videoRef.current, 0, 0, 600, 600);
@@ -86,52 +132,33 @@ export default function PortalRH() {
     if (e.target.files && e.target.files[0]) {
       setMsgFoto({ texto: '', tipo: '' });
       const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) setRawFoto(event.target.result as string); 
-      };
+      reader.onload = (event) => { if (event.target?.result) setRawFoto(event.target.result as string); };
       reader.readAsDataURL(e.target.files[0]);
     }
   };
 
-  // MATEMÁTICA CORRIGIDA: Recorta a partir do centro do rosto!
   const aplicarRecorte = () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 260; 
-    canvas.height = 350; 
+    const canvas = document.createElement('canvas'); canvas.width = 260; canvas.height = 350; 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
-    const img = new Image();
-    img.src = rawFoto as string;
+    const img = new Image(); img.src = rawFoto as string;
     img.onload = () => {
       if (clarear) ctx.filter = 'brightness(1.25) contrast(1.15)';
-      
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      const cx = canvas.width / 2;
-      const cy = canvas.height / 2;
-      
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const cx = canvas.width / 2; const cy = canvas.height / 2;
       const scaleFit = Math.max(canvas.width / img.width, canvas.height / img.height);
-      const w = img.width * scaleFit;
-      const h = img.height * scaleFit;
+      const w = img.width * scaleFit; const h = img.height * scaleFit;
 
-      ctx.translate(cx + panX, cy + panY); 
-      ctx.scale(zoom, zoom); 
+      ctx.translate(cx + panX, cy + panY); ctx.scale(zoom, zoom); 
       ctx.drawImage(img, -w / 2, -h / 2, w, h);
-
-      const finalImg = canvas.toDataURL('image/jpeg', 0.95);
-      setFotoCapturada(finalImg); 
-      setRawFoto(null); 
+      
+      setFotoCapturada(canvas.toDataURL('image/jpeg', 0.95)); setRawFoto(null); 
       setZoom(1); setPanX(0); setPanY(0); setClarear(false);
     };
   };
 
-  // FUNÇÃO NOVA: Enviar foto direto sem editar
-  const usarFotoOriginal = () => {
-    setFotoCapturada(rawFoto);
-    setRawFoto(null);
-  };
+  const usarFotoOriginal = () => { setFotoCapturada(rawFoto); setRawFoto(null); };
 
   const salvarFotoNoSupabase = async () => {
     if (!fotoCapturada || !colaborador) return;
@@ -144,9 +171,10 @@ export default function PortalRH() {
       });
       if (!response.ok) throw new Error('Erro ao salvar');
       setMsgFoto({ texto: 'Fotografia guardada com sucesso na Base de Dados!', tipo: 'sucesso' });
-    } catch (err) {
-      setMsgFoto({ texto: 'Erro de ligação ao guardar fotografia.', tipo: 'erro' });
-    } finally { setSalvandoFoto(false); }
+      // Atualiza a lista por trás das cortinas para tirar o colaborador dos pendentes
+      carregarLista();
+    } catch (err) { setMsgFoto({ texto: 'Erro de ligação.', tipo: 'erro' }); } 
+    finally { setSalvandoFoto(false); }
   };
 
   const formatarNomeCurto = (nomeCompleto: string) => {
@@ -198,9 +226,78 @@ export default function PortalRH() {
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar print-padding-remove">
 
+          {/* NOVA ABA: COLABORADORES */}
+          {abaAtiva === 'colaboradores' && (
+            <div className="animation-fade-in max-w-6xl mx-auto hide-on-print">
+              <div className="bg-white rounded-xl shadow-sm border border-[#cfd8dc] overflow-hidden">
+                
+                {/* Cabeçalho da Lista e Filtros */}
+                <div className="p-6 border-b border-[#eceff1] flex flex-col md:flex-row justify-between items-center gap-4 bg-[#fafafa]">
+                  <div>
+                    <h3 className="font-bold text-[#023A58] text-lg">Base de Colaboradores SGSO</h3>
+                    <p className="text-xs text-slate-500 mt-1">Identifique pendências e emita crachás rapidamente.</p>
+                  </div>
+                  
+                  <div className="flex bg-[#eceff1] p-1 rounded-lg">
+                    <button onClick={() => setFiltroFoto('todos')} className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${filtroFoto === 'todos' ? 'bg-white text-[#023A58] shadow-sm' : 'text-slate-500 hover:text-[#023A58]'}`}>Todos</button>
+                    <button onClick={() => setFiltroFoto('sem_foto')} className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${filtroFoto === 'sem_foto' ? 'bg-[#e74c3c] text-white shadow-sm' : 'text-slate-500 hover:text-[#e74c3c]'}`}>Pendentes (Sem Foto)</button>
+                    <button onClick={() => setFiltroFoto('com_foto')} className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${filtroFoto === 'com_foto' ? 'bg-[#2ecc71] text-white shadow-sm' : 'text-slate-500 hover:text-[#2ecc71]'}`}>Fotos OK</button>
+                  </div>
+                </div>
+
+                {/* Tabela */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-[#f8f9fa] border-b border-[#eceff1] text-xs uppercase tracking-wider text-slate-500 font-bold">
+                        <th className="p-4 pl-6">Matrícula</th>
+                        <th className="p-4">Nome do Colaborador</th>
+                        <th className="p-4">Função</th>
+                        <th className="p-4 text-center">Status (Foto)</th>
+                        <th className="p-4 text-right pr-6">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-sm">
+                      {carregandoLista ? (
+                        <tr><td colSpan={5} className="p-8 text-center text-slate-400"><i className="fas fa-spinner fa-spin mr-2"></i> A carregar base de dados...</td></tr>
+                      ) : colaboradoresFiltrados.length === 0 ? (
+                        <tr><td colSpan={5} className="p-8 text-center text-slate-400">Nenhum colaborador encontrado neste filtro.</td></tr>
+                      ) : (
+                        colaboradoresFiltrados.map((colab) => (
+                          <tr key={colab.matricula} className="border-b border-[#eceff1] hover:bg-[#f8f9fa] transition-colors">
+                            <td className="p-4 pl-6 font-bold text-[#035B8B]">{colab.matricula}</td>
+                            <td className="p-4 font-semibold text-[#263238]">{colab.nome_completo}</td>
+                            <td className="p-4 text-slate-500 text-xs font-bold uppercase">{colab.desc_funcao}</td>
+                            <td className="p-4 text-center">
+                              {colab.foto_url ? (
+                                <span className="bg-[#e8f5e9] text-[#27ae60] border border-[#2ecc71] px-3 py-1 rounded-full text-xs font-bold"><i className="fas fa-check-circle mr-1"></i> OK</span>
+                              ) : (
+                                <span className="bg-[#fdeced] text-[#c0392b] border border-[#e74c3c] px-3 py-1 rounded-full text-xs font-bold"><i className="fas fa-exclamation-circle mr-1"></i> Pendente</span>
+                              )}
+                            </td>
+                            <td className="p-4 text-right pr-6">
+                              <button 
+                                onClick={() => buscarColaboradorPorMatricula(colab.matricula)}
+                                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all shadow-sm ${colab.foto_url ? 'bg-[#eceff1] text-[#023A58] hover:bg-[#cfd8dc]' : 'bg-[#035B8B] text-white hover:bg-[#023A58]'}`}
+                              >
+                                {colab.foto_url ? 'Ver Crachá' : 'Tirar Foto / Emitir'}
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+              </div>
+            </div>
+          )}
+
+          {/* ABA EMISSÃO (Mantida e Melhorada) */}
           {abaAtiva === 'emissao' && (
             <div className="animation-fade-in max-w-6xl mx-auto">
-              <form onSubmit={handleBusca} className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm mb-8 flex gap-4 items-end hide-on-print">
+              <form onSubmit={handleBuscaForm} className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm mb-8 flex gap-4 items-end hide-on-print">
                 <div className="flex-1">
                   <label className="block text-sm font-bold mb-2 text-[#023A58]">Procurar Matrícula na Base</label>
                   <input type="text" placeholder="Ex: 6294" value={busca} onChange={(e) => setBusca(e.target.value)} className="w-full bg-[#f8f9fa] border border-[#b0bec5] rounded-lg px-4 py-3 text-[#263238] focus:outline-none focus:border-[#035B8B]" />
@@ -307,12 +404,11 @@ export default function PortalRH() {
                         <div className="absolute bottom-[13mm] left-[1mm] z-10 w-[24mm] h-[8mm] flex items-center justify-start"><img src="/dinamo.png" className="max-h-full max-w-full object-contain" alt="Dínamo" /></div>
                       </div>
 
-                      {/* VERSO COM TIPO SANGUÍNEO */}
+                      {/* VERSO */}
                       <div className="cracha-card w-[54mm] h-[86mm] bg-white relative p-[2mm] flex flex-col box-border" style={{ border: '1px solid #ccc' }}>
                         <div className="mt-[2mm] w-full flex flex-col gap-[3mm]">
                           <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span><div className="text-[7.5px] text-black font-semibold uppercase">{colaborador.nome_completo}</div></div>
                           
-                          {/* NOVA LINHA: CPF + TIPO SANGUÍNEO LADO A LADO */}
                           <div className="flex w-full gap-[2mm]">
                             <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex-1 flex items-center justify-center"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">CPF</span><div className="text-[8px] text-black font-semibold uppercase">{colaborador.cpf || '000.000.000-00'}</div></div>
                             <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] w-[14mm] flex items-center justify-center bg-[#ffebee] border-[#e74c3c]"><span className="absolute -top-[2.5mm] left-[1mm] bg-white px-[0.5mm] text-[5px] font-bold text-[#c0392b] leading-none">Tp. Sangue</span><div className="text-[8px] text-[#c0392b] font-black uppercase">{colaborador.tipo_sanguineo || 'O+'}</div></div>
@@ -345,10 +441,15 @@ export default function PortalRH() {
             </div>
           )}
 
-          {['dashboard', 'colaboradores', 'cadastro', 'qrcode', 'configuracoes'].includes(abaAtiva) && (
+          {['cadastro', 'qrcode', 'configuracoes'].includes(abaAtiva) && (
             <div className="bg-white p-10 rounded-xl border border-[#cfd8dc] shadow-sm text-center animation-fade-in flex flex-col items-center justify-center min-h-[400px]">
               <div className="w-20 h-20 bg-[#e3f2fd] rounded-full flex items-center justify-center text-[#023A58] text-3xl mb-4"><i className={`fas ${menuItens.find(m => m.id === abaAtiva)?.icone}`}></i></div>
-              <h2 className="text-2xl font-bold text-[#263238] mb-2">Módulo em Construção</h2>
+              <h2 className="text-2xl font-bold text-[#263238] mb-2">{abaAtiva === 'configuracoes' ? 'Gestão de Utilizadores e Acessos' : 'Módulo em Construção'}</h2>
+              <p className="text-slate-500 max-w-md">
+                {abaAtiva === 'configuracoes' 
+                  ? 'Em breve: Configuração de perfis ADM, RH e SESMT.' 
+                  : `O ecrã de ${menuItens.find(m => m.id === abaAtiva)?.nome} será integrado em breve.`}
+              </p>
             </div>
           )}
 
