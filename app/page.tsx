@@ -10,7 +10,6 @@ export default function PortalRH() {
   // SIMULADOR DE PERFIL DE ACESSO (Para testar a lógica de permissões)
   const [perfilAcesso, setPerfilAcesso] = useState('ADM'); 
 
-  // Menu simplificado: Gestão QR Code foi ELIMINADA! Tudo centralizado.
   const menuItens = [
     { id: 'colaboradores', nome: 'Base de Colaboradores', icone: 'fa-users' },
     { id: 'emissao', nome: 'Emissão Individual', icone: 'fa-id-badge' },
@@ -34,7 +33,7 @@ export default function PortalRH() {
 
   const handlePesquisaTabela = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!buscaTabela.trim() && !pesquisaRealizada) return; // Permite recarregar a mesma busca após edição
+    if (!buscaTabela.trim() && !pesquisaRealizada) return; 
     
     setCarregandoLista(true); setPesquisaRealizada(true);
     const isNum = /^\d+$/.test(buscaTabela.trim());
@@ -53,7 +52,7 @@ export default function PortalRH() {
   };
 
   const abrirEdicao = (colab: any) => {
-    setColaboradorEditando({ ...colab }); // Cria uma cópia para editar sem afetar a lista até salvar
+    setColaboradorEditando({ ...colab }); 
   };
 
   const salvarEdicao = async (e: React.FormEvent) => {
@@ -61,21 +60,19 @@ export default function PortalRH() {
     if (!colaboradorEditando) return;
     setSalvandoEdicao(true);
     try {
+      // ATENÇÃO: Agora só envia o Tipo Sanguíneo e o Link para não sobrepor dados do ERP
       const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${colaboradorEditando.matricula}`, {
         method: 'PATCH',
         headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
         body: JSON.stringify({
-          nome_completo: colaboradorEditando.nome_completo,
-          cpf: colaboradorEditando.cpf,
-          desc_funcao: colaboradorEditando.desc_funcao,
           tipo_sanguineo: colaboradorEditando.tipo_sanguineo,
           link_qrcode: colaboradorEditando.link_qrcode
         })
       });
       if (!response.ok) throw new Error('Erro ao salvar edições');
-      setColaboradorEditando(null); // Fecha o modal
-      handlePesquisaTabela(); // Atualiza a tabela imediatamente
-      alert("Informações atualizadas com sucesso!");
+      setColaboradorEditando(null); 
+      handlePesquisaTabela(); 
+      alert("Informações complementares atualizadas com sucesso!");
     } catch (err) {
       alert("Erro ao salvar alterações.");
     } finally {
@@ -286,7 +283,7 @@ export default function PortalRH() {
                               {/* Botão de Editar (SÓ APARECE SE FOR ADM ou SESMT) */}
                               {(perfilAcesso === 'ADM' || perfilAcesso === 'SESMT') && (
                                 <button onClick={() => abrirEdicao(colab)} className="bg-[#f39c12] hover:bg-[#d35400] text-white px-3 py-1.5 text-xs font-bold rounded shadow-sm transition-colors" title="Editar Informações e Link">
-                                  <i className="fas fa-edit mr-1"></i> Editar
+                                  <i className="fas fa-edit mr-1"></i> Adic. Dados
                                 </button>
                               )}
                             </td>
@@ -410,6 +407,7 @@ export default function PortalRH() {
                         {fotoCapturada && (
                           <div className="w-full mt-6 border-t border-[#eceff1] pt-4">
                             <button onClick={salvarFotoNoSupabase} disabled={salvandoFoto} className="w-full bg-[#f39c12] text-white font-bold py-3 rounded-lg shadow-sm w-full">Guardar Foto</button>
+                            {msgFoto.texto && <p className={`text-xs text-center mt-2 font-bold ${msgFoto.tipo === 'sucesso' ? 'text-[#27ae60]' : 'text-[#e74c3c]'}`}>{msgFoto.texto}</p>}
                           </div>
                         )}
                       </div>
@@ -481,54 +479,66 @@ export default function PortalRH() {
         </div>
 
         {/* ========================================================= */}
-        {/* MODAL DE EDIÇÃO DE COLABORADOR (FLUTUANTE)                */}
+        {/* MODAL DE EDIÇÃO DE COLABORADOR (BLINDADO)                 */}
         {/* ========================================================= */}
         {colaboradorEditando && (
           <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animation-fade-in hide-on-print">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col border-t-4 border-[#f39c12]">
               <div className="bg-[#023A58] p-4 flex justify-between items-center text-white">
-                <h3 className="font-bold text-lg"><i className="fas fa-user-edit mr-2"></i>Editar Informações e QR Code</h3>
+                <h3 className="font-bold text-lg"><i className="fas fa-lock mr-2 text-[#f1c40f]"></i>Painel de Complementos</h3>
                 <button onClick={() => setColaboradorEditando(null)} className="text-white hover:text-[#e74c3c] text-xl transition-colors"><i className="fas fa-times"></i></button>
               </div>
               
-              <form onSubmit={salvarEdicao} className="p-6 flex flex-col gap-4 overflow-y-auto max-h-[70vh]">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-[#546e7a] mb-1">Matrícula (Inalterável)</label>
-                    <input type="text" value={colaboradorEditando.matricula} disabled className="w-full bg-[#eceff1] border border-[#cfd8dc] rounded p-2 text-slate-500 cursor-not-allowed font-bold" />
+              <form onSubmit={salvarEdicao} className="p-6 flex flex-col gap-4 overflow-y-auto max-h-[75vh]">
+                
+                {/* DADOS DO ERP - BLOQUEADOS */}
+                <div className="bg-[#f8f9fa] border border-[#eceff1] p-4 rounded-lg mb-2 relative">
+                   <div className="absolute -top-3 left-4 bg-[#f8f9fa] px-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Dados do Sistema Base (Inalteráveis)</div>
+                   
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                     <div>
+                       <label className="block text-xs font-bold text-[#546e7a] mb-1">Matrícula</label>
+                       <input type="text" value={colaboradorEditando.matricula} disabled className="w-full bg-[#eceff1] border border-[#cfd8dc] rounded p-2 text-slate-500 cursor-not-allowed font-bold" />
+                     </div>
+                     <div>
+                       <label className="block text-xs font-bold text-[#546e7a] mb-1">Nome Completo</label>
+                       <input type="text" value={colaboradorEditando.nome_completo || ''} disabled className="w-full bg-[#eceff1] border border-[#cfd8dc] rounded p-2 text-slate-500 cursor-not-allowed font-bold" />
+                     </div>
+                   </div>
+
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                     <div>
+                       <label className="block text-xs font-bold text-[#546e7a] mb-1">CPF</label>
+                       <input type="text" value={colaboradorEditando.cpf || ''} disabled className="w-full bg-[#eceff1] border border-[#cfd8dc] rounded p-2 text-slate-500 cursor-not-allowed font-bold" />
+                     </div>
+                     <div>
+                       <label className="block text-xs font-bold text-[#546e7a] mb-1">RG</label>
+                       <input type="text" value={colaboradorEditando.rg || ''} disabled className="w-full bg-[#eceff1] border border-[#cfd8dc] rounded p-2 text-slate-500 cursor-not-allowed font-bold" />
+                     </div>
+                     <div>
+                       <label className="block text-xs font-bold text-[#546e7a] mb-1">Função / Cargo</label>
+                       <input type="text" value={colaboradorEditando.desc_funcao || ''} disabled title={colaboradorEditando.desc_funcao} className="w-full bg-[#eceff1] border border-[#cfd8dc] rounded p-2 text-slate-500 cursor-not-allowed font-bold truncate" />
+                     </div>
+                   </div>
+                </div>
+
+                {/* DADOS COMPLEMENTARES - EDITÁVEIS */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                  <div className="border-2 border-[#cfd8dc] hover:border-[#c0392b] transition-colors p-4 rounded-lg bg-white">
+                    <label className="block text-sm font-bold text-[#c0392b] mb-2"><i className="fas fa-tint mr-1"></i> Tipo Sanguíneo</label>
+                    <input type="text" value={colaboradorEditando.tipo_sanguineo || ''} onChange={e => setColaboradorEditando({...colaboradorEditando, tipo_sanguineo: e.target.value})} placeholder="Ex: O+" className="w-full bg-[#fafafa] border border-[#b0bec5] p-3 rounded focus:outline-none focus:border-[#c0392b] text-[#263238] font-bold text-center uppercase" />
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-[#546e7a] mb-1">Tipo Sanguíneo</label>
-                    <input type="text" value={colaboradorEditando.tipo_sanguineo || ''} onChange={e => setColaboradorEditando({...colaboradorEditando, tipo_sanguineo: e.target.value})} placeholder="Ex: O+" className="w-full border border-[#b0bec5] rounded p-2 focus:outline-none focus:border-[#035B8B]" />
+                  
+                  <div className="border-2 border-[#3498db] p-4 rounded-lg bg-[#e3f2fd]">
+                    <label className="block text-sm font-bold text-[#2980b9] mb-2"><i className="fas fa-link mr-1"></i> Link do Treinamento (QR Code)</label>
+                    <input type="url" placeholder="https://..." value={colaboradorEditando.link_qrcode || ''} onChange={e => setColaboradorEditando({...colaboradorEditando, link_qrcode: e.target.value})} className="w-full bg-white border border-[#85c1e9] p-3 rounded focus:outline-none focus:ring-2 focus:ring-[#2980b9] text-[#023A58]" />
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-[#546e7a] mb-1">Nome Completo</label>
-                  <input type="text" value={colaboradorEditando.nome_completo || ''} onChange={e => setColaboradorEditando({...colaboradorEditando, nome_completo: e.target.value})} className="w-full border border-[#b0bec5] rounded p-2 focus:outline-none focus:border-[#035B8B]" />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-[#546e7a] mb-1">CPF</label>
-                    <input type="text" value={colaboradorEditando.cpf || ''} onChange={e => setColaboradorEditando({...colaboradorEditando, cpf: e.target.value})} className="w-full border border-[#b0bec5] rounded p-2 focus:outline-none focus:border-[#035B8B]" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-[#546e7a] mb-1">Função / Cargo</label>
-                    <input type="text" value={colaboradorEditando.desc_funcao || ''} onChange={e => setColaboradorEditando({...colaboradorEditando, desc_funcao: e.target.value})} className="w-full border border-[#b0bec5] rounded p-2 focus:outline-none focus:border-[#035B8B]" />
-                  </div>
-                </div>
-
-                <div className="mt-4 border-t border-[#eceff1] pt-4">
-                  <label className="block text-sm font-bold text-[#2980b9] mb-1"><i className="fas fa-link mr-1"></i> Link do QR Code (Treinamento/Integração)</label>
-                  <p className="text-xs text-slate-500 mb-2">Cole aqui o link do vídeo ou documento que será aberto quando o QR Code do crachá for escaneado.</p>
-                  <input type="url" placeholder="https://..." value={colaboradorEditando.link_qrcode || ''} onChange={e => setColaboradorEditando({...colaboradorEditando, link_qrcode: e.target.value})} className="w-full border border-[#3498db] bg-[#e3f2fd] rounded p-3 focus:outline-none focus:ring-2 focus:ring-[#2980b9]" />
-                </div>
-
-                <div className="flex justify-end gap-3 mt-6">
-                  <button type="button" onClick={() => setColaboradorEditando(null)} className="px-6 py-2 rounded font-bold text-slate-600 bg-[#eceff1] hover:bg-[#cfd8dc] transition-colors">Cancelar</button>
-                  <button type="submit" disabled={salvandoEdicao} className="px-6 py-2 rounded font-bold text-white bg-[#2ecc71] hover:bg-[#27ae60] transition-colors flex items-center gap-2">
-                    {salvandoEdicao ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-save"></i>} Salvar Alterações
+                <div className="flex justify-end gap-3 mt-4 border-t border-[#eceff1] pt-4">
+                  <button type="button" onClick={() => setColaboradorEditando(null)} className="px-6 py-3 rounded-lg font-bold text-slate-600 bg-[#eceff1] hover:bg-[#cfd8dc] transition-colors">Cancelar</button>
+                  <button type="submit" disabled={salvandoEdicao} className="px-8 py-3 rounded-lg font-bold text-white bg-[#f39c12] hover:bg-[#d35400] transition-colors flex items-center gap-2 shadow-sm">
+                    {salvandoEdicao ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-save"></i>} Salvar Complementos
                   </button>
                 </div>
               </form>
@@ -584,6 +594,7 @@ export default function PortalRH() {
              </React.Fragment>
            ))}
         </div>
+
       </main>
 
       <style jsx global>{`
