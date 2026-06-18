@@ -8,46 +8,60 @@ export default function PortalRH() {
   const [abaAtiva, setAbaAtiva] = useState('emissao');
 
   const menuItens = [
-    { id: 'dashboard', nome: 'Painel de Controlo', icone: 'fa-chart-pie' },
+    { id: 'dashboard', nome: 'Painel de Controle', icone: 'fa-chart-pie' },
     { id: 'colaboradores', nome: 'Colaboradores', icone: 'fa-users' },
-    { id: 'cadastro', nome: 'Cadastro Manual', icone: 'fa-user-plus' },
+    { id: 'cadastro', nome: 'Upload Excel', icone: 'fa-upload' },
     { id: 'emissao', nome: 'Emissão de Crachás', icone: 'fa-id-badge' },
     { id: 'qrcode', nome: 'Gestão QR Code', icone: 'fa-qrcode' },
-    { id: 'configuracoes', nome: 'Configurações', icone: 'fa-cogs' },
+    { id: 'configuracoes', nome: 'Configurações/Acessos', icone: 'fa-cogs' },
   ];
 
+  // Estados Gerais
   const [busca, setBusca] = useState('');
   const [colaborador, setColaborador] = useState<any>(null);
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(false);
-
+  
   const [cameraAtiva, setCameraAtiva] = useState(false);
-  const [fotoCapturada, setFotoCapturada] = useState<string | null>(null);
-  const [rawFoto, setRawFoto] = useState<string | null>(null); 
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null); // Foto salva no BD (só visualização)
+  const [fotoCapturada, setFotoCapturada] = useState<string | null>(null); // Foto que vai pra impressão
+  const [rawFoto, setRawFoto] = useState<string | null>(null); // Foto bruta para editar
   const [zoom, setZoom] = useState(1);
   const [panX, setPanX] = useState(0);
   const [panY, setPanY] = useState(0);
-  const [clarear, setClarear] = useState(false);
+  
   const [salvandoFoto, setSalvandoFoto] = useState(false);
   const [msgFoto, setMsgFoto] = useState({ texto: '', tipo: '' });
 
+  // Estados das Telas Novas
+  const [listaColaboradores, setListaColaboradores] = useState<any[]>([]);
+  const [carregandoLista, setCarregandoLista] = useState(false);
+  const [filtroQr, setFiltroQr] = useState('');
+  const [excelFile, setExcelFile] = useState<File | null>(null);
+
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  const URL = "https://dpndtwutvkaxrxrkyeyw.supabase.co";
-  const KEY = "sb_publishable_6Ss9lNdcbyeE2o3U5jcJ7w_qI61wmIr";
+  // Protegendo com variáveis de ambiente (lembre-se de criar o .env.local)
+  const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+  // ==================== FUNÇÕES TELA EMISSÃO ====================
 
   const handleBusca = async (e: React.FormEvent) => {
     e.preventDefault();
     setErro(''); setMsgFoto({ texto: '', tipo: '' }); setRawFoto(null);
     setCarregando(true);
     try {
-      const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${busca}&select=*`, {
+      const matriculaBuscada = encodeURIComponent(busca.trim());
+      const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${matriculaBuscada}&select=*`, {
         headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` }
       });
       const data = await response.json();
       if (data && data.length > 0) {
         setColaborador(data[0]);
-        setFotoCapturada(data[0].foto_url || null);
+        // O usuário pediu: A foto só vai aparecer na visualização de impressão.
+        setFotoPreview(data[0].foto_url || null); 
+        setFotoCapturada(data[0].foto_url || null); 
       } else {
         setColaborador(null);
         setErro('Matrícula não encontrada na base do sistema.');
@@ -93,7 +107,6 @@ export default function PortalRH() {
     }
   };
 
-  // MATEMÁTICA CORRIGIDA: Agora recorta a partir do centro do rosto!
   const aplicarRecorte = () => {
     const canvas = document.createElement('canvas');
     canvas.width = 260; 
@@ -104,8 +117,7 @@ export default function PortalRH() {
     const img = new Image();
     img.src = rawFoto as string;
     img.onload = () => {
-      if (clarear) ctx.filter = 'brightness(1.25) contrast(1.15)';
-      
+      // CORREÇÃO: Removi o filtro de "Clarear" como pedido
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -123,11 +135,10 @@ export default function PortalRH() {
       const finalImg = canvas.toDataURL('image/jpeg', 0.95);
       setFotoCapturada(finalImg); 
       setRawFoto(null); 
-      setZoom(1); setPanX(0); setPanY(0); setClarear(false);
+      setZoom(1); setPanX(0); setPanY(0); 
     };
   };
 
-  // FUNÇÃO NOVA: Enviar foto direto sem editar
   const usarFotoOriginal = () => {
     setFotoCapturada(rawFoto);
     setRawFoto(null);
@@ -150,13 +161,55 @@ export default function PortalRH() {
   };
 
   const formatarNomeCurto = (nomeCompleto: string) => {
-    if (!nomeCompleto) return ""; const partes = nomeCompleto.trim().split(" ");
-    return partes.length === 1 ? partes[0] : `${partes[0]} ${partes[partes.length - 1]}`;
+    if (!nomeCompleto) return "SEM NOME";
+    const partes = nomeCompleto.trim().split(" ");
+    if (partes.length === 1) return partes[0];
+    return `${partes[0]} ${partes[partes.length - 1]}`;
   };
 
   const obterDataHoraAtual = () => {
     const data = new Date();
     return `${data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })} ${data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+  };
+
+  // ==================== FUNÇÕES COLABORADORES (TELA LISTA) ====================
+  const carregarTodosColaboradores = async () => {
+    setCarregandoLista(true);
+    try {
+      const response = await fetch(`${URL}/rest/v1/colaboradores?select=*`, {
+        headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` }
+      });
+      const data = await response.json();
+      if (data) setListaColaboradores(data);
+    } catch (error) { console.error("Erro ao carregar lista"); } 
+    finally { setCarregandoLista(false); }
+  };
+
+  // ==================== FUNÇÕES EXCEL ====================
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0]) return;
+    const file = e.target.files[0];
+    setExcelFile(file);
+    
+    // Como você vai instalar a biblioteca XLSX, aqui vai o código que lê o arquivo
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        // NOTA: Para isso funcionar, você precisa que a biblioteca xlsx (npm install xlsx) esteja instalada
+        // import * as XLSX from 'xlsx'; (Se for usar isso, recomendo colocar no topo do arquivo)
+        // Exemplo de lógica: 
+        // const workbook = XLSX.read(ev.target?.result, { type: 'binary' });
+        // const sheetName = workbook.SheetNames[0];
+        // const dados = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+        // console.log("Dados importados:", dados);
+        
+        // Apenas para teste visual sem quebrar o app, mostramos um alerta:
+        alert("Arquivo carregado! Para salvar no banco, implemente o envio dos dados via API usando o código acima e a biblioteca XLSX.");
+      } catch (error) {
+        alert("Erro ao ler o arquivo, certifique-se de ter instalado o 'xlsx' (npm install xlsx).");
+      }
+    };
+    reader.readAsBinaryString(file);
   };
 
   return (
@@ -170,7 +223,10 @@ export default function PortalRH() {
         <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-2 custom-scrollbar">
           <div className="text-[#90a4ae] text-xs font-bold uppercase tracking-wider mb-4 px-3">Gestão Operacional</div>
           {menuItens.map((item) => (
-            <button key={item.id} onClick={() => setAbaAtiva(item.id)}
+            <button key={item.id} onClick={() => {
+              setAbaAtiva(item.id);
+              if(item.id === 'colaboradores') carregarTodosColaboradores();
+            }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 font-medium text-sm
                 ${abaAtiva === item.id ? 'bg-[#035B8B] text-white shadow-md transform translate-x-1' : 'text-slate-300 hover:bg-[#035B8B]/50 hover:text-white'}`}>
               <i className={`fas ${item.icone} w-5 text-center text-lg`}></i> {item.nome}
@@ -198,6 +254,7 @@ export default function PortalRH() {
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar print-padding-remove">
 
+          {/* ================== ABA EMISSÃO ================== */}
           {abaAtiva === 'emissao' && (
             <div className="animation-fade-in max-w-6xl mx-auto">
               <form onSubmit={handleBusca} className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm mb-8 flex gap-4 items-end hide-on-print">
@@ -223,7 +280,7 @@ export default function PortalRH() {
                       <div className="flex flex-col items-center w-full animation-fade-in">
                         <div className="text-xs font-bold text-[#e74c3c] mb-2 w-full text-center bg-[#ffebee] py-1 rounded">Modo de Recorte Ativo</div>
                         
-                        <div className="relative w-48 h-64 bg-slate-900 overflow-hidden mb-4 rounded-lg shadow-inner" style={{ filter: clarear ? 'brightness(1.25) contrast(1.15)' : 'none' }}>
+                        <div className="relative w-48 h-64 bg-slate-900 overflow-hidden mb-4 rounded-lg shadow-inner">
                           <img 
                             src={rawFoto} alt="Raw" 
                             style={{ 
@@ -239,11 +296,6 @@ export default function PortalRH() {
                           <div><label className="text-xs font-bold text-[#546e7a]">↔️ Esquerda / Direita</label><input type="range" min="-150" max="150" value={panX} onChange={e => setPanX(Number(e.target.value))} className="w-full accent-[#035B8B]" /></div>
                           <div><label className="text-xs font-bold text-[#546e7a]">↕️ Cima / Baixo</label><input type="range" min="-150" max="150" value={panY} onChange={e => setPanY(Number(e.target.value))} className="w-full accent-[#035B8B]" /></div>
                         </div>
-
-                        <label className="flex items-center justify-center gap-2 mt-4 w-full bg-white border border-[#cfd8dc] p-3 rounded-lg cursor-pointer hover:bg-[#eceff1]">
-                          <input type="checkbox" checked={clarear} onChange={e => setClarear(e.target.checked)} className="w-4 h-4 accent-[#023A58]" />
-                          <span className="text-sm font-bold text-[#023A58]">✨ Clarear Parede Branca</span>
-                        </label>
 
                         <div className="flex gap-2 w-full mt-4">
                           <button onClick={usarFotoOriginal} className="flex-1 bg-[#3498db] hover:bg-[#2980b9] text-white font-bold py-2 text-xs rounded-lg shadow-sm">Pular e Usar Original</button>
@@ -312,7 +364,6 @@ export default function PortalRH() {
                         <div className="mt-[2mm] w-full flex flex-col gap-[3mm]">
                           <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span><div className="text-[7.5px] text-black font-semibold uppercase">{colaborador.nome_completo}</div></div>
                           
-                          {/* NOVA LINHA: CPF + TIPO SANGUÍNEO LADO A LADO */}
                           <div className="flex w-full gap-[2mm]">
                             <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex-1 flex items-center justify-center"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">CPF</span><div className="text-[8px] text-black font-semibold uppercase">{colaborador.cpf || '000.000.000-00'}</div></div>
                             <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] w-[14mm] flex items-center justify-center bg-[#ffebee] border-[#e74c3c]"><span className="absolute -top-[2.5mm] left-[1mm] bg-white px-[0.5mm] text-[5px] font-bold text-[#c0392b] leading-none">Tp. Sangue</span><div className="text-[8px] text-[#c0392b] font-black uppercase">{colaborador.tipo_sanguineo || 'O+'}</div></div>
@@ -345,10 +396,138 @@ export default function PortalRH() {
             </div>
           )}
 
-          {['dashboard', 'colaboradores', 'cadastro', 'qrcode', 'configuracoes'].includes(abaAtiva) && (
+          {/* ================== ABA COLABORADORES ================== */}
+          {abaAtiva === 'colaboradores' && (
+            <div className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm animation-fade-in">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-lg font-bold text-[#023A58]">Lista Geral de Colaboradores</h2>
+                <button onClick={carregarTodosColaboradores} className="bg-[#eceff1] text-[#023A58] px-4 py-2 rounded-lg hover:bg-[#cfd8dc] text-sm font-bold"><i className="fas fa-sync-alt mr-2"></i>Recarregar</button>
+              </div>
+              
+              {carregandoLista ? (
+                <div className="text-center py-10 text-[#546e7a]"><i className="fas fa-spinner fa-spin mr-2"></i> Carregando colaboradores...</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="bg-[#f8f9fa] text-[#546e7a] text-xs font-bold uppercase">
+                      <tr className="border-b border-[#eceff1]">
+                        <th className="p-4">Nome</th>
+                        <th className="p-4">Matrícula</th>
+                        <th className="p-4 text-center">Status Foto</th>
+                        <th className="p-4 text-center">Status QR Code</th>
+                        <th className="p-4 text-center">Status Link</th>
+                        <th className="p-4 text-center">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-sm text-[#263238]">
+                      {listaColaboradores.length === 0 ? (
+                        <tr><td colSpan={6} className="p-10 text-center text-[#90a4ae]">Nenhum colaborador encontrado.</td></tr>
+                      ) : (
+                        listaColaboradores.map((col, i) => (
+                          <tr key={i} className="border-b border-[#f0f0f0] hover:bg-[#fafafa]">
+                            <td className="p-4 font-medium">{col.nome_completo}</td>
+                            <td className="p-4">{col.matricula}</td>
+                            <td className="p-4 text-center"><span className={`px-2 py-1 rounded-full text-[10px] font-bold ${col.foto_url ? 'bg-[#e8f5e9] text-[#2e7d32]' : 'bg-[#ffebee] text-[#c62828]'}`}>{col.foto_url ? 'Sim' : 'Não'}</span></td>
+                            <td className="p-4 text-center"><span className="px-2 py-1 rounded-full text-[10px] font-bold bg-[#ffebee] text-[#c62828]">Não</span></td>
+                            <td className="p-4 text-center"><span className="px-2 py-1 rounded-full text-[10px] font-bold bg-[#ffebee] text-[#c62828]">Não</span></td>
+                            <td className="p-4 text-center">
+                              <button className="text-[#035B8B] hover:text-[#023A58] mr-2"><i className="fas fa-edit"></i></button>
+                              <button className="text-[#2ecc71] hover:text-[#27ae60]"><i className="fas fa-print"></i></button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ================== ABA UPLOAD EXCEL ================== */}
+          {abaAtiva === 'cadastro' && (
             <div className="bg-white p-10 rounded-xl border border-[#cfd8dc] shadow-sm text-center animation-fade-in flex flex-col items-center justify-center min-h-[400px]">
-              <div className="w-20 h-20 bg-[#e3f2fd] rounded-full flex items-center justify-center text-[#023A58] text-3xl mb-4"><i className={`fas ${menuItens.find(m => m.id === abaAtiva)?.icone}`}></i></div>
-              <h2 className="text-2xl font-bold text-[#263238] mb-2">Módulo em Construção</h2>
+              <div className="w-20 h-20 bg-[#e3f2fd] rounded-full flex items-center justify-center text-[#023A58] text-3xl mb-4"><i className="fas fa-file-excel"></i></div>
+              <h2 className="text-2xl font-bold text-[#263238] mb-2">Importação em Massa</h2>
+              <p className="text-[#546e7a] mb-6">Carregue um arquivo .xlsx para cadastrar vários colaboradores de uma vez.</p>
+              
+              <label className="bg-[#035B8B] text-white font-bold px-6 py-3 rounded-lg hover:bg-[#023A58] cursor-pointer shadow-sm transition-all">
+                <i className="fas fa-upload mr-2"></i> Selecionar Planilha Excel
+                <input type="file" accept=".xlsx, .xls" onChange={handleExcelUpload} className="hidden" />
+              </label>
+              {excelFile && <p className="text-sm text-[#2e7d32] mt-4 font-medium"><i className="fas fa-check-circle mr-2"></i>{excelFile.name} carregado.</p>}
+            </div>
+          )}
+
+          {/* ================== ABA GESTÃO QR CODE ================== */}
+          {abaAtiva === 'qrcode' && (
+            <div className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm animation-fade-in">
+              <h2 className="text-lg font-bold text-[#023A58] mb-4">Gestão de QR Codes</h2>
+              <p className="text-sm text-[#546e7a] mb-6">Lista de colaboradores que ainda não possuem QR Code gerado ou link vinculado.</p>
+              
+              <div className="flex gap-4 mb-6">
+                <input 
+                  type="text" 
+                  placeholder="Filtrar por Nome ou Matrícula" 
+                  className="flex-1 bg-[#f8f9fa] border border-[#b0bec5] rounded-lg px-4 py-2 focus:outline-none focus:border-[#035B8B]"
+                  value={filtroQr}
+                  onChange={(e) => setFiltroQr(e.target.value)}
+                />
+                <button className="bg-[#023A58] text-white px-6 py-2 rounded-lg font-bold text-sm hover:bg-[#035B8B]">Filtrar</button>
+              </div>
+              
+              <div className="text-center py-10 border border-dashed border-[#cfd8dc] rounded-lg text-[#90a4ae] bg-[#fafafa]">
+                <i className="fas fa-qrcode text-4xl mb-2 opacity-50"></i>
+                <p>Funcionalidade de geração e vinculação de link disponível aqui.</p>
+              </div>
+            </div>
+          )}
+
+          {/* ================== ABA CONFIGURAÇÕES / USUÁRIOS ================== */}
+          {abaAtiva === 'configuracoes' && (
+            <div className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm animation-fade-in grid grid-cols-1 lg:grid-cols-2 gap-8">
+              
+              <div className="border-r border-[#eceff1] pr-6">
+                <h3 className="text-lg font-bold text-[#023A58] mb-6">Gestão de Acessos (Usuários)</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-[#f8f9fa] rounded-lg border border-[#eceff1]">
+                    <div><span className="block font-bold text-sm">Jackson Abreu</span><span className="block text-xs text-[#546e7a]">jackson@dinamo.com</span></div>
+                    <select className="bg-white border border-[#b0bec5] rounded px-2 py-1 text-sm font-semibold">
+                      <option>Gestor de QR Code</option>
+                      <option>Gerador de QR Code</option>
+                      <option>Admin</option>
+                    </select>
+                  </div>
+                  <button className="w-full bg-[#023A58] text-white font-bold py-3 rounded-lg hover:bg-[#035B8B] transition-all text-sm mt-4">
+                    <i className="fas fa-user-plus mr-2"></i> Cadastrar Novo Usuário
+                  </button>
+                  <p className="text-[10px] text-[#90a4ae] text-center mt-2">(Será integrado com o Supabase Auth)</p>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-bold text-[#023A58] mb-6">Configurações Gerais</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-[#f8f9fa] rounded-lg border border-[#eceff1]">
+                    <span className="font-medium text-sm">Permitir QR Code apenas para Gestores</span>
+                    <div className="w-12 h-6 bg-[#2ecc71] rounded-full relative cursor-pointer"><div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full shadow"></div></div>
+                  </div>
+                  <div className="flex items-center justify-between p-4 bg-[#f8f9fa] rounded-lg border border-[#eceff1]">
+                    <span className="font-medium text-sm">Caminho Padrão do Link</span>
+                    <input type="text" defaultValue="https://sgso.dinamo.srv.br/colaborador/" className="bg-white border border-[#b0bec5] rounded px-2 py-1 text-sm w-48" />
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* ================== OUTRAS ABAS (EM CONSTRUÇÃO) ================== */}
+          {abaAtiva === 'dashboard' && (
+            <div className="bg-white p-10 rounded-xl border border-[#cfd8dc] shadow-sm text-center animation-fade-in flex flex-col items-center justify-center min-h-[400px]">
+              <div className="w-20 h-20 bg-[#e3f2fd] rounded-full flex items-center justify-center text-[#023A58] text-3xl mb-4"><i className="fas fa-chart-pie"></i></div>
+              <h2 className="text-2xl font-bold text-[#263238] mb-2">Painel em Construção</h2>
+              <p className="text-[#546e7a]">Gráficos e indicadores serão exibidos aqui.</p>
             </div>
           )}
 
