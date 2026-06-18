@@ -93,7 +93,7 @@ export default function PortalRH() {
     }
   };
 
-  // MATEMÁTICA CORRIGIDA: Agora recorta a partir do centro do rosto!
+  // MATEMÁTICA CORRIGIDA: Recorta a partir do centro do rosto!
   const aplicarRecorte = () => {
     const canvas = document.createElement('canvas');
     canvas.width = 260; 
