@@ -5,22 +5,21 @@
 import React, { useState, useRef } from 'react';
 
 export default function PortalRH() {
-  const [abaAtiva, setAbaAtiva] = useState('lote'); // Abre na nova aba de Lote para você testar
+  const [abaAtiva, setAbaAtiva] = useState('lote');
 
   const menuItens = [
     { id: 'colaboradores', nome: 'Base de Colaboradores', icone: 'fa-users' },
     { id: 'emissao', nome: 'Emissão Individual', icone: 'fa-id-badge' },
-    { id: 'lote', nome: 'Emissão em Lote', icone: 'fa-layer-group' }, // NOVA ABA AQUI
-    { id: 'qrcode', nome: 'Gestão QR Code', icone: 'fa-qrcode' }, // SESMT removido
+    { id: 'lote', nome: 'Emissão em Lote', icone: 'fa-layer-group' },
+    { id: 'qrcode', nome: 'Gestão QR Code', icone: 'fa-qrcode' },
     { id: 'cadastro', nome: 'Cadastro Manual', icone: 'fa-user-plus' },
     { id: 'configuracoes', nome: 'Configurações', icone: 'fa-cogs' },
   ];
 
-  // ========================== ESTADOS GERAIS ==========================
   const URL = "https://dpndtwutvkaxrxrkyeyw.supabase.co";
   const KEY = "sb_publishable_6Ss9lNdcbyeE2o3U5jcJ7w_qI61wmIr";
 
-  // ========================== ABA: COLABORADORES (BUSCA SIMPLES) ==========================
+  // ========================== ABA: COLABORADORES ==========================
   const [buscaTabela, setBuscaTabela] = useState('');
   const [resultadosBusca, setResultadosBusca] = useState<any[]>([]);
   const [carregandoLista, setCarregandoLista] = useState(false);
@@ -43,7 +42,7 @@ export default function PortalRH() {
     finally { setCarregandoLista(false); }
   };
 
-  // ========================== ABA: EMISSÃO EM LOTE (NOVA LÓGICA!) ==========================
+  // ========================== ABA: EMISSÃO EM LOTE ==========================
   const [listaLote, setListaLote] = useState<any[]>([]);
   const [matriculaLote, setMatriculaLote] = useState('');
   const [carregandoLote, setCarregandoLote] = useState(false);
@@ -54,7 +53,6 @@ export default function PortalRH() {
     setErroLote('');
     if (!matriculaLote.trim()) return;
     
-    // Verifica se já está na lista
     if (listaLote.find(c => String(c.matricula) === String(matriculaLote.trim()))) {
       setErroLote('Este colaborador já está na fila de impressão.');
       setMatriculaLote(''); return;
@@ -68,7 +66,7 @@ export default function PortalRH() {
       const data = await response.json();
       if (data && data.length > 0) {
         setListaLote([...listaLote, data[0]]);
-        setMatriculaLote(''); // Limpa o campo para a próxima matrícula
+        setMatriculaLote(''); 
       } else {
         setErroLote('Matrícula não encontrada na base.');
       }
@@ -80,7 +78,7 @@ export default function PortalRH() {
     setListaLote(listaLote.filter(c => String(c.matricula) !== String(matricula)));
   };
 
-  // ========================== ABA: EMISSÃO INDIVIDUAL (CÂMARA) ==========================
+  // ========================== ABA: EMISSÃO INDIVIDUAL ==========================
   const [colaborador, setColaborador] = useState<any>(null);
   const [buscaEmissao, setBuscaEmissao] = useState('');
   const [carregandoEmissao, setCarregandoEmissao] = useState(false);
@@ -178,7 +176,7 @@ export default function PortalRH() {
     finally { setSalvandoFoto(false); }
   };
 
-  // ========================== HELPERS E DADOS DE IMPRESSÃO ==========================
+  // ========================== HELPERS ==========================
   const formatarNomeCurto = (nomeCompleto: string) => {
     if (!nomeCompleto) return ""; const partes = nomeCompleto.trim().split(" ");
     return partes.length === 1 ? partes[0] : `${partes[0]} ${partes[partes.length - 1]}`;
@@ -189,7 +187,6 @@ export default function PortalRH() {
     return `${data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })} ${data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
   };
 
-  // Define quem vai ser enviado para a impressora!
   const colaboradoresParaImprimir = abaAtiva === 'lote' 
     ? listaLote 
     : (colaborador && abaAtiva === 'emissao' ? [{ ...colaborador, foto_url: fotoCapturada || colaborador.foto_url }] : []);
@@ -233,12 +230,9 @@ export default function PortalRH() {
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar print-padding-remove">
 
-          {/* ========================================================= */}
-          {/* ABA 1: NOVA EMISSÃO EM LOTE (A SUA IDEIA!) */}
-          {/* ========================================================= */}
+          {/* ABA LOTE */}
           {abaAtiva === 'lote' && (
             <div className="animation-fade-in max-w-6xl mx-auto hide-on-print flex flex-col h-full gap-6">
-              
               <div className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm flex flex-col md:flex-row gap-6 items-end">
                 <div className="flex-1">
                   <h3 className="font-bold text-[#023A58] text-lg mb-1">Adicionar à Fila de Impressão</h3>
@@ -260,7 +254,6 @@ export default function PortalRH() {
                     <i className="fas fa-print"></i> Imprimir Lote
                   </button>
                 </div>
-
                 <div className="overflow-y-auto custom-scrollbar max-h-[500px]">
                   <table className="w-full text-left border-collapse">
                     <thead className="sticky top-0 bg-[#f8f9fa] z-10 shadow-sm border-b border-[#eceff1]">
@@ -274,7 +267,7 @@ export default function PortalRH() {
                     </thead>
                     <tbody className="text-sm">
                       {listaLote.length === 0 ? (
-                        <tr><td colSpan={5} className="p-12 text-center text-slate-400 font-medium"><i className="fas fa-clipboard-list block text-4xl mb-4 opacity-50"></i>A fila de impressão está vazia. Adicione matrículas acima.</td></tr>
+                        <tr><td colSpan={5} className="p-12 text-center text-slate-400 font-medium"><i className="fas fa-clipboard-list block text-4xl mb-4 opacity-50"></i>A fila de impressão está vazia.</td></tr>
                       ) : (
                         listaLote.map((colab) => (
                           <tr key={colab.matricula} className="border-b border-[#eceff1] hover:bg-[#f8f9fa] transition-colors">
@@ -287,7 +280,7 @@ export default function PortalRH() {
                               {colab.link_qrcode ? <span className="text-[#2980b9] font-bold text-xs"><i className="fas fa-link"></i> Vinculado</span> : <span className="text-[#7f8c8d] font-bold text-xs"><i className="fas fa-unlink"></i> Vazio</span>}
                             </td>
                             <td className="p-4 text-center">
-                              <button onClick={() => removerDoLote(colab.matricula)} className="text-[#e74c3c] hover:text-[#c0392b] text-xl" title="Remover da lista"><i className="fas fa-trash-alt"></i></button>
+                              <button onClick={() => removerDoLote(colab.matricula)} className="text-[#e74c3c] hover:text-[#c0392b] text-xl"><i className="fas fa-trash-alt"></i></button>
                             </td>
                           </tr>
                         ))
@@ -299,9 +292,7 @@ export default function PortalRH() {
             </div>
           )}
 
-          {/* ========================================================= */}
-          {/* ABA 2: EMISSÃO INDIVIDUAL (COM O CRACHÁ VISUAL DE VOLTA!) */}
-          {/* ========================================================= */}
+          {/* ABA EMISSÃO INDIVIDUAL */}
           {abaAtiva === 'emissao' && (
             <div className="animation-fade-in max-w-6xl mx-auto">
               <form onSubmit={(e) => { e.preventDefault(); buscarColaboradorParaEmissao(buscaEmissao); }} className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm mb-8 flex gap-4 items-end hide-on-print">
@@ -316,7 +307,6 @@ export default function PortalRH() {
 
               {colaborador && (
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 hide-on-print">
-                  {/* CONTROLO DA FOTO */}
                   <div className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm flex flex-col items-center">
                     <h3 className="text-lg font-bold text-[#023A58] mb-4 w-full border-b border-[#eceff1] pb-2">Controlo da Fotografia</h3>
                     {rawFoto ? (
@@ -364,7 +354,6 @@ export default function PortalRH() {
                     )}
                   </div>
 
-                  {/* VISUALIZADOR DE CRACHÁ (Restaurado!) */}
                   <div className="xl:col-span-2 bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm">
                     <div className="flex justify-between items-center mb-6 border-b border-[#eceff1] pb-4">
                       <h3 className="text-lg font-bold text-[#023A58]">Visualização do Crachá</h3>
@@ -372,7 +361,7 @@ export default function PortalRH() {
                     </div>
 
                     <div className="flex flex-col md:flex-row gap-8 justify-center items-center bg-[#f8f9fa] p-8 rounded-lg overflow-x-auto border border-[#eceff1]">
-                      {/* Frente Preview */}
+                      {/* FRENTE */}
                       <div className="cracha-card w-[54mm] h-[86mm] bg-white relative flex flex-col items-center overflow-hidden box-border" style={{ border: '1px solid #ccc' }}>
                         <div className="mt-[4mm] w-[26mm] h-[35mm] flex items-center justify-center overflow-hidden z-10 border border-slate-300 bg-white">
                           {fotoCapturada && <img src={fotoCapturada} className="w-full h-full object-cover" alt="Foto" />}
@@ -386,7 +375,7 @@ export default function PortalRH() {
                         <div className="absolute bottom-[13mm] left-[1mm] z-10 w-[24mm] h-[8mm] flex items-center justify-start"><img src="/dinamo.png" className="max-h-full max-w-full object-contain" alt="Dínamo" /></div>
                       </div>
 
-                      {/* Verso Preview */}
+                      {/* VERSO */}
                       <div className="cracha-card w-[54mm] h-[86mm] bg-white relative p-[2mm] flex flex-col box-border" style={{ border: '1px solid #ccc' }}>
                         <div className="mt-[2mm] w-full flex flex-col gap-[3mm]">
                           <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span><div className="text-[7.5px] text-black font-semibold uppercase">{colaborador.nome_completo}</div></div>
@@ -420,9 +409,7 @@ export default function PortalRH() {
             </div>
           )}
 
-          {/* ========================================================= */}
-          {/* ABA 3: BASE DE COLABORADORES (DIRETÓRIO / BUSCA RÁPIDA)   */}
-          {/* ========================================================= */}
+          {/* ABA COLABORADORES */}
           {abaAtiva === 'colaboradores' && (
             <div className="animation-fade-in max-w-6xl mx-auto hide-on-print flex flex-col h-full">
               <form onSubmit={handlePesquisaTabela} className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm mb-6 flex gap-4 items-end">
@@ -462,7 +449,7 @@ export default function PortalRH() {
                             <td className="p-4 pl-6 font-bold text-[#035B8B]">{colab.matricula}</td>
                             <td className="p-4 font-semibold text-[#263238]">{colab.nome_completo}</td>
                             <td className="p-4 text-center">
-                              <button onClick={() => { setBuscaEmissao(colab.matricula); buscarColaboradorParaEmissao(colab.matricula); }} className="bg-white border border-[#cfd8dc] text-[#023A58] hover:bg-[#eceff1] px-4 py-2 text-xs font-bold rounded-lg shadow-sm">Ver Ficha de Emissão</button>
+                              <button onClick={() => { setBuscaEmissao(colab.matricula); buscarColaboradorParaEmissao(colab.matricula); }} className="bg-white border border-[#cfd8dc] text-[#023A58] hover:bg-[#eceff1] px-4 py-2 text-xs font-bold rounded-lg shadow-sm">Ver Ficha</button>
                             </td>
                           </tr>
                         ))
@@ -541,7 +528,7 @@ export default function PortalRH() {
 
       </main>
 
-<style jsx global>{`
+      <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
         @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css');
         
@@ -556,7 +543,7 @@ export default function PortalRH() {
           body * { visibility: hidden; }
           .hide-on-print { display: none !important; }
           
-          /* Aqui estava o erro! Agora apenas o container principal aparece, sem forçar o layout interno a quebrar */
+          /* Correção do Layout da Impressora */
           .print-container { 
              display: block !important; 
              visibility: visible !important; 
@@ -590,5 +577,6 @@ export default function PortalRH() {
           .cracha-card:last-of-type { page-break-after: avoid !important; }
         }
       `}</style>
+    </div>
   );
 }
