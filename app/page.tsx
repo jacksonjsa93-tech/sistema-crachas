@@ -7,7 +7,7 @@ import React, { useState, useRef } from 'react';
 export default function PortalRH() {
   const [abaAtiva, setAbaAtiva] = useState('colaboradores');
   
-  // SIMULADOR DE PERFIL DE ACESSO (Para testar a lógica de permissões)
+  // SIMULADOR DE PERFIL DE ACESSO
   const [perfilAcesso, setPerfilAcesso] = useState('ADM'); 
 
   const menuItens = [
@@ -60,21 +60,21 @@ export default function PortalRH() {
     if (!colaboradorEditando) return;
     setSalvandoEdicao(true);
     try {
-      // ATENÇÃO: Agora só envia o Tipo Sanguíneo e o Link para não sobrepor dados do ERP
       const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${colaboradorEditando.matricula}`, {
         method: 'PATCH',
         headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
         body: JSON.stringify({
-          tipo_sanguineo: colaboradorEditando.tipo_sanguineo,
-          link_qrcode: colaboradorEditando.link_qrcode
+          tipo_sanguineo: colaboradorEditando.tipo_sanguineo || null, // null caso fique vazio
+          link_qrcode: colaboradorEditando.link_qrcode || null // null caso fique vazio
         })
       });
-      if (!response.ok) throw new Error('Erro ao salvar edições');
+      if (!response.ok) throw new Error('Erro ao salvar edições na base de dados (Verifique se as colunas existem no Supabase)');
+      
       setColaboradorEditando(null); 
       handlePesquisaTabela(); 
       alert("Informações complementares atualizadas com sucesso!");
     } catch (err) {
-      alert("Erro ao salvar alterações.");
+      alert("Erro ao salvar alterações. O Supabase rejeitou a gravação.");
     } finally {
       setSalvandoEdicao(false);
     }
@@ -417,7 +417,7 @@ export default function PortalRH() {
                   <div className="xl:col-span-2 bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm">
                     <div className="flex justify-between items-center mb-6 border-b border-[#eceff1] pb-4">
                       <h3 className="text-lg font-bold text-[#023A58]">Visualização do Crachá</h3>
-                      <button onClick={() => window.print()} disabled={!fotoCapturada || !!rawFoto} className={`font-bold px-6 py-3 rounded-lg transition-all shadow-sm ${fotoCapturada && !rawFoto ? 'bg-[#023A58] hover:bg-[#035B8B] text-white' : 'bg-[#eceff1] text-[#90a4ae] cursor-not-allowed'}`}><i className="fas fa-print mr-2"></i> Imprimir</button>
+                      <button onClick={() => window.print()} disabled={!fotoCapturada || !!rawFoto} className={`font-bold px-6 py-3 rounded-lg transition-all shadow-sm ${fotoCapturada && !rawFoto ? 'bg-[#023A58] hover:bg-[#035B8B] text-white' : 'bg-[#eceff1] text-[#90a4ae] cursor-not-allowed'}`}><i className="fas fa-print mr-2"></i> Imprimir na Smart-51</button>
                     </div>
 
                     <div className="flex flex-col md:flex-row gap-8 justify-center items-center bg-[#f8f9fa] p-8 rounded-lg overflow-x-auto border border-[#eceff1]">
@@ -479,7 +479,7 @@ export default function PortalRH() {
         </div>
 
         {/* ========================================================= */}
-        {/* MODAL DE EDIÇÃO DE COLABORADOR (BLINDADO)                 */}
+        {/* MODAL DE EDIÇÃO DE COLABORADOR (BLINDADO E CORRIGIDO)     */}
         {/* ========================================================= */}
         {colaboradorEditando && (
           <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animation-fade-in hide-on-print">
@@ -526,11 +526,13 @@ export default function PortalRH() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                   <div className="border-2 border-[#cfd8dc] hover:border-[#c0392b] transition-colors p-4 rounded-lg bg-white">
                     <label className="block text-sm font-bold text-[#c0392b] mb-2"><i className="fas fa-tint mr-1"></i> Tipo Sanguíneo</label>
+                    {/* Não é obrigatório (sem 'required') */}
                     <input type="text" value={colaboradorEditando.tipo_sanguineo || ''} onChange={e => setColaboradorEditando({...colaboradorEditando, tipo_sanguineo: e.target.value})} placeholder="Ex: O+" className="w-full bg-[#fafafa] border border-[#b0bec5] p-3 rounded focus:outline-none focus:border-[#c0392b] text-[#263238] font-bold text-center uppercase" />
                   </div>
                   
                   <div className="border-2 border-[#3498db] p-4 rounded-lg bg-[#e3f2fd]">
-                    <label className="block text-sm font-bold text-[#2980b9] mb-2"><i className="fas fa-link mr-1"></i> Link do Treinamento (QR Code)</label>
+                    <label className="block text-sm font-bold text-[#2980b9] mb-2"><i className="fas fa-link mr-1"></i> Link QR Code</label>
+                    {/* Texto do label alterado, e não é obrigatório */}
                     <input type="url" placeholder="https://..." value={colaboradorEditando.link_qrcode || ''} onChange={e => setColaboradorEditando({...colaboradorEditando, link_qrcode: e.target.value})} className="w-full bg-white border border-[#85c1e9] p-3 rounded focus:outline-none focus:ring-2 focus:ring-[#2980b9] text-[#023A58]" />
                   </div>
                 </div>
@@ -568,10 +570,12 @@ export default function PortalRH() {
                 <div className="cracha-card w-[54mm] h-[86mm] bg-white relative p-[2mm] flex flex-col box-border" style={{ border: '1px solid #ccc' }}>
                   <div className="mt-[2mm] w-full flex flex-col gap-[3mm]">
                     <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span><div className="text-[7.5px] text-black font-semibold uppercase">{c.nome_completo}</div></div>
+                    
                     <div className="flex w-full gap-[2mm]">
                       <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex-1 flex items-center justify-center"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">CPF</span><div className="text-[8px] text-black font-semibold uppercase">{c.cpf || '000.000.000-00'}</div></div>
                       <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] w-[14mm] flex items-center justify-center bg-[#ffebee] border-[#e74c3c]"><span className="absolute -top-[2.5mm] left-[1mm] bg-white px-[0.5mm] text-[5px] font-bold text-[#c0392b] leading-none">Tp. Sangue</span><div className="text-[8px] text-[#c0392b] font-black uppercase">{c.tipo_sanguineo || 'O+'}</div></div>
                     </div>
+
                     <div className="flex w-full gap-[2mm] items-stretch h-[24mm]">
                         <div className="flex flex-col flex-1 justify-between">
                           <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Função</span><div className="text-[7px] text-black font-semibold uppercase truncate px-1">{c.desc_funcao}</div></div>
@@ -594,7 +598,6 @@ export default function PortalRH() {
              </React.Fragment>
            ))}
         </div>
-
       </main>
 
       <style jsx global>{`
