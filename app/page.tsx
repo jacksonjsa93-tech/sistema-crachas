@@ -463,7 +463,7 @@ export default function PortalRH() {
 
           {/* OUTRAS ABAS */}
           {['cadastro', 'qrcode', 'configuracoes'].includes(abaAtiva) && (
-            <div className="bg-white p-10 rounded-xl border border-[#cfd8dc] shadow-sm text-center animation-fade-in flex flex-col items-center justify-center min-h-[400px]">
+            <div className="bg-white p-10 rounded-xl border border-[#cfd8dc] shadow-sm text-center animation-fade-in flex flex-col items-center justify-center min-h-[400px] hide-on-print">
               <div className="w-20 h-20 bg-[#e3f2fd] rounded-full flex items-center justify-center text-[#023A58] text-3xl mb-4"><i className={`fas ${menuItens.find(m => m.id === abaAtiva)?.icone}`}></i></div>
               <h2 className="text-2xl font-bold text-[#263238] mb-2">{abaAtiva === 'configuracoes' ? 'Gestão de Acessos' : abaAtiva === 'qrcode' ? 'Central de Links' : 'Módulo em Construção'}</h2>
             </div>
@@ -543,13 +543,21 @@ export default function PortalRH() {
           body * { visibility: hidden; }
           .hide-on-print { display: none !important; }
           
-          /* Correção do Layout da Impressora */
+          /* Liberta a altura do documento para permitir o scroll de páginas na impressora */
+          html, body, .screen-only, main, .print-padding-remove { 
+             width: 54mm !important;
+             height: auto !important; 
+             min-height: 100% !important;
+             overflow: visible !important; 
+             margin: 0 !important; 
+             padding: 0 !important; 
+             background: white !important; 
+          }
+          
           .print-container { 
              display: block !important; 
              visibility: visible !important; 
-             position: absolute !important; 
-             left: 0 !important; 
-             top: 0 !important; 
+             position: relative !important; 
              width: 54mm !important; 
              margin: 0 !important; 
              padding: 0 !important; 
@@ -557,8 +565,8 @@ export default function PortalRH() {
           .print-container * { visibility: visible !important; }
           
           @page { size: 54mm 86mm; margin: 0 !important; }
-          html, body { width: 54mm !important; height: 86mm !important; margin: 0 !important; padding: 0 !important; background: white !important; overflow: hidden !important; }
           
+          /* Cria uma nova página fisicamente sempre que o crachá acaba */
           .cracha-card { 
              -webkit-print-color-adjust: exact !important; 
              print-color-adjust: exact !important; 
@@ -568,13 +576,16 @@ export default function PortalRH() {
              margin: 0 !important; 
              border: none !important; 
              box-shadow: none !important; 
-             page-break-inside: avoid !important; 
              page-break-after: always !important; 
+             break-after: page !important;
              overflow: hidden !important; 
-             float: none !important; 
              position: relative !important;
+             float: none !important;
           }
-          .cracha-card:last-of-type { page-break-after: avoid !important; }
+          .cracha-card:last-of-type { 
+             page-break-after: auto !important; 
+             break-after: auto !important;
+          }
         }
       `}</style>
     </div>
