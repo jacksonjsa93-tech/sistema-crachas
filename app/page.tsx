@@ -1,4 +1,3 @@
-
 /* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
@@ -6,7 +5,7 @@
 import React, { useState, useRef } from 'react';
 
 export default function PortalRH() {
-  const [abaAtiva, setAbaAtiva] = useState('emissao'); // Abre direto na emissão
+  const [abaAtiva, setAbaAtiva] = useState('emissao');
 
   const menuItens = [
     { id: 'dashboard', nome: 'Painel de Controlo', icone: 'fa-chart-pie' },
@@ -17,13 +16,11 @@ export default function PortalRH() {
     { id: 'configuracoes', nome: 'Configurações', icone: 'fa-cogs' },
   ];
 
-  // Estados Gerais
   const [busca, setBusca] = useState('');
   const [colaborador, setColaborador] = useState<any>(null);
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(false);
 
-  // Estados do Estúdio de Fotografia (Câmara e Edição)
   const [cameraAtiva, setCameraAtiva] = useState(false);
   const [fotoCapturada, setFotoCapturada] = useState<string | null>(null);
   const [rawFoto, setRawFoto] = useState<string | null>(null); 
@@ -96,6 +93,7 @@ export default function PortalRH() {
     }
   };
 
+  // MATEMÁTICA CORRIGIDA: Agora recorta a partir do centro do rosto!
   const aplicarRecorte = () => {
     const canvas = document.createElement('canvas');
     canvas.width = 260; 
@@ -114,21 +112,25 @@ export default function PortalRH() {
       const cx = canvas.width / 2;
       const cy = canvas.height / 2;
       
-      ctx.translate(cx, cy);
-      ctx.scale(zoom, zoom);
-      ctx.translate(-cx + panX, -cy + panY);
-
       const scaleFit = Math.max(canvas.width / img.width, canvas.height / img.height);
       const w = img.width * scaleFit;
       const h = img.height * scaleFit;
 
-      ctx.drawImage(img, -w/2, -h/2, w, h);
+      ctx.translate(cx + panX, cy + panY); 
+      ctx.scale(zoom, zoom); 
+      ctx.drawImage(img, -w / 2, -h / 2, w, h);
 
       const finalImg = canvas.toDataURL('image/jpeg', 0.95);
       setFotoCapturada(finalImg); 
       setRawFoto(null); 
       setZoom(1); setPanX(0); setPanY(0); setClarear(false);
     };
+  };
+
+  // FUNÇÃO NOVA: Enviar foto direto sem editar
+  const usarFotoOriginal = () => {
+    setFotoCapturada(rawFoto);
+    setRawFoto(null);
   };
 
   const salvarFotoNoSupabase = async () => {
@@ -179,8 +181,6 @@ export default function PortalRH() {
 
       {/* ÁREA PRINCIPAL */}
       <main className="flex-1 flex flex-col relative overflow-hidden print-main-adjust">
-        
-        {/* HEADER */}
         <header className="h-20 bg-white shadow-sm border-b border-[#cfd8dc] flex items-center justify-between px-8 z-10 hide-on-print">
           <h2 className="text-xl font-bold text-[#023A58] flex items-center gap-2">
             <i className={`fas ${menuItens.find(m => m.id === abaAtiva)?.icone} text-[#035B8B]`}></i> {menuItens.find(m => m.id === abaAtiva)?.nome}
@@ -196,10 +196,8 @@ export default function PortalRH() {
           </div>
         </header>
 
-        {/* CONTEÚDO DAS ABAS */}
         <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar print-padding-remove">
 
-          {/* ABA EMISSÃO (COM ESTÚDIO DE FOTOGRAFIA MOBILE) */}
           {abaAtiva === 'emissao' && (
             <div className="animation-fade-in max-w-6xl mx-auto">
               <form onSubmit={handleBusca} className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm mb-8 flex gap-4 items-end hide-on-print">
@@ -217,7 +215,7 @@ export default function PortalRH() {
               {colaborador && (
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
                   
-                  {/* COLUNA ESQUERDA: CONTROLO E ESTÚDIO */}
+                  {/* CONTROLO DA FOTO */}
                   <div className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm flex flex-col items-center hide-on-print">
                     <h3 className="text-lg font-bold text-[#023A58] mb-4 w-full border-b border-[#eceff1] pb-2">Controlo da Fotografia</h3>
                     
@@ -237,39 +235,31 @@ export default function PortalRH() {
                         </div>
 
                         <div className="w-full space-y-3 bg-[#f8f9fa] p-3 rounded-lg border border-[#eceff1]">
-                          <div>
-                            <label className="text-xs font-bold text-[#546e7a] flex justify-between"><span>🔍 Zoom</span> <span>{Math.round(zoom * 100)}%</span></label>
-                            <input type="range" min="1" max="3" step="0.05" value={zoom} onChange={e => setZoom(Number(e.target.value))} className="w-full accent-[#035B8B]" />
-                          </div>
-                          <div>
-                            <label className="text-xs font-bold text-[#546e7a]">↔️ Esquerda / Direita</label>
-                            <input type="range" min="-150" max="150" value={panX} onChange={e => setPanX(Number(e.target.value))} className="w-full accent-[#035B8B]" />
-                          </div>
-                          <div>
-                            <label className="text-xs font-bold text-[#546e7a]">↕️ Cima / Baixo</label>
-                            <input type="range" min="-150" max="150" value={panY} onChange={e => setPanY(Number(e.target.value))} className="w-full accent-[#035B8B]" />
-                          </div>
+                          <div><label className="text-xs font-bold text-[#546e7a] flex justify-between"><span>🔍 Zoom</span></label><input type="range" min="1" max="3" step="0.05" value={zoom} onChange={e => setZoom(Number(e.target.value))} className="w-full accent-[#035B8B]" /></div>
+                          <div><label className="text-xs font-bold text-[#546e7a]">↔️ Esquerda / Direita</label><input type="range" min="-150" max="150" value={panX} onChange={e => setPanX(Number(e.target.value))} className="w-full accent-[#035B8B]" /></div>
+                          <div><label className="text-xs font-bold text-[#546e7a]">↕️ Cima / Baixo</label><input type="range" min="-150" max="150" value={panY} onChange={e => setPanY(Number(e.target.value))} className="w-full accent-[#035B8B]" /></div>
                         </div>
 
-                        <label className="flex items-center justify-center gap-2 mt-4 w-full bg-white border border-[#cfd8dc] p-3 rounded-lg cursor-pointer hover:bg-[#eceff1] transition-colors">
+                        <label className="flex items-center justify-center gap-2 mt-4 w-full bg-white border border-[#cfd8dc] p-3 rounded-lg cursor-pointer hover:bg-[#eceff1]">
                           <input type="checkbox" checked={clarear} onChange={e => setClarear(e.target.checked)} className="w-4 h-4 accent-[#023A58]" />
-                          <span className="text-sm font-bold text-[#023A58]">✨ Clarear Fundo (Parede Branca)</span>
+                          <span className="text-sm font-bold text-[#023A58]">✨ Clarear Parede Branca</span>
                         </label>
 
                         <div className="flex gap-2 w-full mt-4">
-                          <button onClick={() => setRawFoto(null)} className="flex-1 bg-[#eceff1] text-[#546e7a] font-bold py-3 rounded-lg hover:bg-[#cfd8dc]">Cancelar</button>
-                          <button onClick={aplicarRecorte} className="flex-1 bg-[#2ecc71] hover:bg-[#27ae60] text-white font-bold py-3 rounded-lg shadow-sm"><i className="fas fa-crop-alt mr-2"></i> Aplicar</button>
+                          <button onClick={usarFotoOriginal} className="flex-1 bg-[#3498db] hover:bg-[#2980b9] text-white font-bold py-2 text-xs rounded-lg shadow-sm">Pular e Usar Original</button>
+                          <button onClick={aplicarRecorte} className="flex-1 bg-[#2ecc71] hover:bg-[#27ae60] text-white font-bold py-2 text-xs rounded-lg shadow-sm"><i className="fas fa-crop-alt mr-1"></i> Aplicar Recorte</button>
                         </div>
+                        <button onClick={() => setRawFoto(null)} className="w-full mt-2 bg-[#eceff1] text-[#546e7a] text-xs font-bold py-2 rounded-lg hover:bg-[#cfd8dc]">Cancelar</button>
                       </div>
                     ) : (
                       <div className="w-full flex flex-col items-center">
                         <div className="w-48 h-64 bg-[#f8f9fa] border-2 border-dashed border-[#b0bec5] rounded-lg overflow-hidden relative flex items-center justify-center mb-4">
-                          {cameraAtiva ? <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" /> : fotoCapturada ? <img src={fotoCapturada} alt="Crachá" className="w-full h-full object-cover" /> : <span className="text-slate-400 text-xs text-center px-4 font-medium">Nenhuma foto.<br/>Use o telemóvel para capturar.</span>}
+                          {cameraAtiva ? <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" /> : fotoCapturada ? <img src={fotoCapturada} alt="Crachá" className="w-full h-full object-cover" /> : <span className="text-slate-400 text-xs text-center px-4 font-medium">Nenhuma foto.<br/>Capturar ou Enviar.</span>}
                         </div>
                         
                         <div className="w-full space-y-2">
                           {cameraAtiva ? (
-                            <button onClick={tirarFoto} className="w-full bg-[#e74c3c] hover:bg-[#c0392b] text-white font-bold py-3 rounded-lg shadow-sm"><i className="fas fa-camera mr-2"></i> Capturar</button>
+                            <button onClick={tirarFoto} className="w-full bg-[#e74c3c] hover:bg-[#c0392b] text-white font-bold py-3 rounded-lg shadow-sm"><i className="fas fa-camera mr-2"></i> Capturar Agora</button>
                           ) : (
                             <button onClick={ligarCamera} className="w-full bg-[#035B8B] hover:bg-[#023A58] text-white font-bold py-3 rounded-lg shadow-sm"><i className="fas fa-camera mr-2"></i> Abrir Câmara</button>
                           )}
@@ -294,7 +284,7 @@ export default function PortalRH() {
                     )}
                   </div>
 
-                  {/* COLUNA DIREITA: VISUALIZAÇÃO E IMPRESSÃO */}
+                  {/* IMPRESSÃO */}
                   <div className="xl:col-span-2 bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm">
                     <div className="flex justify-between items-center mb-6 border-b border-[#eceff1] pb-4 hide-on-print">
                       <h3 className="text-lg font-bold text-[#023A58]">Visualização (Impressão PC)</h3>
@@ -317,11 +307,17 @@ export default function PortalRH() {
                         <div className="absolute bottom-[13mm] left-[1mm] z-10 w-[24mm] h-[8mm] flex items-center justify-start"><img src="/dinamo.png" className="max-h-full max-w-full object-contain" alt="Dínamo" /></div>
                       </div>
 
-                      {/* VERSO */}
+                      {/* VERSO COM TIPO SANGUÍNEO */}
                       <div className="cracha-card w-[54mm] h-[86mm] bg-white relative p-[2mm] flex flex-col box-border" style={{ border: '1px solid #ccc' }}>
                         <div className="mt-[2mm] w-full flex flex-col gap-[3mm]">
                           <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span><div className="text-[7.5px] text-black font-semibold uppercase">{colaborador.nome_completo}</div></div>
-                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">CPF</span><div className="text-[8px] text-black font-semibold uppercase">{colaborador.cpf || '000.000.000-00'}</div></div>
+                          
+                          {/* NOVA LINHA: CPF + TIPO SANGUÍNEO LADO A LADO */}
+                          <div className="flex w-full gap-[2mm]">
+                            <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex-1 flex items-center justify-center"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">CPF</span><div className="text-[8px] text-black font-semibold uppercase">{colaborador.cpf || '000.000.000-00'}</div></div>
+                            <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] w-[14mm] flex items-center justify-center bg-[#ffebee] border-[#e74c3c]"><span className="absolute -top-[2.5mm] left-[1mm] bg-white px-[0.5mm] text-[5px] font-bold text-[#c0392b] leading-none">Tp. Sangue</span><div className="text-[8px] text-[#c0392b] font-black uppercase">{colaborador.tipo_sanguineo || 'O+'}</div></div>
+                          </div>
+
                           <div className="flex w-full gap-[2mm] items-stretch h-[24mm]">
                              <div className="flex flex-col flex-1 justify-between">
                                 <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Função</span><div className="text-[7px] text-black font-semibold uppercase truncate px-1">{colaborador.desc_funcao}</div></div>
