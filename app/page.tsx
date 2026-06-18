@@ -294,8 +294,8 @@ export default function PortalRH() {
 
           {/* ABA EMISSÃO INDIVIDUAL */}
           {abaAtiva === 'emissao' && (
-            <div className="animation-fade-in max-w-6xl mx-auto">
-              <form onSubmit={(e) => { e.preventDefault(); buscarColaboradorParaEmissao(buscaEmissao); }} className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm mb-8 flex gap-4 items-end hide-on-print">
+            <div className="animation-fade-in max-w-6xl mx-auto hide-on-print">
+              <form onSubmit={(e) => { e.preventDefault(); buscarColaboradorParaEmissao(buscaEmissao); }} className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm mb-8 flex gap-4 items-end">
                 <div className="flex-1">
                   <label className="block text-sm font-bold mb-2 text-[#023A58]">Matrícula (Estúdio Manual)</label>
                   <input type="text" placeholder="Ex: 6294" value={buscaEmissao} onChange={(e) => setBuscaEmissao(e.target.value)} className="w-full bg-[#f8f9fa] border border-[#b0bec5] rounded-lg px-4 py-3 focus:outline-none focus:border-[#035B8B]" />
@@ -303,10 +303,10 @@ export default function PortalRH() {
                 <button type="submit" disabled={carregandoEmissao} className="bg-[#023A58] text-white font-bold px-8 py-3 rounded-lg hover:bg-[#035B8B] shadow-sm">Buscar</button>
               </form>
 
-              {erroEmissao && <p className="text-[#e74c3c] mb-6 bg-[#fdeced] p-4 rounded-lg font-medium hide-on-print">{erroEmissao}</p>}
+              {erroEmissao && <p className="text-[#e74c3c] mb-6 bg-[#fdeced] p-4 rounded-lg font-medium">{erroEmissao}</p>}
 
               {colaborador && (
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 hide-on-print">
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
                   <div className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm flex flex-col items-center">
                     <h3 className="text-lg font-bold text-[#023A58] mb-4 w-full border-b border-[#eceff1] pb-2">Controlo da Fotografia</h3>
                     {rawFoto ? (
@@ -540,10 +540,9 @@ export default function PortalRH() {
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cfd8dc; border-radius: 20px; }
 
         @media print {
-          body * { visibility: hidden; }
+          /* DESTRUIÇÃO TOTAL DO MENU: Em vez de ficar "invisível" ocupando espaço, agora ele simplesmente não existe no momento da impressão! */
           .hide-on-print { display: none !important; }
           
-          /* Liberta a altura do documento para permitir o scroll de páginas na impressora */
           html, body, .screen-only, main, .print-padding-remove { 
              width: 54mm !important;
              height: auto !important; 
@@ -552,6 +551,7 @@ export default function PortalRH() {
              margin: 0 !important; 
              padding: 0 !important; 
              background: white !important; 
+             display: block !important; 
           }
           
           .print-container { 
@@ -566,7 +566,6 @@ export default function PortalRH() {
           
           @page { size: 54mm 86mm; margin: 0 !important; }
           
-          /* Cria uma nova página fisicamente sempre que o crachá acaba */
           .cracha-card { 
              -webkit-print-color-adjust: exact !important; 
              print-color-adjust: exact !important; 
@@ -581,6 +580,7 @@ export default function PortalRH() {
              overflow: hidden !important; 
              position: relative !important;
              float: none !important;
+             background-color: white !important;
           }
           .cracha-card:last-of-type { 
              page-break-after: auto !important; 
