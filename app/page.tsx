@@ -2,11 +2,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 export default function PortalRH() {
-  // Vamos abrir na nova aba de Cadastro para você testar
-  const [abaAtiva, setAbaAtiva] = useState('cadastro');
+  const [abaAtiva, setAbaAtiva] = useState('configuracoes');
   
   // SIMULADOR DE PERFIL DE ACESSO
   const [perfilAcesso, setPerfilAcesso] = useState('ADM'); 
@@ -159,53 +158,76 @@ export default function PortalRH() {
   };
 
   // ========================== ABA: CADASTRO MANUAL ==========================
-  const [formCadastro, setFormCadastro] = useState({
-    matricula: '', nome_completo: '', cpf: '', rg: '', desc_funcao: ''
-  });
+  const [formCadastro, setFormCadastro] = useState({ matricula: '', nome_completo: '', cpf: '', rg: '', desc_funcao: '' });
   const [salvandoCadastro, setSalvandoCadastro] = useState(false);
   const [msgCadastro, setMsgCadastro] = useState({ texto: '', tipo: '' });
 
   const handleCadastroManual = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setMsgCadastro({ texto: '', tipo: '' });
-    
-    // Validação básica
-    if (!formCadastro.matricula || !formCadastro.nome_completo) {
-      setMsgCadastro({ texto: 'Matrícula e Nome Completo são obrigatórios.', tipo: 'erro' });
-      return;
-    }
-
+    e.preventDefault(); setMsgCadastro({ texto: '', tipo: '' });
+    if (!formCadastro.matricula || !formCadastro.nome_completo) { setMsgCadastro({ texto: 'Matrícula e Nome são obrigatórios.', tipo: 'erro' }); return; }
     setSalvandoCadastro(true);
     try {
-      // Usando POST para criar um novo registo
-      const response = await fetch(`${URL}/rest/v1/colaboradores`, {
-        method: 'POST',
-        headers: { 
-          'apikey': KEY, 
-          'Authorization': `Bearer ${KEY}`, 
-          'Content-Type': 'application/json', 
-          'Prefer': 'return=minimal' 
-        },
-        body: JSON.stringify(formCadastro)
-      });
-
-      if (!response.ok) {
-        // Se a matrícula já existir, a API retorna erro (conflito de Primary Key)
-        if(response.status === 409) {
-          throw new Error('Esta matrícula já está cadastrada no sistema.');
-        }
-        throw new Error('Erro ao cadastrar na base de dados.');
-      }
-
+      const response = await fetch(`${URL}/rest/v1/colaboradores`, { method: 'POST', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }, body: JSON.stringify(formCadastro) });
+      if (!response.ok) { if(response.status === 409) { throw new Error('Esta matrícula já está cadastrada.'); } throw new Error('Erro ao cadastrar na base.'); }
       setMsgCadastro({ texto: 'Colaborador cadastrado com sucesso!', tipo: 'sucesso' });
-      // Limpa o formulário
       setFormCadastro({ matricula: '', nome_completo: '', cpf: '', rg: '', desc_funcao: '' });
-      
-    } catch (err: any) { 
-      setMsgCadastro({ texto: err.message || 'Ocorreu um erro ao salvar.', tipo: 'erro' }); 
-    } finally { 
-      setSalvandoCadastro(false); 
+    } catch (err: any) { setMsgCadastro({ texto: err.message || 'Ocorreu um erro.', tipo: 'erro' }); } finally { setSalvandoCadastro(false); }
+  };
+
+  // ========================== ABA: CONFIGURAÇÕES (GERENCIAMENTO DE USUÁRIOS) ==========================
+  const [listaUsuarios, setListaUsuarios] = useState<any[]>([]);
+  const [carregandoUsuarios, setCarregandoUsuarios] = useState(false);
+  const [formUsuario, setFormUsuario] = useState({ nome: '', login: '', senha: '', perfil: 'RH' });
+  const [salvandoUsuario, setSalvandoUsuario] = useState(false);
+  const [msgUsuario, setMsgUsuario] = useState({ texto: '', tipo: '' });
+
+  const carregarUsuarios = async () => {
+    setCarregandoUsuarios(true);
+    try {
+      const response = await fetch(`${URL}/rest/v1/usuarios_sistema?select=*&order=created_at.desc`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
+      const data = await response.json();
+      setListaUsuarios(data || []);
+    } catch (error) { console.error("Erro ao carregar usuarios"); }
+    finally { setCarregandoUsuarios(false); }
+  };
+
+  // Carrega os usuários automaticamente se for ADM e entrar na aba
+  useEffect(() => {
+    if (abaAtiva === 'configuracoes' && perfilAcesso === 'ADM') {
+      carregarUsuarios();
     }
+  }, [abaAtiva, perfilAcesso]);
+
+  const handleCriarUsuario = async (e: React.FormEvent) => {
+    e.preventDefault(); setMsgUsuario({ texto: '', tipo: '' });
+    if (!formUsuario.nome || !formUsuario.login || !formUsuario.senha) { setMsgUsuario({ texto: 'Preencha todos os campos.', tipo: 'erro' }); return; }
+    
+    setSalvandoUsuario(true);
+    try {
+      const response = await fetch(`${URL}/rest/v1/usuarios_sistema`, {
+        method: 'POST',
+        headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify(formUsuario)
+      });
+      if (!response.ok) {
+         if(response.status === 409) throw new Error('Este login de acesso já está em uso.');
+         throw new Error('Erro ao cadastrar usuário.');
+      }
+      setMsgUsuario({ texto: 'Utilizador cadastrado com sucesso!', tipo: 'sucesso' });
+      setFormUsuario({ nome: '', login: '', senha: '', perfil: 'RH' });
+      carregarUsuarios(); // Recarrega a tabela para mostrar o novo utilizador
+    } catch (err: any) {
+      setMsgUsuario({ texto: err.message || 'Erro de sistema.', tipo: 'erro' });
+    } finally { setSalvandoUsuario(false); }
+  };
+
+  const excluirUsuario = async (id: string, login: string) => {
+    if(login === 'admin') { alert("O Administrador principal não pode ser excluído."); return; }
+    if(!window.confirm("Tem a certeza que deseja excluir este acesso?")) return;
+    try {
+      await fetch(`${URL}/rest/v1/usuarios_sistema?id=eq.${id}`, { method: 'DELETE', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
+      carregarUsuarios(); // Atualiza a lista após apagar
+    } catch (err) { alert("Erro ao excluir."); }
   };
 
   // ========================== HELPERS ==========================
@@ -514,80 +536,148 @@ export default function PortalRH() {
             </div>
           )}
 
-          {/* ========================================================================= */}
-          {/* ABA 4: CADASTRO MANUAL (A FASE 2 ACONTECE AQUI)                           */}
-          {/* ========================================================================= */}
+          {/* ABA CADASTRO MANUAL */}
           {abaAtiva === 'cadastro' && (
             <div className="animation-fade-in max-w-4xl mx-auto hide-on-print flex flex-col gap-8">
-              
-              {/* ESPAÇO RESERVADO PARA IMPORTAÇÃO (FASE 5) */}
               <div className="bg-[#f8f9fa] border-2 border-dashed border-[#cfd8dc] rounded-xl p-8 text-center opacity-70">
-                <div className="w-16 h-16 bg-[#eceff1] rounded-full flex items-center justify-center mx-auto mb-4 text-[#90a4ae] text-2xl">
-                  <i className="fas fa-file-excel"></i>
-                </div>
+                <div className="w-16 h-16 bg-[#eceff1] rounded-full flex items-center justify-center mx-auto mb-4 text-[#90a4ae] text-2xl"><i className="fas fa-file-excel"></i></div>
                 <h3 className="font-bold text-[#546e7a] text-lg">Importação em Lote (Planilha Excel)</h3>
-                <p className="text-sm text-slate-500 mt-2 max-w-md mx-auto">Módulo reservado para a Etapa Final do projeto. A importação em massa será ativada após a configuração de acessos.</p>
+                <p className="text-sm text-slate-500 mt-2 max-w-md mx-auto">Módulo reservado para a Etapa Final do projeto.</p>
                 <button disabled className="mt-4 bg-[#cfd8dc] text-white font-bold px-6 py-2 rounded-lg cursor-not-allowed">Em breve</button>
               </div>
 
-              {/* FORMULÁRIO DE CADASTRO MANUAL ATIVO */}
               <div className="bg-white rounded-xl shadow-sm border border-[#cfd8dc] overflow-hidden">
                 <div className="bg-[#023A58] p-5">
                   <h3 className="font-bold text-white text-lg"><i className="fas fa-user-plus mr-2"></i>Cadastro Manual de Colaborador</h3>
-                  <p className="text-[#90a4ae] text-xs mt-1">Preencha os dados abaixo para inserir um colaborador individualmente no banco de dados.</p>
+                  <p className="text-[#90a4ae] text-xs mt-1">Insira um colaborador individualmente na base de dados.</p>
                 </div>
-                
                 <form onSubmit={handleCadastroManual} className="p-8 flex flex-col gap-6">
-                  
-                  {msgCadastro.texto && (
-                    <div className={`p-4 rounded-lg font-bold text-sm ${msgCadastro.tipo === 'sucesso' ? 'bg-[#e8f5e9] text-[#27ae60] border border-[#2ecc71]' : 'bg-[#fdeced] text-[#c0392b] border border-[#e74c3c]'}`}>
-                      {msgCadastro.texto}
-                    </div>
-                  )}
-
+                  {msgCadastro.texto && <div className={`p-4 rounded-lg font-bold text-sm ${msgCadastro.tipo === 'sucesso' ? 'bg-[#e8f5e9] text-[#27ae60] border border-[#2ecc71]' : 'bg-[#fdeced] text-[#c0392b] border border-[#e74c3c]'}`}>{msgCadastro.texto}</div>}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-bold text-[#023A58] mb-2">Matrícula *</label>
-                      <input type="text" placeholder="Ex: 6294" required value={formCadastro.matricula} onChange={e => setFormCadastro({...formCadastro, matricula: e.target.value})} className="w-full bg-[#f8f9fa] border border-[#b0bec5] rounded-lg p-3 text-[#263238] focus:outline-none focus:border-[#035B8B]" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-[#023A58] mb-2">Nome Completo *</label>
-                      <input type="text" placeholder="Ex: JOÃO DA SILVA" required value={formCadastro.nome_completo} onChange={e => setFormCadastro({...formCadastro, nome_completo: e.target.value.toUpperCase()})} className="w-full bg-[#f8f9fa] border border-[#b0bec5] rounded-lg p-3 text-[#263238] focus:outline-none focus:border-[#035B8B] uppercase" />
-                    </div>
+                    <div><label className="block text-sm font-bold text-[#023A58] mb-2">Matrícula *</label><input type="text" placeholder="Ex: 6294" required value={formCadastro.matricula} onChange={e => setFormCadastro({...formCadastro, matricula: e.target.value})} className="w-full bg-[#f8f9fa] border border-[#b0bec5] rounded-lg p-3 focus:outline-none focus:border-[#035B8B]" /></div>
+                    <div><label className="block text-sm font-bold text-[#023A58] mb-2">Nome Completo *</label><input type="text" placeholder="Ex: JOÃO DA SILVA" required value={formCadastro.nome_completo} onChange={e => setFormCadastro({...formCadastro, nome_completo: e.target.value.toUpperCase()})} className="w-full bg-[#f8f9fa] border border-[#b0bec5] rounded-lg p-3 focus:outline-none focus:border-[#035B8B] uppercase" /></div>
                   </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                      <label className="block text-sm font-bold text-[#546e7a] mb-2">CPF</label>
-                      <input type="text" placeholder="000.000.000-00" value={formCadastro.cpf} onChange={e => setFormCadastro({...formCadastro, cpf: e.target.value})} className="w-full border border-[#cfd8dc] rounded-lg p-3 text-[#263238] focus:outline-none focus:border-[#035B8B]" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-[#546e7a] mb-2">RG</label>
-                      <input type="text" placeholder="0000000" value={formCadastro.rg} onChange={e => setFormCadastro({...formCadastro, rg: e.target.value})} className="w-full border border-[#cfd8dc] rounded-lg p-3 text-[#263238] focus:outline-none focus:border-[#035B8B]" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-[#546e7a] mb-2">Função / Cargo</label>
-                      <input type="text" placeholder="Ex: ELETRICISTA" value={formCadastro.desc_funcao} onChange={e => setFormCadastro({...formCadastro, desc_funcao: e.target.value.toUpperCase()})} className="w-full border border-[#cfd8dc] rounded-lg p-3 text-[#263238] focus:outline-none focus:border-[#035B8B] uppercase" />
-                    </div>
+                    <div><label className="block text-sm font-bold text-[#546e7a] mb-2">CPF</label><input type="text" placeholder="000.000.000-00" value={formCadastro.cpf} onChange={e => setFormCadastro({...formCadastro, cpf: e.target.value})} className="w-full border border-[#cfd8dc] rounded-lg p-3 focus:outline-none focus:border-[#035B8B]" /></div>
+                    <div><label className="block text-sm font-bold text-[#546e7a] mb-2">RG</label><input type="text" placeholder="0000000" value={formCadastro.rg} onChange={e => setFormCadastro({...formCadastro, rg: e.target.value})} className="w-full border border-[#cfd8dc] rounded-lg p-3 focus:outline-none focus:border-[#035B8B]" /></div>
+                    <div><label className="block text-sm font-bold text-[#546e7a] mb-2">Função / Cargo</label><input type="text" placeholder="Ex: ELETRICISTA" value={formCadastro.desc_funcao} onChange={e => setFormCadastro({...formCadastro, desc_funcao: e.target.value.toUpperCase()})} className="w-full border border-[#cfd8dc] rounded-lg p-3 focus:outline-none focus:border-[#035B8B] uppercase" /></div>
                   </div>
-
                   <div className="border-t border-[#eceff1] pt-6 flex justify-end">
-                    <button type="submit" disabled={salvandoCadastro} className="bg-[#2ecc71] text-white font-bold px-8 py-3 rounded-lg hover:bg-[#27ae60] transition-all shadow-md flex items-center gap-2">
-                      {salvandoCadastro ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-check"></i>} Cadastrar Colaborador
-                    </button>
+                    <button type="submit" disabled={salvandoCadastro} className="bg-[#2ecc71] text-white font-bold px-8 py-3 rounded-lg hover:bg-[#27ae60] transition-all shadow-md flex items-center gap-2">{salvandoCadastro ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-check"></i>} Cadastrar</button>
                   </div>
                 </form>
               </div>
-
             </div>
           )}
 
-          {/* ABA CONFIGURAÇÕES (FASE 3) */}
+          {/* ========================================================================= */}
+          {/* ABA CONFIGURAÇÕES: GESTÃO DE ACESSOS (A FASE 3 ACONTECE AQUI!)            */}
+          {/* ========================================================================= */}
           {abaAtiva === 'configuracoes' && (
-            <div className="bg-white p-10 rounded-xl border border-[#cfd8dc] shadow-sm text-center animation-fade-in flex flex-col items-center justify-center min-h-[400px] hide-on-print">
-              <div className="w-20 h-20 bg-[#e3f2fd] rounded-full flex items-center justify-center text-[#023A58] text-3xl mb-4"><i className={`fas ${menuItens.find(m => m.id === abaAtiva)?.icone}`}></i></div>
-              <h2 className="text-2xl font-bold text-[#263238] mb-2">Gestão de Utilizadores e Acessos</h2>
-              <p className="text-slate-500 max-w-md mt-2">Este será o módulo da nossa Fase 3. Aqui você definirá os perfis (Administrador, RH, SESMT) com login e senha.</p>
+            <div className="animation-fade-in max-w-6xl mx-auto hide-on-print">
+              
+              {perfilAcesso !== 'ADM' ? (
+                 <div className="bg-white p-16 rounded-xl border border-[#cfd8dc] shadow-sm text-center flex flex-col items-center justify-center">
+                    <i className="fas fa-lock text-[#e74c3c] text-6xl mb-6 drop-shadow-md"></i>
+                    <h2 className="text-3xl font-black text-[#263238] mb-2">Acesso Restrito</h2>
+                    <p className="text-slate-500 max-w-md text-lg">Apenas o perfil <span className="font-bold text-[#023A58]">Administrador</span> tem permissão para aceder à Gestão de Utilizadores.</p>
+                 </div>
+              ) : (
+                <div className="flex flex-col xl:flex-row gap-8">
+                  
+                  {/* FORMULÁRIO DE CRIAÇÃO DE ACESSO */}
+                  <div className="xl:w-1/3 flex flex-col gap-6">
+                     <div className="bg-white rounded-xl shadow-sm border border-[#cfd8dc] overflow-hidden">
+                       <div className="bg-[#023A58] p-5">
+                         <h3 className="font-bold text-white text-lg"><i className="fas fa-user-shield mr-2"></i>Novo Acesso</h3>
+                         <p className="text-[#90a4ae] text-xs mt-1">Crie um login para a sua equipa.</p>
+                       </div>
+                       <form onSubmit={handleCriarUsuario} className="p-6 flex flex-col gap-4">
+                          {msgUsuario.texto && <div className={`p-3 rounded font-bold text-xs ${msgUsuario.tipo === 'sucesso' ? 'bg-[#e8f5e9] text-[#27ae60] border border-[#2ecc71]' : 'bg-[#fdeced] text-[#c0392b] border border-[#e74c3c]'}`}>{msgUsuario.texto}</div>}
+                          
+                          <div>
+                            <label className="block text-xs font-bold text-[#023A58] mb-1">Nome do Utilizador *</label>
+                            <input type="text" required value={formUsuario.nome} onChange={e => setFormUsuario({...formUsuario, nome: e.target.value})} placeholder="Ex: César SESMT" className="w-full bg-[#f8f9fa] border border-[#b0bec5] rounded p-2 focus:outline-none focus:border-[#035B8B]" />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-xs font-bold text-[#023A58] mb-1">Login (Nome de acesso) *</label>
+                            <input type="text" required value={formUsuario.login} onChange={e => setFormUsuario({...formUsuario, login: e.target.value.toLowerCase().replace(/\s/g, '')})} placeholder="Ex: cesar.sesmt" className="w-full bg-[#f8f9fa] border border-[#b0bec5] rounded p-2 focus:outline-none focus:border-[#035B8B] lowercase" />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-[#023A58] mb-1">Senha Inicial *</label>
+                            <input type="password" required value={formUsuario.senha} onChange={e => setFormUsuario({...formUsuario, senha: e.target.value})} placeholder="Defina uma senha" className="w-full bg-[#f8f9fa] border border-[#b0bec5] rounded p-2 focus:outline-none focus:border-[#035B8B]" />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-[#023A58] mb-1">Nível de Permissão *</label>
+                            <select value={formUsuario.perfil} onChange={e => setFormUsuario({...formUsuario, perfil: e.target.value})} className="w-full bg-white border border-[#b0bec5] rounded p-2 focus:outline-none focus:border-[#035B8B] font-bold text-[#023A58] cursor-pointer">
+                               <option value="RH">RH (Apenas Cadastra e Emite Crachá)</option>
+                               <option value="SESMT">SESMT (Apenas Gere QR Codes)</option>
+                               <option value="ADM">Administrador (Acesso Total)</option>
+                            </select>
+                          </div>
+
+                          <button type="submit" disabled={salvandoUsuario} className="mt-4 bg-[#2ecc71] text-white font-bold py-3 rounded hover:bg-[#27ae60] transition-colors shadow-sm w-full flex justify-center items-center gap-2">
+                             {salvandoUsuario ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-check"></i>} Guardar Utilizador
+                          </button>
+                       </form>
+                     </div>
+                  </div>
+
+                  {/* TABELA DE UTILIZADORES ATIVOS */}
+                  <div className="xl:w-2/3">
+                     <div className="bg-white rounded-xl shadow-sm border border-[#cfd8dc] overflow-hidden flex flex-col h-full">
+                       <div className="p-5 border-b border-[#eceff1] bg-[#fafafa]">
+                         <h3 className="font-bold text-[#023A58] text-lg">Equipa e Permissões Ativas</h3>
+                       </div>
+                       
+                       <div className="overflow-y-auto custom-scrollbar p-0 flex-1">
+                          <table className="w-full text-left border-collapse">
+                            <thead className="bg-[#f8f9fa] border-b border-[#eceff1]">
+                              <tr className="text-xs uppercase tracking-wider text-slate-500 font-bold">
+                                <th className="p-4 pl-6">Utilizador</th>
+                                <th className="p-4 text-center">Login</th>
+                                <th className="p-4 text-center">Perfil</th>
+                                <th className="p-4 text-right pr-6">Ação</th>
+                              </tr>
+                            </thead>
+                            <tbody className="text-sm">
+                              {carregandoUsuarios ? (
+                                <tr><td colSpan={4} className="p-8 text-center text-slate-400"><i className="fas fa-spinner fa-spin mr-2"></i> A carregar base...</td></tr>
+                              ) : listaUsuarios.length === 0 ? (
+                                <tr><td colSpan={4} className="p-8 text-center text-slate-400">Nenhum utilizador encontrado.</td></tr>
+                              ) : (
+                                listaUsuarios.map((usr) => (
+                                  <tr key={usr.id} className="border-b border-[#eceff1] hover:bg-[#f8f9fa]">
+                                    <td className="p-4 pl-6 font-semibold text-[#263238]">{usr.nome}</td>
+                                    <td className="p-4 text-center font-mono text-xs font-bold text-[#546e7a] bg-[#eceff1] rounded my-2 mx-auto inline-block px-2">{usr.login}</td>
+                                    <td className="p-4 text-center">
+                                      <span className={`px-3 py-1 rounded text-[10px] font-black uppercase tracking-wider ${usr.perfil === 'ADM' ? 'bg-[#023A58] text-white' : usr.perfil === 'SESMT' ? 'bg-[#f39c12] text-white' : 'bg-[#3498db] text-white'}`}>
+                                        {usr.perfil}
+                                      </span>
+                                    </td>
+                                    <td className="p-4 text-right pr-6">
+                                      {usr.login !== 'admin' ? (
+                                        <button onClick={() => excluirUsuario(usr.id, usr.login)} className="text-[#e74c3c] hover:text-[#c0392b] text-lg transition-colors" title="Apagar Utilizador">
+                                          <i className="fas fa-trash-alt"></i>
+                                        </button>
+                                      ) : (
+                                        <span className="text-[10px] text-slate-400 font-bold uppercase"><i className="fas fa-shield-alt mr-1"></i>Mestre</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
+                       </div>
+                     </div>
+                  </div>
+
+                </div>
+              )}
             </div>
           )}
 
