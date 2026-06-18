@@ -3,10 +3,9 @@
 "use client";
 
 import React, { useState, useRef } from 'react';
-import * as XLSX from 'xlsx';
 
 export default function PortalRH() {
-  const [abaAtiva, setAbaAtiva] = useState('emissao'); // Inicia na aba de emissão para testar o telemóvel
+  const [abaAtiva, setAbaAtiva] = useState('emissao'); // Abre direto na emissão para você testar no telemóvel
 
   const menuItens = [
     { id: 'dashboard', nome: 'Painel de Controlo', icone: 'fa-chart-pie' },
@@ -27,7 +26,7 @@ export default function PortalRH() {
   // Estados do Estúdio de Fotografia (Câmara e Edição)
   const [cameraAtiva, setCameraAtiva] = useState(false);
   const [fotoCapturada, setFotoCapturada] = useState<string | null>(null);
-  const [rawFoto, setRawFoto] = useState<string | null>(null); // A foto bruta antes do recorte
+  const [rawFoto, setRawFoto] = useState<string | null>(null); 
   const [zoom, setZoom] = useState(1);
   const [panX, setPanX] = useState(0);
   const [panY, setPanY] = useState(0);
@@ -35,64 +34,10 @@ export default function PortalRH() {
   const [salvandoFoto, setSalvandoFoto] = useState(false);
   const [msgFoto, setMsgFoto] = useState({ texto: '', tipo: '' });
 
-  // Estados da Importação Excel
-  const [ficheiroExcel, setFicheiroExcel] = useState<File | null>(null);
-  const [arrastando, setArrastando] = useState(false);
-  const [importando, setImportando] = useState(false);
-  const [resultadoMsg, setResultadoMsg] = useState({ tipo: '', texto: '' });
-
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const URL = "https://dpndtwutvkaxrxrkyeyw.supabase.co";
   const KEY = "sb_publishable_6Ss9lNdcbyeE2o3U5jcJ7w_qI61wmIr";
-
-  // ==========================================
-  // LÓGICA DE IMPORTAÇÃO EXCEL (Mantida e Funcional)
-  // ==========================================
-  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setArrastando(true); };
-  const handleDragLeave = () => setArrastando(false);
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault(); setArrastando(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) { setFicheiroExcel(e.dataTransfer.files[0]); setResultadoMsg({ tipo: '', texto: '' }); }
-  };
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) { setFicheiroExcel(e.target.files[0]); setResultadoMsg({ tipo: '', texto: '' }); }
-  };
-
-  const processarFicheiro = async () => {
-    if (!ficheiroExcel) return;
-    setImportando(true); setResultadoMsg({ tipo: 'loading', texto: 'A ler ficheiro Excel...' });
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const json: any[] = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-        if (json.length === 0) { setResultadoMsg({ tipo: 'erro', texto: 'O ficheiro está vazio.' }); setImportando(false); return; }
-        
-        setResultadoMsg({ tipo: 'loading', texto: `A enviar ${json.length} registos para a base de dados...` });
-        const payload = json.map((row) => ({
-          matricula: String(row['Matricula'] || row['MATRICULA'] || '').trim(),
-          nome_completo: String(row['Nome completo'] || row['NOME COMPLETO'] || row['Nome Completo'] || '').trim().toUpperCase(),
-          cpf: String(row['CPF'] || '').trim(),
-          rg: String(row['RG'] || '').trim(),
-          desc_funcao: String(row['Desc.Funcao'] || row['DESC.FUNCAO'] || row['Desc. Funcao'] || '').trim().toUpperCase(),
-        })).filter(row => row.matricula && row.nome_completo);
-
-        const response = await fetch(`${URL}/rest/v1/colaboradores`, {
-          method: 'POST',
-          headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
-          body: JSON.stringify(payload)
-        });
-        if (!response.ok) throw new Error('Falha no servidor.');
-        setResultadoMsg({ tipo: 'sucesso', texto: `${payload.length} colaboradores importados com sucesso!` });
-        setTimeout(() => setFicheiroExcel(null), 3000);
-      } catch (error) {
-        setResultadoMsg({ tipo: 'erro', texto: 'Erro ao importar os dados.' });
-      } finally { setImportando(false); }
-    };
-    reader.readAsArrayBuffer(ficheiroExcel);
-  };
 
   // ==========================================
   // LÓGICA DE BUSCA
@@ -134,11 +79,11 @@ export default function PortalRH() {
   const tirarFoto = () => {
     if (videoRef.current) {
       const canvas = document.createElement('canvas');
-      canvas.width = 600; canvas.height = 600; // Alta resolução para permitir zoom sem perder qualidade
+      canvas.width = 600; canvas.height = 600; 
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.drawImage(videoRef.current, 0, 0, 600, 600);
-        setRawFoto(canvas.toDataURL('image/jpeg', 1.0)); // Guarda a foto bruta no editor
+        setRawFoto(canvas.toDataURL('image/jpeg', 1.0)); 
         const stream = videoRef.current.srcObject as MediaStream;
         stream.getTracks().forEach(track => track.stop());
         setCameraAtiva(false);
@@ -151,24 +96,22 @@ export default function PortalRH() {
       setMsgFoto({ texto: '', tipo: '' });
       const reader = new FileReader();
       reader.onload = (event) => {
-        if (event.target?.result) setRawFoto(event.target.result as string); // Envia para o editor
+        if (event.target?.result) setRawFoto(event.target.result as string); 
       };
       reader.readAsDataURL(e.target.files[0]);
     }
   };
 
-  // O MÁGICO APLICADOR DE RECORTE
   const aplicarRecorte = () => {
     const canvas = document.createElement('canvas');
-    canvas.width = 260; // 26mm (Proporção do crachá)
-    canvas.height = 350; // 35mm
+    canvas.width = 260; 
+    canvas.height = 350; 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
     const img = new Image();
     img.src = rawFoto as string;
     img.onload = () => {
-      // Aplica o filtro de clarear a parede se estiver ativo
       if (clarear) ctx.filter = 'brightness(1.25) contrast(1.15)';
       
       ctx.fillStyle = '#ffffff';
@@ -188,13 +131,12 @@ export default function PortalRH() {
       ctx.drawImage(img, -w/2, -h/2, w, h);
 
       const finalImg = canvas.toDataURL('image/jpeg', 0.95);
-      setFotoCapturada(finalImg); // Aplica no crachá
-      setRawFoto(null); // Fecha o editor
+      setFotoCapturada(finalImg); 
+      setRawFoto(null); 
       setZoom(1); setPanX(0); setPanY(0); setClarear(false);
     };
   };
 
-  // GUARDAR DEFINITIVAMENTE NO SUPABASE
   const salvarFotoNoSupabase = async () => {
     if (!fotoCapturada || !colaborador) return;
     setSalvandoFoto(true); setMsgFoto({ texto: 'A guardar fotografia na nuvem...', tipo: 'loading' });
@@ -262,39 +204,6 @@ export default function PortalRH() {
 
         {/* CONTEÚDO DAS ABAS */}
         <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar print-padding-remove">
-          
-          {/* IMPORTAÇÃO (Resumida para poupar espaço visual aqui) */}
-          {abaAtiva === 'importacao' && (
-            <div className="animation-fade-in max-w-4xl mx-auto hide-on-print">
-              <div className="bg-white rounded-xl border border-[#cfd8dc] shadow-sm overflow-hidden">
-                <div className="p-6 border-b border-[#eceff1] bg-[#fafafa]">
-                  <h3 className="font-bold text-[#023A58] text-lg"><i className="fas fa-upload mr-2"></i> Importação de Colaboradores em Lote</h3>
-                  <p className="text-sm text-slate-500 mt-1">Carregue a base de dados do sistema principal (XLSX, CSV) para atualizar o SGSO Premium automaticamente.</p>
-                </div>
-                <div className="p-8">
-                  <div onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop} className={`border-2 border-dashed rounded-xl p-10 flex flex-col items-center justify-center transition-all cursor-pointer ${arrastando ? 'border-[#2ecc71] bg-[#e8f5e9]' : 'border-[#b0bec5] bg-[#f8f9fa] hover:bg-[#eceff1]'}`}>
-                    <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center text-[#035B8B] text-4xl shadow-sm mb-4"><i className="fas fa-file-excel"></i></div>
-                    <h4 className="text-lg font-bold text-[#023A58] mb-2">Arraste e solte a planilha Excel aqui</h4>
-                    <label className="bg-[#023A58] text-white px-8 py-3 rounded-lg font-bold hover:bg-[#035B8B] transition-colors shadow-sm cursor-pointer mt-4">
-                      Procurar Ficheiro <input type="file" accept=".xlsx, .xls, .csv" className="hidden" onChange={handleFileSelect} />
-                    </label>
-                  </div>
-                  {ficheiroExcel && (
-                    <div className="mt-8 p-4 bg-[#e8f5e9] border border-[#2ecc71] rounded-lg flex items-center justify-between">
-                      <div className="flex items-center gap-4"><i className="fas fa-check-circle text-[#2ecc71] text-2xl"></i><div><p className="font-bold text-[#263238]">{ficheiroExcel.name}</p></div></div>
-                      <div className="flex gap-3">
-                        <button onClick={() => {setFicheiroExcel(null); setResultadoMsg({tipo: '', texto: ''})}} disabled={importando} className="px-4 py-2 text-sm font-bold text-[#e74c3c] hover:bg-[#ffebee] rounded-lg">Remover</button>
-                        <button onClick={processarFicheiro} disabled={importando} className="px-6 py-2 text-sm font-bold bg-[#2ecc71] text-white rounded-lg hover:bg-[#27ae60] flex items-center gap-2">
-                          {importando ? <><i className="fas fa-spinner fa-spin"></i> Processando...</> : <><i className="fas fa-database"></i> Enviar Base</>}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {resultadoMsg.texto && (<div className={`mt-6 p-4 rounded-lg font-medium border ${resultadoMsg.tipo === 'sucesso' ? 'bg-[#e8f5e9] text-[#27ae60] border-[#2ecc71]' : resultadoMsg.tipo === 'erro' ? 'bg-[#fdeced] text-[#c0392b] border-[#e74c3c]' : 'bg-[#e3f2fd] text-[#035B8B] border-[#3498db]'}`}>{resultadoMsg.texto}</div>)}
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* ABA EMISSÃO (COM ESTÚDIO DE FOTOGRAFIA MOBILE) */}
           {abaAtiva === 'emissao' && (
@@ -323,7 +232,6 @@ export default function PortalRH() {
                       <div className="flex flex-col items-center w-full animation-fade-in">
                         <div className="text-xs font-bold text-[#e74c3c] mb-2 w-full text-center bg-[#ffebee] py-1 rounded">Modo de Recorte Ativo</div>
                         
-                        {/* Máscara de Pré-visualização do Recorte */}
                         <div className="relative w-48 h-64 bg-slate-900 overflow-hidden mb-4 rounded-lg shadow-inner" style={{ filter: clarear ? 'brightness(1.25) contrast(1.15)' : 'none' }}>
                           <img 
                             src={rawFoto} alt="Raw" 
@@ -332,11 +240,9 @@ export default function PortalRH() {
                               transformOrigin: 'center', width: '100%', height: '100%', objectFit: 'cover'
                             }} 
                           />
-                          {/* Guias visuais de enquadramento */}
                           <div className="absolute inset-0 border-2 border-[#2ecc71] border-dashed pointer-events-none opacity-60"></div>
                         </div>
 
-                        {/* Controlos Deslizantes (Sliders Tácteis) */}
                         <div className="w-full space-y-3 bg-[#f8f9fa] p-3 rounded-lg border border-[#eceff1]">
                           <div>
                             <label className="text-xs font-bold text-[#546e7a] flex justify-between"><span>🔍 Zoom</span> <span>{Math.round(zoom * 100)}%</span></label>
@@ -352,20 +258,17 @@ export default function PortalRH() {
                           </div>
                         </div>
 
-                        {/* Botão Mágico Clarear Fundo */}
                         <label className="flex items-center justify-center gap-2 mt-4 w-full bg-white border border-[#cfd8dc] p-3 rounded-lg cursor-pointer hover:bg-[#eceff1] transition-colors">
                           <input type="checkbox" checked={clarear} onChange={e => setClarear(e.target.checked)} className="w-4 h-4 accent-[#023A58]" />
                           <span className="text-sm font-bold text-[#023A58]">✨ Clarear Fundo (Parede Branca)</span>
                         </label>
 
-                        {/* Ação Final do Editor */}
                         <div className="flex gap-2 w-full mt-4">
                           <button onClick={() => setRawFoto(null)} className="flex-1 bg-[#eceff1] text-[#546e7a] font-bold py-3 rounded-lg hover:bg-[#cfd8dc]">Cancelar</button>
                           <button onClick={aplicarRecorte} className="flex-1 bg-[#2ecc71] hover:bg-[#27ae60] text-white font-bold py-3 rounded-lg shadow-sm"><i className="fas fa-crop-alt mr-2"></i> Aplicar Recorte</button>
                         </div>
                       </div>
                     ) : (
-                      /* SE NÃO ESTIVER NO ESTÚDIO (Câmara ou Foto já Pronta) */
                       <div className="w-full flex flex-col items-center">
                         <div className="w-48 h-64 bg-[#f8f9fa] border-2 border-dashed border-[#b0bec5] rounded-lg overflow-hidden relative flex items-center justify-center mb-4">
                           {cameraAtiva ? <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" /> : fotoCapturada ? <img src={fotoCapturada} alt="Crachá" className="w-full h-full object-cover" /> : <span className="text-slate-400 text-xs text-center px-4 font-medium">Nenhuma foto.<br/>Use o telemóvel para capturar.</span>}
@@ -383,7 +286,7 @@ export default function PortalRH() {
                           </label>
                         </div>
 
-                        {/* BOTÃO DE GUARDAR NO SUPABASE (Aparece apenas quando há foto no crachá) */}
+                        {/* BOTÃO DE GUARDAR NO SUPABASE */}
                         {fotoCapturada && (
                           <div className="w-full mt-6 border-t border-[#eceff1] pt-4">
                             <button onClick={salvarFotoNoSupabase} disabled={salvandoFoto} className="w-full bg-[#f39c12] hover:bg-[#d35400] text-white font-bold py-3 rounded-lg shadow-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50">
@@ -399,7 +302,7 @@ export default function PortalRH() {
                     )}
                   </div>
 
-                  {/* COLUNA DIREITA: VISUALIZAÇÃO E IMPRESSÃO (PC) */}
+                  {/* COLUNA DIREITA: VISUALIZAÇÃO E IMPRESSÃO */}
                   <div className="xl:col-span-2 bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm">
                     <div className="flex justify-between items-center mb-6 border-b border-[#eceff1] pb-4 hide-on-print">
                       <h3 className="text-lg font-bold text-[#023A58]">Visualização (Impressão PC)</h3>
@@ -455,7 +358,7 @@ export default function PortalRH() {
           )}
 
           {/* OUTRAS ABAS (Placeholders) */}
-          {['dashboard', 'colaboradores', 'cadastro', 'qrcode', 'configuracoes'].includes(abaAtiva) && (
+          {['dashboard', 'colaboradores', 'cadastro', 'importacao', 'qrcode', 'configuracoes'].includes(abaAtiva) && (
             <div className="bg-white p-10 rounded-xl border border-[#cfd8dc] shadow-sm text-center animation-fade-in flex flex-col items-center justify-center min-h-[400px]">
               <div className="w-20 h-20 bg-[#e3f2fd] rounded-full flex items-center justify-center text-[#023A58] text-3xl mb-4"><i className={`fas ${menuItens.find(m => m.id === abaAtiva)?.icone}`}></i></div>
               <h2 className="text-2xl font-bold text-[#263238] mb-2">Módulo em Construção</h2>
