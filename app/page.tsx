@@ -5,9 +5,7 @@
 import React, { useState, useRef } from 'react';
 
 export default function PortalRH() {
-  const [abaAtiva, setAbaAtiva] = useState('lote');
-  
-  // SIMULADOR DE PERFIL DE ACESSO
+  const [abaAtiva, setAbaAtiva] = useState('colaboradores');
   const [perfilAcesso, setPerfilAcesso] = useState('ADM'); 
 
   const menuItens = [
@@ -26,7 +24,6 @@ export default function PortalRH() {
   const [resultadosBusca, setResultadosBusca] = useState<any[]>([]);
   const [carregandoLista, setCarregandoLista] = useState(false);
   const [pesquisaRealizada, setPesquisaRealizada] = useState(false);
-
   const [colaboradorEditando, setColaboradorEditando] = useState<any>(null);
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
 
@@ -65,7 +62,7 @@ export default function PortalRH() {
       });
       if (!response.ok) throw new Error('Erro');
       setColaboradorEditando(null); handlePesquisaTabela(); 
-      alert("Informações complementares atualizadas com sucesso!");
+      alert("Informações atualizadas com sucesso!");
     } catch (err) { alert("Erro ao salvar alterações."); } finally { setSalvandoEdicao(false); }
   };
 
@@ -104,6 +101,9 @@ export default function PortalRH() {
   const [zoom, setZoom] = useState(1); const [panX, setPanX] = useState(0); const [panY, setPanY] = useState(0); const [clarear, setClarear] = useState(false);
   const [salvandoFoto, setSalvandoFoto] = useState(false); const [msgFoto, setMsgFoto] = useState({ texto: '', tipo: '' });
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Lógica Inteligente do Botão Guardar Foto
+  const fotoAlterada = fotoCapturada && fotoCapturada !== colaborador?.foto_url;
 
   const buscarColaboradorParaEmissao = async (matriculaAlvo: string) => {
     setErroEmissao(''); setMsgFoto({ texto: '', tipo: '' }); setRawFoto(null); setCarregandoEmissao(true); setBuscaEmissao(matriculaAlvo);
@@ -149,7 +149,9 @@ export default function PortalRH() {
     if (!fotoCapturada || !colaborador) return; setSalvandoFoto(true); setMsgFoto({ texto: 'A guardar fotografia...', tipo: 'loading' });
     try {
       const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${colaborador.matricula}`, { method: 'PATCH', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }, body: JSON.stringify({ foto_url: fotoCapturada }) });
-      if (!response.ok) throw new Error('Erro ao salvar'); setMsgFoto({ texto: 'Guardado com sucesso!', tipo: 'sucesso' });
+      if (!response.ok) throw new Error('Erro ao salvar'); 
+      setColaborador({ ...colaborador, foto_url: fotoCapturada }); // Atualiza a ficha local para desabilitar o botão
+      setMsgFoto({ texto: 'Guardado com sucesso!', tipo: 'sucesso' });
     } catch (err) { setMsgFoto({ texto: 'Erro ao guardar.', tipo: 'erro' }); } finally { setSalvandoFoto(false); }
   };
 
@@ -181,13 +183,12 @@ export default function PortalRH() {
       {/* ÁREA PRINCIPAL */}
       <main className="flex-1 flex flex-col relative overflow-hidden print-main-adjust">
         
-        {/* HEADER COM SIMULADOR DE PERFIL */}
+        {/* HEADER */}
         <header className="h-20 bg-white shadow-sm border-b border-[#cfd8dc] flex items-center justify-between px-8 z-10 hide-on-print">
           <h2 className="text-xl font-bold text-[#023A58] flex items-center gap-2">
             <i className={`fas ${menuItens.find(m => m.id === abaAtiva)?.icone} text-[#035B8B]`}></i> {menuItens.find(m => m.id === abaAtiva)?.nome}
           </h2>
           <div className="flex items-center gap-6">
-            
             <div className="flex items-center gap-2 bg-[#ffebee] px-3 py-1 rounded border border-[#ffcdd2]">
                <span className="text-[10px] font-bold text-[#c0392b] uppercase">Simular Acesso:</span>
                <select value={perfilAcesso} onChange={(e) => setPerfilAcesso(e.target.value)} className="bg-transparent text-xs font-bold text-[#c0392b] focus:outline-none cursor-pointer">
@@ -196,7 +197,6 @@ export default function PortalRH() {
                  <option value="SESMT">Somente SESMT</option>
                </select>
             </div>
-
             <div className="flex items-center gap-3 bg-[#f8f9fa] px-4 py-2 rounded-full border border-[#eceff1]">
               <div className="w-8 h-8 rounded-full bg-[#035B8B] flex items-center justify-center text-white font-bold shadow-sm">JA</div>
               <div className="flex flex-col">
@@ -209,9 +209,7 @@ export default function PortalRH() {
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar print-padding-remove">
 
-          {/* ========================================================================= */}
-          {/* ABA 1: BASE DE COLABORADORES (HUB CENTRAL)                                */}
-          {/* ========================================================================= */}
+          {/* ABA COLABORADORES */}
           {abaAtiva === 'colaboradores' && (
             <div className="animation-fade-in max-w-6xl mx-auto hide-on-print flex flex-col h-full">
               <form onSubmit={handlePesquisaTabela} className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm mb-6 flex gap-4 items-end">
@@ -219,7 +217,7 @@ export default function PortalRH() {
                   <label className="block text-sm font-bold mb-2 text-[#023A58]">Pesquisa Rápida na Base</label>
                   <div className="relative">
                     <i className="fas fa-search absolute left-4 top-4 text-slate-400"></i>
-                    <input type="text" placeholder="Digite a Matrícula ou Nome do colaborador..." value={buscaTabela} onChange={(e) => setBuscaTabela(e.target.value)} className="w-full bg-[#f8f9fa] border border-[#b0bec5] rounded-lg pl-10 pr-4 py-3 focus:outline-none focus:border-[#035B8B]" />
+                    <input type="text" placeholder="Digite a Matrícula ou Nome..." value={buscaTabela} onChange={(e) => setBuscaTabela(e.target.value)} className="w-full bg-[#f8f9fa] border border-[#b0bec5] rounded-lg pl-10 pr-4 py-3 focus:outline-none focus:border-[#035B8B]" />
                   </div>
                 </div>
                 <button type="submit" disabled={carregandoLista} className="bg-[#023A58] text-white font-bold px-8 py-3 rounded-lg hover:bg-[#035B8B] shadow-sm flex items-center gap-2">
@@ -259,9 +257,9 @@ export default function PortalRH() {
                               {colab.link_qrcode ? <span className="text-[#2980b9] font-bold text-xs"><i className="fas fa-link"></i> Vinculado</span> : <span className="text-[#7f8c8d] font-bold text-xs"><i className="fas fa-unlink"></i> Sem Link</span>}
                             </td>
                             <td className="p-4 text-right pr-6 flex justify-end gap-2">
-                              <button onClick={() => { setBuscaEmissao(colab.matricula); buscarColaboradorParaEmissao(colab.matricula); }} className="bg-white border border-[#cfd8dc] text-[#023A58] hover:bg-[#eceff1] px-3 py-1.5 text-xs font-bold rounded shadow-sm transition-colors" title="Abrir no Estúdio">Emitir Crachá</button>
+                              <button onClick={() => { setBuscaEmissao(colab.matricula); buscarColaboradorParaEmissao(colab.matricula); }} className="bg-white border border-[#cfd8dc] text-[#023A58] hover:bg-[#eceff1] px-3 py-1.5 text-xs font-bold rounded shadow-sm transition-colors">Emitir Crachá</button>
                               {(perfilAcesso === 'ADM' || perfilAcesso === 'SESMT') && (
-                                <button onClick={() => abrirEdicao(colab)} className="bg-[#f39c12] hover:bg-[#d35400] text-white px-3 py-1.5 text-xs font-bold rounded shadow-sm transition-colors" title="Editar Informações e Link"><i className="fas fa-edit mr-1"></i> Adic. Dados</button>
+                                <button onClick={() => abrirEdicao(colab)} className="bg-[#f39c12] hover:bg-[#d35400] text-white px-3 py-1.5 text-xs font-bold rounded shadow-sm transition-colors"><i className="fas fa-edit mr-1"></i> Adic. Dados</button>
                               )}
                             </td>
                           </tr>
@@ -274,9 +272,7 @@ export default function PortalRH() {
             </div>
           )}
 
-          {/* ========================================================================= */}
-          {/* ABA 2: EMISSÃO EM LOTE                                                    */}
-          {/* ========================================================================= */}
+          {/* ABA LOTE */}
           {abaAtiva === 'lote' && (
             <div className="animation-fade-in max-w-6xl mx-auto hide-on-print flex flex-col h-full gap-6">
               <div className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm flex flex-col md:flex-row gap-6 items-end">
@@ -341,9 +337,7 @@ export default function PortalRH() {
             </div>
           )}
 
-          {/* ========================================================================= */}
-          {/* ABA 3: EMISSÃO INDIVIDUAL                                                 */}
-          {/* ========================================================================= */}
+          {/* ABA EMISSÃO INDIVIDUAL */}
           {abaAtiva === 'emissao' && (
             <div className="animation-fade-in max-w-6xl mx-auto hide-on-print">
               <form onSubmit={(e) => { e.preventDefault(); buscarColaboradorParaEmissao(buscaEmissao); }} className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm mb-8 flex gap-4 items-end">
@@ -359,7 +353,8 @@ export default function PortalRH() {
               {colaborador && (
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
                   <div className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm flex flex-col items-center">
-                    <h3 className="text-lg font-bold text-[#023A58] mb-4 w-full border-b border-[#eceff1] pb-2">Controlo da Fotografia</h3>
+                    {/* TÍTULO AJUSTADO! */}
+                    <h3 className="text-lg font-bold text-[#023A58] mb-4 w-full border-b border-[#eceff1] pb-2">Adicionar Fotografia</h3>
                     {rawFoto ? (
                       <div className="flex flex-col items-center w-full animation-fade-in">
                         <div className="relative w-48 h-64 bg-slate-900 overflow-hidden mb-4 rounded-lg shadow-inner" style={{ filter: clarear ? 'brightness(1.25) contrast(1.15)' : 'none' }}>
@@ -382,8 +377,9 @@ export default function PortalRH() {
                       </div>
                     ) : (
                       <div className="w-full flex flex-col items-center">
+                        {/* QUADRADO LIMPO QUANDO NÃO TEM FOTO */}
                         <div className="w-48 h-64 bg-[#f8f9fa] border-2 border-dashed border-[#b0bec5] rounded-lg overflow-hidden relative flex items-center justify-center mb-4">
-                          {cameraAtiva ? <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" /> : fotoCapturada ? <img src={fotoCapturada} alt="Crachá" className="w-full h-full object-cover" /> : <span className="text-slate-400 text-xs text-center px-4 font-medium">Sem foto</span>}
+                          {cameraAtiva ? <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" /> : fotoCapturada ? <img src={fotoCapturada} alt="Crachá" className="w-full h-full object-cover" /> : null}
                         </div>
                         <div className="w-full space-y-2">
                           {cameraAtiva ? (
@@ -395,11 +391,18 @@ export default function PortalRH() {
                             <i className="fas fa-image mr-2"></i> Enviar Arquivo <input type="file" accept="image/*" onChange={handleUploadFoto} className="hidden" />
                           </label>
                         </div>
-                        {fotoCapturada && (
-                          <div className="w-full mt-6 border-t border-[#eceff1] pt-4">
-                            <button onClick={salvarFotoNoSupabase} disabled={salvandoFoto} className="w-full bg-[#f39c12] text-white font-bold py-3 rounded-lg shadow-sm w-full">Guardar Foto</button>
-                          </div>
-                        )}
+                        {/* BOTÃO DE GUARDAR INTELIGENTE (Só liga se houver foto nova) */}
+                        <div className="w-full mt-6 border-t border-[#eceff1] pt-4">
+                          <button 
+                            onClick={salvarFotoNoSupabase} 
+                            disabled={!fotoAlterada || salvandoFoto} 
+                            className={`w-full font-bold py-3 rounded-lg shadow-sm transition-all ${fotoAlterada && !salvandoFoto ? 'bg-[#f39c12] hover:bg-[#d35400] text-white cursor-pointer' : 'bg-[#eceff1] text-slate-400 cursor-not-allowed'}`}
+                          >
+                            {salvandoFoto ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-cloud-upload-alt mr-2"></i>} 
+                            Guardar Foto
+                          </button>
+                          {msgFoto.texto && <p className={`text-xs text-center mt-2 font-bold ${msgFoto.tipo === 'sucesso' ? 'text-[#27ae60]' : 'text-[#e74c3c]'}`}>{msgFoto.texto}</p>}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -407,14 +410,15 @@ export default function PortalRH() {
                   <div className="xl:col-span-2 bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm">
                     <div className="flex justify-between items-center mb-6 border-b border-[#eceff1] pb-4">
                       <h3 className="text-lg font-bold text-[#023A58]">Visualização do Crachá</h3>
-                      <button onClick={() => window.print()} disabled={!fotoCapturada || !!rawFoto} className={`font-bold px-6 py-3 rounded-lg transition-all shadow-sm ${fotoCapturada && !rawFoto ? 'bg-[#023A58] hover:bg-[#035B8B] text-white' : 'bg-[#eceff1] text-[#90a4ae] cursor-not-allowed'}`}><i className="fas fa-print mr-2"></i> Imprimir</button>
+                      <button onClick={() => window.print()} disabled={!fotoCapturada || !!rawFoto} className={`font-bold px-6 py-3 rounded-lg transition-all shadow-sm ${fotoCapturada && !rawFoto ? 'bg-[#023A58] hover:bg-[#035B8B] text-white' : 'bg-[#eceff1] text-[#90a4ae] cursor-not-allowed'}`}><i className="fas fa-print mr-2"></i> Imprimir na Smart-51</button>
                     </div>
 
                     <div className="flex flex-col md:flex-row gap-8 justify-center items-center bg-[#f8f9fa] p-8 rounded-lg overflow-x-auto border border-[#eceff1]">
                       {/* FRENTE */}
                       <div className="cracha-card w-[54mm] h-[86mm] bg-white relative flex flex-col items-center overflow-hidden box-border" style={{ border: '1px solid #ccc' }}>
                         <div className="mt-[4mm] w-[26mm] h-[35mm] flex items-center justify-center overflow-hidden z-10 border border-slate-300 bg-white">
-                          {fotoCapturada && <img src={fotoCapturada} className="w-full h-full object-cover" alt="Foto" />}
+                          {/* ESPAÇO DA FOTO 100% LIMPO SE VAZIO */}
+                          {fotoCapturada ? <img src={fotoCapturada} className="w-full h-full object-cover" alt="Foto" /> : <div className="w-full h-full bg-white"></div>}
                         </div>
                         <div className="mt-[2mm] text-center z-10 w-full px-2">
                           <div className="text-[#051e42] font-black text-[18px] leading-[1.0]" style={{ fontFamily: 'Arial, sans-serif' }}>
@@ -425,7 +429,7 @@ export default function PortalRH() {
                         <div className="absolute bottom-[13mm] left-[1mm] z-10 w-[24mm] h-[8mm] flex items-center justify-start"><img src="/dinamo.png" className="max-h-full max-w-full object-contain" alt="Dínamo" /></div>
                       </div>
 
-                      {/* VERSO COM A NOVA LÓGICA DO QR CODE */}
+                      {/* VERSO */}
                       <div className="cracha-card w-[54mm] h-[86mm] bg-white relative p-[2mm] flex flex-col box-border" style={{ border: '1px solid #ccc' }}>
                         <div className="mt-[2mm] w-full flex flex-col gap-[3mm]">
                           <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span><div className="text-[7.5px] text-black font-semibold uppercase">{colaborador.nome_completo}</div></div>
@@ -439,18 +443,13 @@ export default function PortalRH() {
                                 <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Car. Identidade</span><div className="text-[8px] text-black font-semibold uppercase">{colaborador.rg || '0000000000'}</div></div>
                                 <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Matrícula</span><div className="text-[8px] text-black font-semibold uppercase">{String(colaborador.matricula).padStart(8, '0')}</div></div>
                              </div>
-                             
-                             {/* SE TIVER LINK GERA O QR CODE. SE NÃO, FICA EM BRANCO (Mudei aqui na visualização) */}
                              <div className="w-[21mm] flex-shrink-0 flex items-center justify-center border border-slate-100 p-[0.5mm] bg-white rounded-sm z-10">
                                {colaborador.link_qrcode ? (
                                  <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(colaborador.link_qrcode)}`} className="w-full h-full object-contain" alt="QR Code" />
                                ) : (
-                                 <div className="w-full h-full flex items-center justify-center bg-[#f8f9fa] border border-[#eceff1]">
-                                    <span className="text-[6px] text-slate-300 font-bold text-center leading-tight">SEM<br/>LINK</span>
-                                 </div>
+                                 <div className="w-full h-full bg-white"></div>
                                )}
                              </div>
-
                           </div>
                           <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Empresa</span><div className="text-[8px] text-black font-semibold uppercase">DINAMO ENGENHARIA</div></div>
                         </div>
@@ -487,7 +486,6 @@ export default function PortalRH() {
                 <h3 className="font-bold text-lg"><i className="fas fa-lock mr-2 text-[#f1c40f]"></i>Painel de Complementos</h3>
                 <button onClick={() => setColaboradorEditando(null)} className="text-white hover:text-[#e74c3c] text-xl transition-colors"><i className="fas fa-times"></i></button>
               </div>
-              
               <form onSubmit={salvarEdicao} className="p-6 flex flex-col gap-4 overflow-y-auto max-h-[75vh]">
                 <div className="bg-[#f8f9fa] border border-[#eceff1] p-4 rounded-lg mb-2 relative">
                    <div className="absolute -top-3 left-4 bg-[#f8f9fa] px-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Dados do Sistema Base (Inalteráveis)</div>
@@ -501,7 +499,6 @@ export default function PortalRH() {
                      <div><label className="block text-xs font-bold text-[#546e7a] mb-1">Função / Cargo</label><input type="text" value={colaboradorEditando.desc_funcao || ''} disabled className="w-full bg-[#eceff1] border border-[#cfd8dc] rounded p-2 text-slate-500 cursor-not-allowed font-bold truncate" /></div>
                    </div>
                 </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                   <div className="border-2 border-[#cfd8dc] hover:border-[#c0392b] transition-colors p-4 rounded-lg bg-white">
                     <label className="block text-sm font-bold text-[#c0392b] mb-2"><i className="fas fa-tint mr-1"></i> Tipo Sanguíneo</label>
@@ -512,7 +509,6 @@ export default function PortalRH() {
                     <input type="url" placeholder="https://..." value={colaboradorEditando.link_qrcode || ''} onChange={e => setColaboradorEditando({...colaboradorEditando, link_qrcode: e.target.value})} className="w-full bg-white border border-[#85c1e9] p-3 rounded focus:outline-none focus:ring-2 focus:ring-[#2980b9] text-[#023A58]" />
                   </div>
                 </div>
-
                 <div className="flex justify-end gap-3 mt-4 border-t border-[#eceff1] pt-4">
                   <button type="button" onClick={() => setColaboradorEditando(null)} className="px-6 py-3 rounded-lg font-bold text-slate-600 bg-[#eceff1] hover:bg-[#cfd8dc] transition-colors">Cancelar</button>
                   <button type="submit" disabled={salvandoEdicao} className="px-8 py-3 rounded-lg font-bold text-white bg-[#f39c12] hover:bg-[#d35400] transition-colors flex items-center gap-2 shadow-sm">
@@ -530,7 +526,7 @@ export default function PortalRH() {
              <React.Fragment key={index}>
                 <div className="cracha-card w-[54mm] h-[86mm] bg-white relative flex flex-col items-center overflow-hidden box-border" style={{ border: '1px solid #ccc' }}>
                   <div className="mt-[4mm] w-[26mm] h-[35mm] flex items-center justify-center overflow-hidden z-10 border border-slate-300 bg-white">
-                    {c.foto_url && <img src={c.foto_url} className="w-full h-full object-cover" alt="Foto" />}
+                    {c.foto_url ? <img src={c.foto_url} className="w-full h-full object-cover" alt="Foto" /> : <div className="w-full h-full bg-white"></div>}
                   </div>
                   <div className="mt-[2mm] text-center z-10 w-full px-2">
                     <div className="text-[#051e42] font-black text-[18px] leading-[1.0]" style={{ fontFamily: 'Arial, sans-serif' }}>
@@ -554,16 +550,9 @@ export default function PortalRH() {
                           <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Car. Identidade</span><div className="text-[8px] text-black font-semibold uppercase">{c.rg || '0000000000'}</div></div>
                           <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Matrícula</span><div className="text-[8px] text-black font-semibold uppercase">{String(c.matricula).padStart(8, '0')}</div></div>
                         </div>
-                        
-                        {/* SE TIVER LINK GERA O QR CODE. SE NÃO, FICA EM BRANCO (Mudei aqui na impressora também) */}
                         <div className="w-[21mm] flex-shrink-0 flex items-center justify-center border border-slate-100 p-[0.5mm] bg-white rounded-sm z-10">
-                          {c.link_qrcode ? (
-                            <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(c.link_qrcode)}`} className="w-full h-full object-contain" alt="QR Code" />
-                          ) : (
-                            <div className="w-full h-full bg-white"></div>
-                          )}
+                          {c.link_qrcode ? <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(c.link_qrcode)}`} className="w-full h-full object-contain" alt="QR Code" /> : <div className="w-full h-full bg-white"></div>}
                         </div>
-
                     </div>
                     <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Empresa</span><div className="text-[8px] text-black font-semibold uppercase">DINAMO ENGENHARIA</div></div>
                   </div>
