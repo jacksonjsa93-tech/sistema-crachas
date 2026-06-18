@@ -541,7 +541,7 @@ export default function PortalRH() {
 
       </main>
 
-      <style jsx global>{`
+<style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
         @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css');
         
@@ -555,16 +555,40 @@ export default function PortalRH() {
         @media print {
           body * { visibility: hidden; }
           .hide-on-print { display: none !important; }
-          .print-container, .print-container * { visibility: visible !important; display: block !important; }
+          
+          /* Aqui estava o erro! Agora apenas o container principal aparece, sem forçar o layout interno a quebrar */
+          .print-container { 
+             display: block !important; 
+             visibility: visible !important; 
+             position: absolute !important; 
+             left: 0 !important; 
+             top: 0 !important; 
+             width: 54mm !important; 
+             margin: 0 !important; 
+             padding: 0 !important; 
+          }
+          .print-container * { visibility: visible !important; }
+          
           @page { size: 54mm 86mm; margin: 0 !important; }
           html, body { width: 54mm !important; height: 86mm !important; margin: 0 !important; padding: 0 !important; background: white !important; overflow: hidden !important; }
-          .print-main-adjust { position: absolute !important; left: 0 !important; top: 0 !important; width: 54mm !important; padding: 0 !important; margin: 0 !important; overflow: visible !important; }
-          .print-padding-remove { padding: 0 !important; overflow: visible !important; }
-          .print-container { position: absolute !important; left: 0 !important; top: 0 !important; width: 54mm !important; padding: 0 !important; margin: 0 !important; background: transparent !important; border: none !important; }
-          .cracha-card { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; width: 54mm !important; height: 86mm !important; box-sizing: border-box !important; margin: 0 !important; border: none !important; box-shadow: none !important; page-break-inside: avoid !important; page-break-after: always !important; overflow: hidden !important; float: none !important; }
+          
+          .cracha-card { 
+             -webkit-print-color-adjust: exact !important; 
+             print-color-adjust: exact !important; 
+             width: 54mm !important; 
+             height: 86mm !important; 
+             box-sizing: border-box !important; 
+             margin: 0 !important; 
+             border: none !important; 
+             box-shadow: none !important; 
+             page-break-inside: avoid !important; 
+             page-break-after: always !important; 
+             overflow: hidden !important; 
+             float: none !important; 
+             position: relative !important;
+          }
           .cracha-card:last-of-type { page-break-after: avoid !important; }
         }
       `}</style>
-    </div>
   );
 }
