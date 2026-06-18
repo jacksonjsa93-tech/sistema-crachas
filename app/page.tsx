@@ -41,9 +41,9 @@ export default function PortalRH() {
 
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Protegendo com variáveis de ambiente (lembre-se de criar o .env.local)
-  const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  // 🔑 CHAVES VOLTARAM A FICAR AQUI DIRETO PARA TESTE!
+  const URL = "https://dpndtwutvkaxrxrkyeyw.supabase.co";
+  const KEY = "sb_publishable_6Ss9lNdcbyeE2o3U5jcJ7w_qI61wmIr";
 
   // ==================== FUNÇÕES TELA EMISSÃO ====================
 
@@ -56,6 +56,11 @@ export default function PortalRH() {
       const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${matriculaBuscada}&select=*`, {
         headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` }
       });
+      
+      if (!response.ok) {
+        throw new Error(`Erro HTTP ${response.status}`);
+      }
+
       const data = await response.json();
       if (data && data.length > 0) {
         setColaborador(data[0]);
@@ -66,7 +71,10 @@ export default function PortalRH() {
         setColaborador(null);
         setErro('Matrícula não encontrada na base do sistema.');
       }
-    } catch (error) { setErro('Erro de ligação à base de dados.'); } 
+    } catch (error) { 
+      console.error("Erro detalhado:", error);
+      setErro('Erro de ligação à base de dados. Verifique o RLS no Supabase.'); 
+    } 
     finally { setCarregando(false); }
   };
 
@@ -117,7 +125,6 @@ export default function PortalRH() {
     const img = new Image();
     img.src = rawFoto as string;
     img.onload = () => {
-      // CORREÇÃO: Removi o filtro de "Clarear" como pedido
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -190,26 +197,7 @@ export default function PortalRH() {
     if (!e.target.files || !e.target.files[0]) return;
     const file = e.target.files[0];
     setExcelFile(file);
-    
-    // Como você vai instalar a biblioteca XLSX, aqui vai o código que lê o arquivo
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        // NOTA: Para isso funcionar, você precisa que a biblioteca xlsx (npm install xlsx) esteja instalada
-        // import * as XLSX from 'xlsx'; (Se for usar isso, recomendo colocar no topo do arquivo)
-        // Exemplo de lógica: 
-        // const workbook = XLSX.read(ev.target?.result, { type: 'binary' });
-        // const sheetName = workbook.SheetNames[0];
-        // const dados = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
-        // console.log("Dados importados:", dados);
-        
-        // Apenas para teste visual sem quebrar o app, mostramos um alerta:
-        alert("Arquivo carregado! Para salvar no banco, implemente o envio dos dados via API usando o código acima e a biblioteca XLSX.");
-      } catch (error) {
-        alert("Erro ao ler o arquivo, certifique-se de ter instalado o 'xlsx' (npm install xlsx).");
-      }
-    };
-    reader.readAsBinaryString(file);
+    alert("Arquivo selecionado! Para processá-lo, instale a lib 'xlsx' no terminal.");
   };
 
   return (
