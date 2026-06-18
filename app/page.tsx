@@ -5,7 +5,10 @@
 import React, { useState, useRef } from 'react';
 
 export default function PortalRH() {
-  const [abaAtiva, setAbaAtiva] = useState('colaboradores');
+  // Vamos abrir na nova aba de Cadastro para você testar
+  const [abaAtiva, setAbaAtiva] = useState('cadastro');
+  
+  // SIMULADOR DE PERFIL DE ACESSO
   const [perfilAcesso, setPerfilAcesso] = useState('ADM'); 
 
   const menuItens = [
@@ -24,6 +27,7 @@ export default function PortalRH() {
   const [resultadosBusca, setResultadosBusca] = useState<any[]>([]);
   const [carregandoLista, setCarregandoLista] = useState(false);
   const [pesquisaRealizada, setPesquisaRealizada] = useState(false);
+
   const [colaboradorEditando, setColaboradorEditando] = useState<any>(null);
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
 
@@ -62,7 +66,7 @@ export default function PortalRH() {
       });
       if (!response.ok) throw new Error('Erro');
       setColaboradorEditando(null); handlePesquisaTabela(); 
-      alert("Informações atualizadas com sucesso!");
+      alert("Informações complementares atualizadas com sucesso!");
     } catch (err) { alert("Erro ao salvar alterações."); } finally { setSalvandoEdicao(false); }
   };
 
@@ -102,7 +106,6 @@ export default function PortalRH() {
   const [salvandoFoto, setSalvandoFoto] = useState(false); const [msgFoto, setMsgFoto] = useState({ texto: '', tipo: '' });
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Lógica Inteligente do Botão Guardar Foto
   const fotoAlterada = fotoCapturada && fotoCapturada !== colaborador?.foto_url;
 
   const buscarColaboradorParaEmissao = async (matriculaAlvo: string) => {
@@ -150,9 +153,59 @@ export default function PortalRH() {
     try {
       const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${colaborador.matricula}`, { method: 'PATCH', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }, body: JSON.stringify({ foto_url: fotoCapturada }) });
       if (!response.ok) throw new Error('Erro ao salvar'); 
-      setColaborador({ ...colaborador, foto_url: fotoCapturada }); // Atualiza a ficha local para desabilitar o botão
+      setColaborador({ ...colaborador, foto_url: fotoCapturada });
       setMsgFoto({ texto: 'Guardado com sucesso!', tipo: 'sucesso' });
     } catch (err) { setMsgFoto({ texto: 'Erro ao guardar.', tipo: 'erro' }); } finally { setSalvandoFoto(false); }
+  };
+
+  // ========================== ABA: CADASTRO MANUAL ==========================
+  const [formCadastro, setFormCadastro] = useState({
+    matricula: '', nome_completo: '', cpf: '', rg: '', desc_funcao: ''
+  });
+  const [salvandoCadastro, setSalvandoCadastro] = useState(false);
+  const [msgCadastro, setMsgCadastro] = useState({ texto: '', tipo: '' });
+
+  const handleCadastroManual = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMsgCadastro({ texto: '', tipo: '' });
+    
+    // Validação básica
+    if (!formCadastro.matricula || !formCadastro.nome_completo) {
+      setMsgCadastro({ texto: 'Matrícula e Nome Completo são obrigatórios.', tipo: 'erro' });
+      return;
+    }
+
+    setSalvandoCadastro(true);
+    try {
+      // Usando POST para criar um novo registo
+      const response = await fetch(`${URL}/rest/v1/colaboradores`, {
+        method: 'POST',
+        headers: { 
+          'apikey': KEY, 
+          'Authorization': `Bearer ${KEY}`, 
+          'Content-Type': 'application/json', 
+          'Prefer': 'return=minimal' 
+        },
+        body: JSON.stringify(formCadastro)
+      });
+
+      if (!response.ok) {
+        // Se a matrícula já existir, a API retorna erro (conflito de Primary Key)
+        if(response.status === 409) {
+          throw new Error('Esta matrícula já está cadastrada no sistema.');
+        }
+        throw new Error('Erro ao cadastrar na base de dados.');
+      }
+
+      setMsgCadastro({ texto: 'Colaborador cadastrado com sucesso!', tipo: 'sucesso' });
+      // Limpa o formulário
+      setFormCadastro({ matricula: '', nome_completo: '', cpf: '', rg: '', desc_funcao: '' });
+      
+    } catch (err: any) { 
+      setMsgCadastro({ texto: err.message || 'Ocorreu um erro ao salvar.', tipo: 'erro' }); 
+    } finally { 
+      setSalvandoCadastro(false); 
+    }
   };
 
   // ========================== HELPERS ==========================
@@ -217,7 +270,7 @@ export default function PortalRH() {
                   <label className="block text-sm font-bold mb-2 text-[#023A58]">Pesquisa Rápida na Base</label>
                   <div className="relative">
                     <i className="fas fa-search absolute left-4 top-4 text-slate-400"></i>
-                    <input type="text" placeholder="Digite a Matrícula ou Nome..." value={buscaTabela} onChange={(e) => setBuscaTabela(e.target.value)} className="w-full bg-[#f8f9fa] border border-[#b0bec5] rounded-lg pl-10 pr-4 py-3 focus:outline-none focus:border-[#035B8B]" />
+                    <input type="text" placeholder="Digite a Matrícula ou Nome do colaborador..." value={buscaTabela} onChange={(e) => setBuscaTabela(e.target.value)} className="w-full bg-[#f8f9fa] border border-[#b0bec5] rounded-lg pl-10 pr-4 py-3 focus:outline-none focus:border-[#035B8B]" />
                   </div>
                 </div>
                 <button type="submit" disabled={carregandoLista} className="bg-[#023A58] text-white font-bold px-8 py-3 rounded-lg hover:bg-[#035B8B] shadow-sm flex items-center gap-2">
@@ -257,9 +310,9 @@ export default function PortalRH() {
                               {colab.link_qrcode ? <span className="text-[#2980b9] font-bold text-xs"><i className="fas fa-link"></i> Vinculado</span> : <span className="text-[#7f8c8d] font-bold text-xs"><i className="fas fa-unlink"></i> Sem Link</span>}
                             </td>
                             <td className="p-4 text-right pr-6 flex justify-end gap-2">
-                              <button onClick={() => { setBuscaEmissao(colab.matricula); buscarColaboradorParaEmissao(colab.matricula); }} className="bg-white border border-[#cfd8dc] text-[#023A58] hover:bg-[#eceff1] px-3 py-1.5 text-xs font-bold rounded shadow-sm transition-colors">Emitir Crachá</button>
+                              <button onClick={() => { setBuscaEmissao(colab.matricula); buscarColaboradorParaEmissao(colab.matricula); }} className="bg-white border border-[#cfd8dc] text-[#023A58] hover:bg-[#eceff1] px-3 py-1.5 text-xs font-bold rounded shadow-sm transition-colors" title="Abrir no Estúdio">Emitir Crachá</button>
                               {(perfilAcesso === 'ADM' || perfilAcesso === 'SESMT') && (
-                                <button onClick={() => abrirEdicao(colab)} className="bg-[#f39c12] hover:bg-[#d35400] text-white px-3 py-1.5 text-xs font-bold rounded shadow-sm transition-colors"><i className="fas fa-edit mr-1"></i> Adic. Dados</button>
+                                <button onClick={() => abrirEdicao(colab)} className="bg-[#f39c12] hover:bg-[#d35400] text-white px-3 py-1.5 text-xs font-bold rounded shadow-sm transition-colors" title="Editar Informações e Link"><i className="fas fa-edit mr-1"></i> Adic. Dados</button>
                               )}
                             </td>
                           </tr>
@@ -353,7 +406,6 @@ export default function PortalRH() {
               {colaborador && (
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
                   <div className="bg-white p-6 rounded-xl border border-[#cfd8dc] shadow-sm flex flex-col items-center">
-                    {/* TÍTULO AJUSTADO! */}
                     <h3 className="text-lg font-bold text-[#023A58] mb-4 w-full border-b border-[#eceff1] pb-2">Adicionar Fotografia</h3>
                     {rawFoto ? (
                       <div className="flex flex-col items-center w-full animation-fade-in">
@@ -377,7 +429,6 @@ export default function PortalRH() {
                       </div>
                     ) : (
                       <div className="w-full flex flex-col items-center">
-                        {/* QUADRADO LIMPO QUANDO NÃO TEM FOTO */}
                         <div className="w-48 h-64 bg-[#f8f9fa] border-2 border-dashed border-[#b0bec5] rounded-lg overflow-hidden relative flex items-center justify-center mb-4">
                           {cameraAtiva ? <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" /> : fotoCapturada ? <img src={fotoCapturada} alt="Crachá" className="w-full h-full object-cover" /> : null}
                         </div>
@@ -391,7 +442,6 @@ export default function PortalRH() {
                             <i className="fas fa-image mr-2"></i> Enviar Arquivo <input type="file" accept="image/*" onChange={handleUploadFoto} className="hidden" />
                           </label>
                         </div>
-                        {/* BOTÃO DE GUARDAR INTELIGENTE (Só liga se houver foto nova) */}
                         <div className="w-full mt-6 border-t border-[#eceff1] pt-4">
                           <button 
                             onClick={salvarFotoNoSupabase} 
@@ -417,7 +467,6 @@ export default function PortalRH() {
                       {/* FRENTE */}
                       <div className="cracha-card w-[54mm] h-[86mm] bg-white relative flex flex-col items-center overflow-hidden box-border" style={{ border: '1px solid #ccc' }}>
                         <div className="mt-[4mm] w-[26mm] h-[35mm] flex items-center justify-center overflow-hidden z-10 border border-slate-300 bg-white">
-                          {/* ESPAÇO DA FOTO 100% LIMPO SE VAZIO */}
                           {fotoCapturada ? <img src={fotoCapturada} className="w-full h-full object-cover" alt="Foto" /> : <div className="w-full h-full bg-white"></div>}
                         </div>
                         <div className="mt-[2mm] text-center z-10 w-full px-2">
@@ -444,11 +493,7 @@ export default function PortalRH() {
                                 <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Matrícula</span><div className="text-[8px] text-black font-semibold uppercase">{String(colaborador.matricula).padStart(8, '0')}</div></div>
                              </div>
                              <div className="w-[21mm] flex-shrink-0 flex items-center justify-center border border-slate-100 p-[0.5mm] bg-white rounded-sm z-10">
-                               {colaborador.link_qrcode ? (
-                                 <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(colaborador.link_qrcode)}`} className="w-full h-full object-contain" alt="QR Code" />
-                               ) : (
-                                 <div className="w-full h-full bg-white"></div>
-                               )}
+                               {colaborador.link_qrcode ? <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(colaborador.link_qrcode)}`} className="w-full h-full object-contain" alt="QR Code" /> : <div className="w-full h-full bg-white"></div>}
                              </div>
                           </div>
                           <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Empresa</span><div className="text-[8px] text-black font-semibold uppercase">DINAMO ENGENHARIA</div></div>
@@ -469,10 +514,80 @@ export default function PortalRH() {
             </div>
           )}
 
-          {['cadastro', 'configuracoes'].includes(abaAtiva) && (
+          {/* ========================================================================= */}
+          {/* ABA 4: CADASTRO MANUAL (A FASE 2 ACONTECE AQUI)                           */}
+          {/* ========================================================================= */}
+          {abaAtiva === 'cadastro' && (
+            <div className="animation-fade-in max-w-4xl mx-auto hide-on-print flex flex-col gap-8">
+              
+              {/* ESPAÇO RESERVADO PARA IMPORTAÇÃO (FASE 5) */}
+              <div className="bg-[#f8f9fa] border-2 border-dashed border-[#cfd8dc] rounded-xl p-8 text-center opacity-70">
+                <div className="w-16 h-16 bg-[#eceff1] rounded-full flex items-center justify-center mx-auto mb-4 text-[#90a4ae] text-2xl">
+                  <i className="fas fa-file-excel"></i>
+                </div>
+                <h3 className="font-bold text-[#546e7a] text-lg">Importação em Lote (Planilha Excel)</h3>
+                <p className="text-sm text-slate-500 mt-2 max-w-md mx-auto">Módulo reservado para a Etapa Final do projeto. A importação em massa será ativada após a configuração de acessos.</p>
+                <button disabled className="mt-4 bg-[#cfd8dc] text-white font-bold px-6 py-2 rounded-lg cursor-not-allowed">Em breve</button>
+              </div>
+
+              {/* FORMULÁRIO DE CADASTRO MANUAL ATIVO */}
+              <div className="bg-white rounded-xl shadow-sm border border-[#cfd8dc] overflow-hidden">
+                <div className="bg-[#023A58] p-5">
+                  <h3 className="font-bold text-white text-lg"><i className="fas fa-user-plus mr-2"></i>Cadastro Manual de Colaborador</h3>
+                  <p className="text-[#90a4ae] text-xs mt-1">Preencha os dados abaixo para inserir um colaborador individualmente no banco de dados.</p>
+                </div>
+                
+                <form onSubmit={handleCadastroManual} className="p-8 flex flex-col gap-6">
+                  
+                  {msgCadastro.texto && (
+                    <div className={`p-4 rounded-lg font-bold text-sm ${msgCadastro.tipo === 'sucesso' ? 'bg-[#e8f5e9] text-[#27ae60] border border-[#2ecc71]' : 'bg-[#fdeced] text-[#c0392b] border border-[#e74c3c]'}`}>
+                      {msgCadastro.texto}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-bold text-[#023A58] mb-2">Matrícula *</label>
+                      <input type="text" placeholder="Ex: 6294" required value={formCadastro.matricula} onChange={e => setFormCadastro({...formCadastro, matricula: e.target.value})} className="w-full bg-[#f8f9fa] border border-[#b0bec5] rounded-lg p-3 text-[#263238] focus:outline-none focus:border-[#035B8B]" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-[#023A58] mb-2">Nome Completo *</label>
+                      <input type="text" placeholder="Ex: JOÃO DA SILVA" required value={formCadastro.nome_completo} onChange={e => setFormCadastro({...formCadastro, nome_completo: e.target.value.toUpperCase()})} className="w-full bg-[#f8f9fa] border border-[#b0bec5] rounded-lg p-3 text-[#263238] focus:outline-none focus:border-[#035B8B] uppercase" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <label className="block text-sm font-bold text-[#546e7a] mb-2">CPF</label>
+                      <input type="text" placeholder="000.000.000-00" value={formCadastro.cpf} onChange={e => setFormCadastro({...formCadastro, cpf: e.target.value})} className="w-full border border-[#cfd8dc] rounded-lg p-3 text-[#263238] focus:outline-none focus:border-[#035B8B]" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-[#546e7a] mb-2">RG</label>
+                      <input type="text" placeholder="0000000" value={formCadastro.rg} onChange={e => setFormCadastro({...formCadastro, rg: e.target.value})} className="w-full border border-[#cfd8dc] rounded-lg p-3 text-[#263238] focus:outline-none focus:border-[#035B8B]" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-[#546e7a] mb-2">Função / Cargo</label>
+                      <input type="text" placeholder="Ex: ELETRICISTA" value={formCadastro.desc_funcao} onChange={e => setFormCadastro({...formCadastro, desc_funcao: e.target.value.toUpperCase()})} className="w-full border border-[#cfd8dc] rounded-lg p-3 text-[#263238] focus:outline-none focus:border-[#035B8B] uppercase" />
+                    </div>
+                  </div>
+
+                  <div className="border-t border-[#eceff1] pt-6 flex justify-end">
+                    <button type="submit" disabled={salvandoCadastro} className="bg-[#2ecc71] text-white font-bold px-8 py-3 rounded-lg hover:bg-[#27ae60] transition-all shadow-md flex items-center gap-2">
+                      {salvandoCadastro ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-check"></i>} Cadastrar Colaborador
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+            </div>
+          )}
+
+          {/* ABA CONFIGURAÇÕES (FASE 3) */}
+          {abaAtiva === 'configuracoes' && (
             <div className="bg-white p-10 rounded-xl border border-[#cfd8dc] shadow-sm text-center animation-fade-in flex flex-col items-center justify-center min-h-[400px] hide-on-print">
               <div className="w-20 h-20 bg-[#e3f2fd] rounded-full flex items-center justify-center text-[#023A58] text-3xl mb-4"><i className={`fas ${menuItens.find(m => m.id === abaAtiva)?.icone}`}></i></div>
-              <h2 className="text-2xl font-bold text-[#263238] mb-2">Módulo em Construção</h2>
+              <h2 className="text-2xl font-bold text-[#263238] mb-2">Gestão de Utilizadores e Acessos</h2>
+              <p className="text-slate-500 max-w-md mt-2">Este será o módulo da nossa Fase 3. Aqui você definirá os perfis (Administrador, RH, SESMT) com login e senha.</p>
             </div>
           )}
 
