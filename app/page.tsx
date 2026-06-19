@@ -136,6 +136,31 @@ export default function PortalRH() {
   const [abaAtiva, setAbaAtiva] = useState('colaboradores');
   const [menuAberto, setMenuAberto] = useState(false);
 
+  // Inatividade – auto logout
+  const [idleTime, setIdleTime] = useState(0);
+
+  useEffect(() => {
+    if (!usuarioAutenticado) return;
+    let timer: NodeJS.Timeout;
+    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+    const resetTimer = () => setIdleTime(0);
+    events.forEach(event => window.addEventListener(event, resetTimer));
+    timer = setInterval(() => {
+      setIdleTime(prev => prev + 1);
+    }, 1000);
+    return () => {
+      events.forEach(event => window.removeEventListener(event, resetTimer));
+      clearInterval(timer);
+    };
+  }, [usuarioAutenticado]);
+
+  useEffect(() => {
+    if (idleTime >= 480 && usuarioAutenticado) {
+      mostrarToast('Sessão encerrada por inatividade.', 'aviso');
+      handleLogout();
+    }
+  }, [idleTime, usuarioAutenticado]);
+
   useEffect(() => {
     try {
       const loginSalvo = localStorage.getItem('dinamo_lembrar_login');
@@ -170,7 +195,11 @@ export default function PortalRH() {
     } catch (error) { setErroLogin('Erro de comunicação com o servidor.'); } finally { setCarregandoLogin(false); }
   }
   
-  function handleLogout() { setUsuarioAutenticado(null); setAbaAtiva('colaboradores'); }
+  function handleLogout() { 
+    setUsuarioAutenticado(null); 
+    setAbaAtiva('colaboradores'); 
+    setIdleTime(0); // reseta inatividade ao sair
+  }
   function handleEsqueceuSenha() { mostrarToast("Acesso restrito. Solicite a redefinição de senha ao Administrador do Sistema.", "aviso"); }
 
   function getMenuItens() {
@@ -231,6 +260,7 @@ export default function PortalRH() {
   const [novaSenha, setNovaSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
   const [erroSenha, setErroSenha] = useState('');
+  const [salvandoSenha, setSalvandoSenha] = useState(false); // CORREÇÃO: estado ausente adicionado
 
   // FUNÇÕES DE BUSCA E SISTEMA
   async function carregarSolicitacoes() {
