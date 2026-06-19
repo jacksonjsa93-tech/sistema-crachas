@@ -4,32 +4,43 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 
-// ========================== CONFIGURAÇÕES GLOBAIS ==========================
+// ========================== CONFIGURAÇÕES E UTILITÁRIOS GLOBAIS ==========================
 const URL = "https://dpndtwutvkaxrxrkyeyw.supabase.co";
 const KEY = "sb_publishable_6Ss9lNdcbyeE2o3U5jcJ7w_qI61wmIr";
 
-// Função utilitária protegida contra textos vazios
-function obterOpcoesNome(nomeCompleto: string) {
-  if (!nomeCompleto || typeof nomeCompleto !== 'string') return ["NOME INDEFINIDO"];
-  const partes = nomeCompleto.trim().split(" ").filter(p => p.length > 0);
-  if (partes.length === 0) return ["NOME INDEFINIDO"];
-  if (partes.length === 1) return [partes[0].toUpperCase()];
-  if (partes.length === 2) return [`${partes[0]} ${partes[1]}`.toUpperCase()];
+// BLINDAGEM 1: Garante que os nomes nunca quebram o código
+function obterOpcoesNome(nomeCompleto: any) {
+  if (!nomeCompleto) return ["NOME INDEFINIDO"];
+  const nomeStr = String(nomeCompleto).trim();
+  if (!nomeStr) return ["NOME INDEFINIDO"];
   
-  const opcoes = [ `${partes[0]} ${partes[partes.length - 1]}`.toUpperCase() ];
+  const partes = nomeStr.split(" ").filter(p => p.length > 0);
+  if (partes.length === 0) return ["NOME INDEFINIDO"];
+  if (partes.length === 1) return [String(partes[0]).toUpperCase()];
+  if (partes.length === 2) return [String(`${partes[0]} ${partes[1]}`).toUpperCase()];
+  
+  const opcoes = [ String(`${partes[0]} ${partes[partes.length - 1]}`).toUpperCase() ];
   for (let i = 1; i < partes.length - 1; i++) { 
-    if (partes[i].length > 2) opcoes.push(`${partes[0]} ${partes[i]}`.toUpperCase()); 
+    if (String(partes[i]).length > 2) opcoes.push(String(`${partes[0]} ${partes[i]}`).toUpperCase()); 
   }
   return [...new Set(opcoes)];
 }
 
 function obterDataHoraAtual() { 
-  const data = new Date(); 
-  return `${data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })} ${data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`; 
+  try {
+    const data = new Date(); 
+    return `${data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })} ${data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`; 
+  } catch(e) { return ''; }
+}
+
+// BLINDAGEM 2: Previne "Object are not valid as React child"
+function textoSeguro(valor: any, fallback: string = '') {
+  if (valor === null || valor === undefined) return fallback;
+  return String(valor);
 }
 
 export default function PortalRH() {
-  // ========================== ESCUDO DE RENDERIZAÇÃO DA VERCEL ==========================
+  // ========================== ESCUDO CONTRA A TELA BRANCA DA VERCEL ==========================
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => { setIsMounted(true); }, []);
 
@@ -63,7 +74,6 @@ export default function PortalRH() {
     e.preventDefault(); 
     setErroLogin('');
     if (!loginInput || !senhaInput) { setErroLogin('Preencha usuário e senha.'); return; }
-    
     setCarregandoLogin(true);
     try {
       const response = await fetch(`${URL}/rest/v1/usuarios_sistema?login=eq.${loginInput}&senha=eq.${senhaInput}&select=*`, { 
@@ -74,7 +84,6 @@ export default function PortalRH() {
       if (Array.isArray(data) && data.length > 0) {
         const user = data[0];
         setUsuarioAutenticado(user);
-        
         if (user?.perfil === 'SUPERVISOR') setAbaAtiva('emissao');
         else if (user?.perfil === 'RH' || user?.perfil === 'ADM') setAbaAtiva('solicitacoes');
         else setAbaAtiva('colaboradores');
@@ -90,7 +99,9 @@ export default function PortalRH() {
   
   function handleLogout() { setUsuarioAutenticado(null); setAbaAtiva('colaboradores'); }
 
-  function handleEsqueceuSenha() { mostrarToast("Acesso restrito. Solicite a redefinição de senha ao Administrador do Sistema.", "aviso"); }
+  function handleEsqueceuSenha() {
+    mostrarToast("Acesso restrito. Solicite a redefinição de senha ao Administrador do Sistema.", "aviso");
+  }
 
   function getMenuItens() {
     if (!usuarioAutenticado) return [];
@@ -108,9 +119,14 @@ export default function PortalRH() {
 
   // ========================== ESTADOS DAS ABAS ==========================
   
+  // ABA: SOLICITAÇÕES
   const [listaSolicitacoes, setListaSolicitacoes] = useState<any[]>([]);
   const [carregandoSolicitacoes, setCarregandoSolicitacoes] = useState(false);
+
+  // ABA: HISTÓRICO SUPERVISOR
   const [solicitacoesSupervisor, setListaSolicitacoesSupervisor] = useState<any[]>([]);
+  
+  // ABA: COLABORADORES
   const [buscaTabela, setBuscaTabela] = useState('');
   const [resultadosBusca, setResultadosBusca] = useState<any[]>([]);
   const [carregandoLista, setCarregandoLista] = useState(false);
@@ -120,6 +136,7 @@ export default function PortalRH() {
   const [historicoAberto, setHistoricoAberto] = useState<any[] | null>(null);
   const [nomeHistoricoAberto, setNomeHistoricoAberto] = useState('');
 
+  // ABA: LOTE
   const [listaLote, setListaLote] = useState<any[]>([]);
   const [matriculaLote, setMatriculaLote] = useState('');
   const [carregandoLote, setCarregandoLote] = useState(false);
@@ -140,9 +157,11 @@ export default function PortalRH() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const fotoAlterada = fotoCapturada && fotoCapturada !== colaborador?.foto_url;
 
+  // ABA: CADASTRO
   const [formCadastro, setFormCadastro] = useState({ matricula: '', nome_completo: '', cpf: '', rg: '', desc_funcao: '' });
   const [salvandoCadastro, setSalvandoCadastro] = useState(false);
 
+  // ABA: CONFIGURAÇÕES
   const [listaUsuarios, setListaUsuarios] = useState<any[]>([]);
   const [formUsuario, setFormUsuario] = useState({ nome: '', login: '', senha: '', perfil: 'SUPERVISOR' });
   const [salvandoUsuario, setSalvandoUsuario] = useState(false);
@@ -166,7 +185,7 @@ export default function PortalRH() {
   async function carregarHistoricoSupervisor() {
     if (!usuarioAutenticado || usuarioAutenticado?.perfil !== 'SUPERVISOR') return;
     try {
-      const response = await fetch(`${URL}/rest/v1/solicitacoes_crachas?solicitado_por=eq.${encodeURIComponent(usuarioAutenticado?.nome || '')}&order=data_solicitacao.desc&limit=10`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
+      const response = await fetch(`${URL}/rest/v1/solicitacoes_crachas?solicitado_por=eq.${encodeURIComponent(textoSeguro(usuarioAutenticado?.nome))}&order=data_solicitacao.desc&limit=10`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
       const data = await response.json(); 
       setListaSolicitacoesSupervisor(Array.isArray(data) ? data : []);
     } catch (e) {}
@@ -178,7 +197,7 @@ export default function PortalRH() {
       const response = await fetch(`${URL}/rest/v1/usuarios_sistema?select=*`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } }); 
       const data = await response.json(); 
       if (Array.isArray(data)) {
-        const dataOrdenada = data.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+        const dataOrdenada = data.sort((a, b) => textoSeguro(a.nome).localeCompare(textoSeguro(b.nome)));
         setListaUsuarios(dataOrdenada);
       } else { setListaUsuarios([]); }
     } catch (error) { mostrarToast("Erro ao carregar usuários", "erro"); } finally { setCarregandoUsuarios(false); }
@@ -189,8 +208,8 @@ export default function PortalRH() {
   useEffect(() => { if ((usuarioAutenticado?.perfil === 'ADM' || usuarioAutenticado?.perfil === 'RH') && abaAtiva === 'configuracoes') { carregarUsuarios(); } }, [abaAtiva, usuarioAutenticado]);
 
   async function processarSolicitacao(solicitacao: any) {
-    setBuscaEmissao(solicitacao?.matricula_colaborador || '');
-    await buscarColaboradorParaEmissao(solicitacao?.matricula_colaborador || '');
+    setBuscaEmissao(textoSeguro(solicitacao?.matricula_colaborador));
+    await buscarColaboradorParaEmissao(textoSeguro(solicitacao?.matricula_colaborador));
     setAbaAtiva('emissao');
     try { await fetch(`${URL}/rest/v1/solicitacoes_crachas?id=eq.${solicitacao?.id}`, { method: 'PATCH', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'EM PROCESSAMENTO' }) }); } catch(e){}
   }
@@ -227,7 +246,7 @@ export default function PortalRH() {
   }
 
   async function abrirHistorico(matricula: string, nome: string) {
-    setNomeHistoricoAberto(nome || 'Colaborador');
+    setNomeHistoricoAberto(textoSeguro(nome, 'Colaborador'));
     try {
       const response = await fetch(`${URL}/rest/v1/historico_impressoes?matricula_colaborador=eq.${matricula}&order=data_emissao.desc`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
       const data = await response.json(); setHistoricoAberto(Array.isArray(data) ? data : []);
@@ -243,43 +262,41 @@ export default function PortalRH() {
       const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${matriculaLote.trim()}&select=*`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
       const data = await response.json();
       if (Array.isArray(data) && data.length > 0) { 
-        const novoColab = data[0]; novoColab.nome_cracha_frente = obterOpcoesNome(novoColab?.nome_completo || '')[0]; 
+        const novoColab = data[0]; novoColab.nome_cracha_frente = obterOpcoesNome(novoColab?.nome_completo)[0]; 
         setListaLote([...listaLote, novoColab]); setMatriculaLote(''); 
       } else { mostrarToast('Matrícula não encontrada.', 'erro'); }
     } catch (error) { mostrarToast('Erro na base.', 'erro'); } finally { setCarregandoLote(false); }
   }
   
   function removerDoLote(matricula: string) { setListaLote(listaLote.filter(c => String(c.matricula) !== String(matricula))); }
-  function atualizarNomeLote(matricula: string, novoNome: string) { setListaLote(listaLote.map(c => c.matricula === matricula ? { ...c, nome_cracha_frente: novoNome } : c)); }
+  function atualizarNomeLote(matricula: string, novoNome: string) { setListaLote(listaLote.map(c => String(c.matricula) === String(matricula) ? { ...c, nome_cracha_frente: novoNome } : c)); }
 
   async function registrarImpressoesEmLote() {
     if (listaLote.length === 0) return;
     try {
-      const registros = listaLote.map(c => ({ matricula_colaborador: c.matricula, nome_colaborador: c?.nome_completo || 'N/A', emitido_por: usuarioAutenticado?.nome || 'Sistema', motivo: 'Emissão em Lote' }));
+      const registros = listaLote.map(c => ({ matricula_colaborador: textoSeguro(c.matricula), nome_colaborador: textoSeguro(c?.nome_completo, 'N/A'), emitido_por: textoSeguro(usuarioAutenticado?.nome, 'Sistema'), motivo: 'Emissão em Lote' }));
       await fetch(`${URL}/rest/v1/historico_impressoes`, { method: 'POST', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify(registros) });
       window.print();
     } catch (e) { mostrarToast("Falha ao registar histórico.", "erro"); }
   }
 
-  // A FUNÇÃO ONDE OCORRIA A QUEDA BLINDADA:
+  // BLINDAGEM MÁXIMA NA FUNÇÃO DE BUSCA
   async function buscarColaboradorParaEmissao(matriculaAlvo: string) {
     setRawFoto(null); 
     setCarregandoEmissao(true); 
-    setBuscaEmissao(matriculaAlvo);
+    setBuscaEmissao(textoSeguro(matriculaAlvo));
     try {
-      const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${matriculaAlvo}&select=*`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
+      const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${textoSeguro(matriculaAlvo)}&select=*`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
       const data = await response.json();
       
       if (Array.isArray(data) && data.length > 0) { 
         const objColaborador = data[0];
-        
-        // Configurações base seguras (Validação de null/undefined)
         setColaborador(objColaborador); 
         setFotoCapturada(objColaborador?.foto_url || null); 
-        setNomeCrachaIndividual(obterOpcoesNome(objColaborador?.nome_completo || '')[0] || 'NOME INDEFINIDO'); 
+        setNomeCrachaIndividual(obterOpcoesNome(objColaborador?.nome_completo)[0] || 'NOME INDEFINIDO'); 
         
         try {
-           const histRes = await fetch(`${URL}/rest/v1/historico_impressoes?matricula_colaborador=eq.${matriculaAlvo}&select=id`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
+           const histRes = await fetch(`${URL}/rest/v1/historico_impressoes?matricula_colaborador=eq.${textoSeguro(matriculaAlvo)}&select=id`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
            const histData = await histRes.json();
            if (Array.isArray(histData) && histData.length > 0) {
               setTemImpressaoAnterior(true); setMotivoAcao('2ª Via - Perda / Extravio'); 
@@ -329,15 +346,15 @@ export default function PortalRH() {
   async function salvarFotoNoSupabase() {
     if (!fotoCapturada || !colaborador) return; setSalvandoFoto(true);
     try {
-      await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${colaborador?.matricula}`, { method: 'PATCH', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }, body: JSON.stringify({ foto_url: fotoCapturada }) });
-      setColaborador({ ...colaborador, foto_url: fotoCapturada }); setListaLote(prev => prev.map(c => c.matricula === colaborador?.matricula ? { ...c, foto_url: fotoCapturada } : c)); mostrarToast('Fotografia salva com sucesso!', "sucesso");
+      await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${textoSeguro(colaborador?.matricula)}`, { method: 'PATCH', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }, body: JSON.stringify({ foto_url: fotoCapturada }) });
+      setColaborador({ ...colaborador, foto_url: fotoCapturada }); setListaLote(prev => prev.map(c => String(c.matricula) === String(colaborador?.matricula) ? { ...c, foto_url: fotoCapturada } : c)); mostrarToast('Fotografia salva com sucesso!', "sucesso");
     } catch (err) { mostrarToast('Erro ao guardar foto.', "erro"); } finally { setSalvandoFoto(false); }
   }
 
   async function registrarEImprimir() {
     if (!colaborador) return;
     try {
-      await fetch(`${URL}/rest/v1/historico_impressoes`, { method: 'POST', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ matricula_colaborador: colaborador?.matricula || '', nome_colaborador: colaborador?.nome_completo || 'N/A', emitido_por: usuarioAutenticado?.nome || 'Sistema', motivo: motivoAcao }) });
+      await fetch(`${URL}/rest/v1/historico_impressoes`, { method: 'POST', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ matricula_colaborador: textoSeguro(colaborador.matricula), nome_colaborador: textoSeguro(colaborador?.nome_completo, 'N/A'), emitido_por: textoSeguro(usuarioAutenticado?.nome, 'Sistema'), motivo: textoSeguro(motivoAcao) }) });
       mostrarToast('Impressão auditada e registada.', 'sucesso');
       setTimeout(() => window.print(), 500);
     } catch (e) { mostrarToast("Falha na auditoria.", "erro"); }
@@ -347,7 +364,7 @@ export default function PortalRH() {
     if (!colaborador) return;
     if (!fotoCapturada) { mostrarToast("É obrigatório ter fotografia para solicitar o crachá.", "aviso"); return; }
     try {
-      await fetch(`${URL}/rest/v1/solicitacoes_crachas`, { method: 'POST', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ matricula_colaborador: colaborador?.matricula || '', nome_colaborador: colaborador?.nome_completo || 'N/A', solicitado_por: usuarioAutenticado?.nome || 'Sistema', motivo: motivoAcao, status: 'PENDENTE' }) });
+      await fetch(`${URL}/rest/v1/solicitacoes_crachas`, { method: 'POST', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ matricula_colaborador: textoSeguro(colaborador.matricula), nome_colaborador: textoSeguro(colaborador?.nome_completo, 'N/A'), solicitado_por: textoSeguro(usuarioAutenticado?.nome, 'Sistema'), motivo: textoSeguro(motivoAcao), status: 'PENDENTE' }) });
       mostrarToast('Solicitação enviada ao RH com sucesso!', 'sucesso');
       setColaborador(null); setBuscaEmissao(''); carregarHistoricoSupervisor();
     } catch (e) { mostrarToast("Erro ao enviar solicitação.", "erro"); }
@@ -422,8 +439,8 @@ export default function PortalRH() {
             </div>
             <form onSubmit={handleLogin} className="p-6 md:p-8 flex flex-col gap-5 bg-white">
               {erroLogin && (<div className="bg-rose-50 border border-rose-100 text-rose-600 p-4 rounded-xl text-sm font-semibold flex items-center gap-2"><i className="fas fa-exclamation-circle text-lg"></i> <span>{erroLogin}</span></div>)}
-              <div><label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2">Usuário</label><div className="relative"><i className="fas fa-user absolute left-4 top-[14px] text-slate-400"></i><input type="text" value={loginInput} onChange={(e) => setLoginInput(e.target.value.toLowerCase().replace(/\s/g, ''))} placeholder="Login de acesso" className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:border-[#023A58] font-medium text-slate-800 transition-all lowercase" /></div></div>
-              <div><label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2">Senha</label><div className="relative"><i className="fas fa-lock absolute left-4 top-[14px] text-slate-400"></i><input type="password" value={senhaInput} onChange={(e) => setSenhaInput(e.target.value)} placeholder="••••••••" className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:border-[#023A58] font-medium text-slate-800 transition-all" /></div></div>
+              <div><label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2">Usuário</label><div className="relative"><i className="fas fa-user absolute left-4 top-[14px] text-slate-400"></i><input type="text" value={loginInput} onChange={(e) => setLoginInput(textoSeguro(e.target.value).toLowerCase().replace(/\s/g, ''))} placeholder="Login de acesso" className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:border-[#023A58] font-medium text-slate-800 transition-all lowercase" /></div></div>
+              <div><label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2">Senha</label><div className="relative"><i className="fas fa-lock absolute left-4 top-[14px] text-slate-400"></i><input type="password" value={senhaInput} onChange={(e) => setSenhaInput(textoSeguro(e.target.value))} placeholder="••••••••" className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:border-[#023A58] font-medium text-slate-800 transition-all" /></div></div>
               <div className="flex items-center justify-between mt-[-5px] mb-2 px-1"><label className="flex items-center gap-2 text-xs font-semibold text-slate-500 cursor-pointer hover:text-slate-700 transition-colors"><input type="checkbox" checked={lembrarLogin} onChange={(e) => setLembrarLogin(e.target.checked)} className="w-3.5 h-3.5 accent-[#023A58]" />Lembrar login</label><button type="button" onClick={handleEsqueceuSenha} className="text-xs font-bold text-[#023A58] hover:underline transition-colors">Esqueceu a senha?</button></div>
               <button type="submit" disabled={carregandoLogin} className="w-full bg-[#023A58] text-white font-semibold py-3.5 rounded-xl hover:bg-[#035B8B] transition-all flex justify-center items-center gap-2">{carregandoLogin ? <><i className="fas fa-spinner fa-spin text-lg"></i> Acessando...</> : 'Acessar Sistema'}</button>
             </form>
@@ -480,8 +497,8 @@ export default function PortalRH() {
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-3 bg-white px-2 pr-4 py-1.5 rounded-full border border-slate-200 shadow-sm hidden sm:flex">
-              <div className="w-9 h-9 rounded-full bg-[#023A58] flex items-center justify-center text-white font-bold text-xs uppercase">{usuarioAutenticado?.nome?.substring(0, 2) || 'US'}</div>
-              <div className="flex flex-col"><span className="text-sm font-semibold text-slate-700 leading-tight">{usuarioAutenticado?.nome || 'Usuário'}</span><span className="text-[9px] font-bold uppercase tracking-widest text-[#0a84ff]">Perfil: {usuarioAutenticado?.perfil || 'N/A'}</span></div>
+              <div className="w-9 h-9 rounded-full bg-[#023A58] flex items-center justify-center text-white font-bold text-xs uppercase">{textoSeguro(usuarioAutenticado?.nome).substring(0, 2) || 'US'}</div>
+              <div className="flex flex-col"><span className="text-sm font-semibold text-slate-700 leading-tight">{textoSeguro(usuarioAutenticado?.nome, 'Usuário')}</span><span className="text-[9px] font-bold uppercase tracking-widest text-[#0a84ff]">Perfil: {textoSeguro(usuarioAutenticado?.perfil, 'N/A')}</span></div>
             </div>
             <button onClick={abrirModalSenha} className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors flex items-center justify-center" title="Alterar Senha"><i className="fas fa-key"></i></button>
           </div>
@@ -496,7 +513,7 @@ export default function PortalRH() {
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col flex-1 overflow-hidden">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                   <h3 className="font-bold text-[#023A58] text-lg flex items-center gap-2"><i className="fas fa-inbox text-[#0a84ff]"></i> Pedidos Pendentes do Campo</h3>
-                  <button onClick={carregarSolicitacoes} className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50 shadow-sm"><i className="fas fa-sync-alt mr-2"></i>Atualizar Caixa</button>
+                  <button onClick={carregarSolicitacoes} className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50 shadow-sm"><i className="fas fa-sync-alt mr-2"></i> Atualizar Caixa</button>
                 </div>
                 <div className="overflow-x-auto overflow-y-auto custom-scrollbar flex-1 p-4">
                   {carregandoSolicitacoes ? (
@@ -509,10 +526,10 @@ export default function PortalRH() {
                         <div key={sol.id} className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm relative overflow-hidden">
                           <div className="absolute top-0 left-0 w-1 h-full bg-amber-400"></div>
                           <div className="flex justify-between items-start mb-2"><span className="text-[10px] font-bold uppercase text-amber-500 bg-amber-50 px-2 py-1 rounded">Pendente</span><span className="text-[10px] font-bold text-slate-400">{sol?.data_solicitacao ? new Date(sol.data_solicitacao).toLocaleDateString('pt-BR') : ''}</span></div>
-                          <h4 className="font-bold text-slate-800 text-base">{sol?.nome_colaborador || ''}</h4><p className="text-xs font-semibold text-[#0a84ff] mb-4">Matrícula: {sol?.matricula_colaborador || ''}</p>
+                          <h4 className="font-bold text-slate-800 text-base">{textoSeguro(sol?.nome_colaborador)}</h4><p className="text-xs font-semibold text-[#0a84ff] mb-4">Matrícula: {textoSeguro(sol?.matricula_colaborador)}</p>
                           <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 mb-4">
-                            <div className="text-[10px] text-slate-500 font-bold uppercase">Motivo</div><div className="text-sm font-semibold text-slate-700">{sol?.motivo || ''}</div>
-                            <div className="text-[10px] text-slate-500 font-bold uppercase mt-2">Supervisor</div><div className="text-xs font-semibold text-slate-700">{sol?.solicitado_por || ''}</div>
+                            <div className="text-[10px] text-slate-500 font-bold uppercase">Motivo</div><div className="text-sm font-semibold text-slate-700">{textoSeguro(sol?.motivo)}</div>
+                            <div className="text-[10px] text-slate-500 font-bold uppercase mt-2">Supervisor</div><div className="text-xs font-semibold text-slate-700">{textoSeguro(sol?.solicitado_por)}</div>
                           </div>
                           <button onClick={() => processarSolicitacao(sol)} className="w-full bg-[#023A58] text-white font-semibold py-2.5 rounded-lg text-sm hover:bg-[#035B8B] transition-colors">Processar & Imprimir</button>
                         </div>
@@ -528,7 +545,7 @@ export default function PortalRH() {
             <div className="max-w-full lg:max-w-7xl mx-auto flex flex-col h-full gap-6 animation-fade-in">
               <div className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200">
                 <form onSubmit={handlePesquisaTabela} className="flex flex-col md:flex-row gap-4 items-end">
-                  <div className="flex-1 w-full"><label className="block text-sm font-semibold text-slate-700 mb-2">Pesquisa na Base</label><input type="text" placeholder="Matrícula ou Nome..." value={buscaTabela} onChange={(e) => setBuscaTabela(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-4 py-3 text-sm focus:outline-none focus:border-[#023A58]" /></div>
+                  <div className="flex-1 w-full"><label className="block text-sm font-semibold text-slate-700 mb-2">Pesquisa na Base</label><input type="text" placeholder="Matrícula ou Nome..." value={buscaTabela} onChange={(e) => setBuscaTabela(textoSeguro(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-4 py-3 text-sm focus:outline-none focus:border-[#023A58]" /></div>
                   <button type="submit" className="w-full md:w-auto bg-[#023A58] text-white font-semibold px-8 py-3 rounded-xl hover:bg-[#035B8B] shadow-sm flex items-center justify-center gap-2">
                     {carregandoLista ? <i className="fas fa-spinner fa-spin"></i> : <><i className="fas fa-search"></i>Localizar</>}
                   </button>
@@ -540,7 +557,7 @@ export default function PortalRH() {
                   <tbody className="text-sm">
                     {resultadosBusca.map((colab) => (
                       <tr key={colab.matricula} className="border-b border-slate-100 hover:bg-slate-50">
-                        <td className="p-4 pl-6 font-semibold text-slate-800">{colab?.nome_completo || ''}</td><td className="p-4 font-semibold text-[#0a84ff]">{colab?.matricula || ''}</td>
+                        <td className="p-4 pl-6 font-semibold text-slate-800">{textoSeguro(colab?.nome_completo)}</td><td className="p-4 font-semibold text-[#0a84ff]">{textoSeguro(colab?.matricula)}</td>
                         <td className="p-4 text-center">{colab?.foto_url ? "SIM" : "NÃO"}</td><td className="p-4 text-center">{colab?.link_qrcode ? "OK" : "VAZIO"}</td>
                         <td className="p-4 text-right pr-6 flex justify-end gap-2">
                           <button onClick={() => abrirHistorico(colab?.matricula, colab?.nome_completo)} className="bg-slate-100 border border-slate-200 text-slate-600 hover:bg-slate-200 px-3 py-1.5 text-xs font-semibold rounded-lg"><i className="fas fa-history"></i> Histórico</button>
@@ -559,7 +576,7 @@ export default function PortalRH() {
             <div className="max-w-full lg:max-w-6xl mx-auto flex flex-col h-full gap-6 animation-fade-in">
               <div className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200">
                 <form onSubmit={adicionarAoLote} className="flex flex-col md:flex-row gap-4 items-end">
-                  <div className="flex-1 w-full"><label className="block text-sm font-semibold text-slate-700 mb-2">Adicionar à Fila</label><input type="text" placeholder="Matrícula..." value={matriculaLote} onChange={(e) => setMatriculaLote(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#023A58] transition-all" /></div>
+                  <div className="flex-1 w-full"><label className="block text-sm font-semibold text-slate-700 mb-2">Adicionar à Fila</label><input type="text" placeholder="Matrícula..." value={matriculaLote} onChange={(e) => setMatriculaLote(textoSeguro(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#023A58] transition-all" /></div>
                   <button type="submit" disabled={carregandoLote} className="w-full md:w-auto bg-[#023A58] text-white font-semibold px-8 py-3 rounded-xl hover:bg-[#035B8B] shadow-sm transition-all flex justify-center items-center gap-2">{carregandoLote ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-plus"></i>} Adicionar</button>
                 </form>
               </div>
@@ -576,18 +593,18 @@ export default function PortalRH() {
                       {listaLote.length === 0 ? (<tr><td colSpan={5} className="p-16 text-center text-slate-400">Fila vazia.</td></tr>) : (
                         listaLote.map((colab) => (
                           <tr key={colab.matricula} className="border-b border-slate-100 hover:bg-slate-50">
-                            <td className="p-4 pl-6 font-semibold text-[#0a84ff]">{colab?.matricula || ''}</td>
+                            <td className="p-4 pl-6 font-semibold text-[#0a84ff]">{textoSeguro(colab.matricula)}</td>
                             <td className="p-4">
-                               <select value={colab?.nome_cracha_frente || ''} onChange={(e) => atualizarNomeLote(colab.matricula, e.target.value)} className="w-full max-w-[200px] bg-slate-100 border border-slate-200 rounded-lg p-2 focus:border-[#0a84ff] focus:outline-none font-bold text-[#023A58] uppercase text-xs cursor-pointer">
-                                  {obterOpcoesNome(colab?.nome_completo || '').map((opcao, idx) => ( <option key={idx} value={opcao}>{opcao}</option> ))}
+                               <select value={colab.nome_cracha_frente} onChange={(e) => atualizarNomeLote(colab.matricula, textoSeguro(e.target.value))} className="w-full max-w-[200px] bg-slate-100 border border-slate-200 rounded-lg p-2 focus:border-[#0a84ff] focus:outline-none font-bold text-[#023A58] uppercase text-xs cursor-pointer">
+                                  {obterOpcoesNome(colab.nome_completo).map((opcao, idx) => ( <option key={idx} value={opcao}>{opcao}</option> ))}
                                </select>
                                <div className="mt-1">
-                                 {!colab?.foto_url && <span className="mr-2 text-[9px] bg-rose-500 text-white px-2 py-0.5 rounded uppercase font-bold tracking-widest shadow-sm">Sem Foto</span>}
-                                 {!colab?.link_qrcode && <span className="text-[9px] bg-amber-500 text-white px-2 py-0.5 rounded uppercase font-bold tracking-widest shadow-sm">Sem Link</span>}
+                                 {!colab.foto_url && <span className="mr-2 text-[9px] bg-rose-500 text-white px-2 py-0.5 rounded uppercase font-bold tracking-widest shadow-sm">Sem Foto</span>}
+                                 {!colab.link_qrcode && <span className="text-[9px] bg-amber-500 text-white px-2 py-0.5 rounded uppercase font-bold tracking-widest shadow-sm">Sem Link</span>}
                                </div>
                             </td>
-                            <td className="p-4 text-center">{colab?.foto_url ? <i className="fas fa-check text-emerald-500"></i> : <i className="fas fa-times text-rose-500"></i>}</td>
-                            <td className="p-4 text-center">{colab?.link_qrcode ? <i className="fas fa-link text-[#0a84ff] text-lg"></i> : <i className="fas fa-unlink text-slate-300 text-lg"></i>}</td>
+                            <td className="p-4 text-center">{colab.foto_url ? <i className="fas fa-check text-emerald-500"></i> : <i className="fas fa-times text-rose-500"></i>}</td>
+                            <td className="p-4 text-center">{colab.link_qrcode ? <i className="fas fa-link text-[#0a84ff] text-lg"></i> : <i className="fas fa-unlink text-slate-300 text-lg"></i>}</td>
                             <td className="p-4 text-center"><button onClick={() => removerDoLote(colab.matricula)} className="text-rose-500 hover:bg-rose-50 p-2 rounded-lg transition-colors"><i className="fas fa-trash-alt"></i></button></td>
                           </tr>
                         ))
@@ -602,7 +619,7 @@ export default function PortalRH() {
           {abaAtiva === 'emissao' && (
             <div className="max-w-full lg:max-w-6xl mx-auto flex flex-col gap-6 animation-fade-in">
               <form onSubmit={(e) => { e.preventDefault(); buscarColaboradorParaEmissao(buscaEmissao); }} className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 items-end">
-                <div className="flex-1 w-full"><label className="block text-sm font-semibold text-slate-700 mb-2">Matrícula do Colaborador</label><input type="text" placeholder="Ex: 6294" value={buscaEmissao} onChange={(e) => setBuscaEmissao(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#023A58]" /></div>
+                <div className="flex-1 w-full"><label className="block text-sm font-semibold text-slate-700 mb-2">Matrícula do Colaborador</label><input type="text" placeholder="Ex: 6294" value={buscaEmissao} onChange={(e) => setBuscaEmissao(textoSeguro(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#023A58]" /></div>
                 <button type="submit" disabled={carregandoEmissao} className="w-full md:w-auto bg-[#023A58] text-white font-semibold px-8 py-3 rounded-xl hover:bg-[#035B8B] shadow-sm flex items-center justify-center gap-2">
                   {carregandoEmissao ? <i className="fas fa-spinner fa-spin"></i> : <><i className="fas fa-search"></i> Buscar</>}
                 </button>
@@ -636,7 +653,7 @@ export default function PortalRH() {
                       <p className="text-slate-500 text-sm mb-6">Envie o pedido para validação e impressão do departamento de RH.</p>
                       <div className="w-full max-w-sm text-left mb-6">
                         <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Motivo do Pedido *</label>
-                        <select value={motivoAcao || ''} onChange={e => setMotivoAcao(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-[#023A58]">
+                        <select value={motivoAcao} onChange={e => setMotivoAcao(textoSeguro(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-[#023A58]">
                           {!temImpressaoAnterior && <option value="1ª Via (Novo Acesso)">1ª Via (Novo Acesso)</option>}
                           {temImpressaoAnterior && (
                             <>
@@ -652,7 +669,7 @@ export default function PortalRH() {
                   ) : (
                     <div className="w-full lg:flex-1 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
                       <div className="flex justify-between items-center mb-6">
-                        <select value={motivoAcao || ''} onChange={e => setMotivoAcao(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-600">
+                        <select value={motivoAcao} onChange={e => setMotivoAcao(textoSeguro(e.target.value))} className="bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-600">
                           {!temImpressaoAnterior && <option value="1ª Via (Novo Acesso)">1ª Via (Novo Acesso)</option>}
                           {temImpressaoAnterior && (
                             <>
@@ -667,12 +684,11 @@ export default function PortalRH() {
                       
                       <div className="mb-6 bg-blue-50 p-4 rounded-xl">
                         <label className="block text-[11px] font-bold text-[#0a84ff] uppercase mb-2">Nome de Guerra</label>
-                        <select value={nomeCrachaIndividual || ''} onChange={(e) => setNomeCrachaIndividual(e.target.value)} className="w-full bg-white border border-blue-200 rounded-lg p-3 text-sm font-bold text-[#023A58] uppercase shadow-sm">
-                          {obterOpcoesNome(colaborador?.nome_completo || '').map((opcao, idx) => ( <option key={idx} value={opcao}>{opcao}</option> ))}
+                        <select value={nomeCrachaIndividual} onChange={(e) => setNomeCrachaIndividual(textoSeguro(e.target.value))} className="w-full bg-white border border-blue-200 rounded-lg p-3 text-sm font-bold text-[#023A58] uppercase shadow-sm">
+                          {obterOpcoesNome(colaborador?.nome_completo).map((opcao, idx) => ( <option key={idx} value={opcao}>{opcao}</option> ))}
                         </select>
                       </div>
 
-                      {/* PRÉ-VISUALIZAÇÃO DOS CRACHÁS NA TELA */}
                       <div className="flex flex-col md:flex-row justify-center bg-slate-50 p-6 rounded-xl border border-slate-100 overflow-x-auto gap-6 flex-1">
                         
                         <div className="cracha-card w-[54mm] h-[86mm] bg-white relative flex flex-col items-center overflow-hidden box-border flex-shrink-0" style={{ border: '1px solid #ccc' }}>
@@ -681,7 +697,7 @@ export default function PortalRH() {
                           </div>
                           <div className="mt-[2mm] text-center z-10 w-full px-2">
                             <div className="text-[#051e42] font-black text-[18px] leading-[1.0]" style={{ fontFamily: 'Arial, sans-serif' }}>
-                              {(nomeCrachaIndividual || '').split(' ')[0]}<br/>{(nomeCrachaIndividual || '').split(' ').slice(1).join(' ') || ''}
+                              {textoSeguro(nomeCrachaIndividual).split(' ')[0]}<br/>{textoSeguro(nomeCrachaIndividual).split(' ').slice(1).join(' ')}
                             </div>
                           </div>
                           <div className="absolute bottom-0 left-0 w-full h-[32mm] z-0"><img src="/Imagem1.png" className="w-full h-full object-fill" alt="Fundo" /></div>
@@ -690,19 +706,19 @@ export default function PortalRH() {
                         
                         <div className="cracha-card w-[54mm] h-[86mm] bg-white relative p-[2mm] flex flex-col box-border flex-shrink-0" style={{ border: '1px solid #ccc' }}>
                           <div className="mt-[2mm] w-full flex flex-col gap-[2.5mm]">
-                            <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span><div className="text-[7.5px] text-black font-semibold uppercase pt-[1mm]">{colaborador?.nome_completo || ''}</div></div>
+                            <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span><div className="text-[7.5px] text-black font-semibold uppercase pt-[1mm]">{textoSeguro(colaborador?.nome_completo)}</div></div>
                             <div className="flex w-full gap-[2mm]">
-                              <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex-1 flex items-center justify-center"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">CPF</span><div className="text-[8px] text-black font-semibold uppercase pt-[1mm]">{colaborador?.cpf || '000.000.000-00'}</div></div>
-                              <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] w-[14mm] flex items-center justify-center bg-white"><span className="absolute -top-[2.5mm] left-[1mm] bg-white px-[0.5mm] text-[5px] font-bold text-black leading-none">Tp. Sangue</span><div className="text-[8px] text-black font-black uppercase pt-[1mm]">{colaborador?.tipo_sanguineo || ''}</div></div>
+                              <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex-1 flex items-center justify-center"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">CPF</span><div className="text-[8px] text-black font-semibold uppercase pt-[1mm]">{textoSeguro(colaborador?.cpf, '000.000.000-00')}</div></div>
+                              <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] w-[14mm] flex items-center justify-center bg-white"><span className="absolute -top-[2.5mm] left-[1mm] bg-white px-[0.5mm] text-[5px] font-bold text-black leading-none">Tp. Sangue</span><div className="text-[8px] text-black font-black uppercase pt-[1mm]">{textoSeguro(colaborador?.tipo_sanguineo)}</div></div>
                             </div>
                             <div className="flex w-full gap-[2mm] items-stretch">
                                 <div className="flex flex-col flex-1 justify-between gap-[2.5mm]">
-                                  <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Função</span><div className="text-[7px] text-black font-semibold uppercase truncate px-1 pt-[1mm]">{colaborador?.desc_funcao || ''}</div></div>
-                                  <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Car. Identidade</span><div className="text-[8px] text-black font-semibold uppercase pt-[1mm]">{colaborador?.rg || '0000000000'}</div></div>
-                                  <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Matrícula</span><div className="text-[8px] text-black font-semibold uppercase pt-[1mm]">{String(colaborador?.matricula || '').padStart(8, '0')}</div></div>
+                                  <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Função</span><div className="text-[7px] text-black font-semibold uppercase truncate px-1 pt-[1mm]">{textoSeguro(colaborador?.desc_funcao)}</div></div>
+                                  <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Car. Identidade</span><div className="text-[8px] text-black font-semibold uppercase pt-[1mm]">{textoSeguro(colaborador?.rg, '0000000000')}</div></div>
+                                  <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Matrícula</span><div className="text-[8px] text-black font-semibold uppercase pt-[1mm]">{textoSeguro(colaborador?.matricula).padStart(8, '0')}</div></div>
                                 </div>
                                 <div className="w-[21.5mm] flex-shrink-0 flex items-center justify-center border border-slate-200 p-[0.5mm] bg-white rounded-sm z-10">
-                                  {colaborador?.link_qrcode ? <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(colaborador.link_qrcode)}`} className="w-full h-full object-contain" alt="QR Code" /> : <div className="w-full h-full bg-white"></div>}
+                                  {colaborador?.link_qrcode ? <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(textoSeguro(colaborador.link_qrcode))}`} className="w-full h-full object-contain" alt="QR Code" /> : <div className="w-full h-full bg-white"></div>}
                                 </div>
                             </div>
                             <div className="relative border-[1.5px] border-black rounded-[4px] h-[6.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Empresa</span><div className="text-[8px] text-black font-semibold uppercase pt-[1mm]">DINAMO ENGENHARIA</div></div>
@@ -710,7 +726,7 @@ export default function PortalRH() {
                           <div className="absolute bottom-[1.5mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center">
                             <div className="text-[7px] text-black leading-[1.2] mb-[1.5mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div>
                             <div className="text-center w-full mb-[1mm]"><div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div><div className="text-[6px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div></div>
-                            <div className="text-[5.5px] text-black font-bold text-right w-full">Emitido em: {dataHoraAtual || ''}</div>
+                            <div className="text-[5.5px] text-black font-bold text-right w-full">Emitido em: {textoSeguro(dataHoraAtual)}</div>
                           </div>
                         </div>
                       </div>
@@ -733,10 +749,10 @@ export default function PortalRH() {
                         <tbody className="text-xs font-medium">
                           {solicitacoesSupervisor.map((s, idx) => (
                             <tr key={idx} className="border-b border-slate-50">
-                              <td className="py-3 text-slate-800 font-bold">{s?.nome_colaborador || ''}</td><td className="py-3 text-slate-500">{s?.matricula_colaborador || ''}</td><td className="py-3 text-slate-600">{s?.motivo || ''}</td>
+                              <td className="py-3 text-slate-800 font-bold">{textoSeguro(s?.nome_colaborador)}</td><td className="py-3 text-slate-500">{textoSeguro(s?.matricula_colaborador)}</td><td className="py-3 text-slate-600">{textoSeguro(s?.motivo)}</td>
                               <td className="py-3 text-slate-400">{s?.data_solicitacao ? new Date(s.data_solicitacao).toLocaleDateString('pt-BR') : ''}</td>
                               <td className="py-3 text-right">
-                                <span className={`px-2 py-1 rounded-md font-bold text-[10px] ${s?.status === 'PENDENTE' ? 'bg-amber-50 text-amber-500' : 'bg-emerald-50 text-emerald-600'}`}>{s?.status === 'PENDENTE' ? 'AGUARDANDO IMPRESSÃO' : 'CONCLUÍDO / IMPRESSO'}</span>
+                                <span className={`px-2 py-1 rounded-md font-bold text-[10px] ${s.status === 'PENDENTE' ? 'bg-amber-50 text-amber-500' : 'bg-emerald-50 text-emerald-600'}`}>{s.status === 'PENDENTE' ? 'AGUARDANDO IMPRESSÃO' : 'CONCLUÍDO / IMPRESSO'}</span>
                               </td>
                             </tr>
                           ))}
@@ -756,13 +772,13 @@ export default function PortalRH() {
                 <div className="p-6 border-b border-slate-100"><h3 className="font-bold text-slate-800 text-lg">Cadastro Manual</h3></div>
                 <form onSubmit={handleCadastroManual} className="p-6 flex flex-col gap-5">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><label className="block text-xs font-semibold text-slate-500 mb-1">Matrícula *</label><input type="text" required value={formCadastro.matricula} onChange={e => setFormCadastro({...formCadastro, matricula: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#023A58]" /></div>
-                    <div><label className="block text-xs font-semibold text-slate-500 mb-1">Nome Completo *</label><input type="text" required value={formCadastro.nome_completo} onChange={e => setFormCadastro({...formCadastro, nome_completo: e.target.value.toUpperCase()})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#023A58]" /></div>
+                    <div><label className="block text-xs font-semibold text-slate-500 mb-1">Matrícula *</label><input type="text" required value={formCadastro.matricula} onChange={e => setFormCadastro({...formCadastro, matricula: textoSeguro(e.target.value)})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#023A58]" /></div>
+                    <div><label className="block text-xs font-semibold text-slate-500 mb-1">Nome Completo *</label><input type="text" required value={formCadastro.nome_completo} onChange={e => setFormCadastro({...formCadastro, nome_completo: textoSeguro(e.target.value).toUpperCase()})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#023A58]" /></div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div><label className="block text-xs font-semibold text-slate-500 mb-1">CPF</label><input type="text" value={formCadastro.cpf} onChange={e => setFormCadastro({...formCadastro, cpf: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#023A58]" /></div>
-                    <div><label className="block text-xs font-semibold text-slate-500 mb-1">RG</label><input type="text" value={formCadastro.rg} onChange={e => setFormCadastro({...formCadastro, rg: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#023A58]" /></div>
-                    <div><label className="block text-xs font-semibold text-slate-500 mb-1">Cargo</label><input type="text" value={formCadastro.desc_funcao} onChange={e => setFormCadastro({...formCadastro, desc_funcao: e.target.value.toUpperCase()})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#023A58]" /></div>
+                    <div><label className="block text-xs font-semibold text-slate-500 mb-1">CPF</label><input type="text" value={formCadastro.cpf} onChange={e => setFormCadastro({...formCadastro, cpf: textoSeguro(e.target.value)})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#023A58]" /></div>
+                    <div><label className="block text-xs font-semibold text-slate-500 mb-1">RG</label><input type="text" value={formCadastro.rg} onChange={e => setFormCadastro({...formCadastro, rg: textoSeguro(e.target.value)})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#023A58]" /></div>
+                    <div><label className="block text-xs font-semibold text-slate-500 mb-1">Cargo</label><input type="text" value={formCadastro.desc_funcao} onChange={e => setFormCadastro({...formCadastro, desc_funcao: textoSeguro(e.target.value).toUpperCase()})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#023A58]" /></div>
                   </div>
                   <button type="submit" disabled={salvandoCadastro} className="mt-4 w-full md:w-auto self-end bg-emerald-500 text-white font-semibold py-3 px-8 rounded-xl hover:bg-emerald-600 transition-colors">Cadastrar Colaborador</button>
                 </form>
@@ -777,12 +793,12 @@ export default function PortalRH() {
                 <div className="w-full lg:w-1/3 bg-white rounded-2xl shadow-sm border border-slate-200 h-fit">
                   <div className="p-5 border-b border-slate-100"><h3 className="font-bold text-slate-800">Novo Acesso</h3></div>
                   <form onSubmit={handleCriarUsuario} className="p-5 flex flex-col gap-4">
-                    <div><label className="text-xs font-semibold text-slate-500 block mb-1">Nome</label><input type="text" required value={formUsuario.nome} onChange={e => setFormUsuario({...formUsuario, nome: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#023A58]" /></div>
-                    <div><label className="text-xs font-semibold text-slate-500 block mb-1">Login</label><input type="text" required value={formUsuario.login} onChange={e => setFormUsuario({...formUsuario, login: e.target.value.toLowerCase().replace(/\s/g, '')})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#023A58]" /></div>
-                    <div><label className="text-xs font-semibold text-slate-500 block mb-1">Senha</label><input type="password" required value={formUsuario.senha} onChange={e => setFormUsuario({...formUsuario, senha: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#023A58]" /></div>
+                    <div><label className="text-xs font-semibold text-slate-500 block mb-1">Nome</label><input type="text" required value={formUsuario.nome} onChange={e => setFormUsuario({...formUsuario, nome: textoSeguro(e.target.value)})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#023A58]" /></div>
+                    <div><label className="text-xs font-semibold text-slate-500 block mb-1">Login</label><input type="text" required value={formUsuario.login} onChange={e => setFormUsuario({...formUsuario, login: textoSeguro(e.target.value).toLowerCase().replace(/\s/g, '')})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#023A58]" /></div>
+                    <div><label className="text-xs font-semibold text-slate-500 block mb-1">Senha</label><input type="password" required value={formUsuario.senha} onChange={e => setFormUsuario({...formUsuario, senha: textoSeguro(e.target.value)})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#023A58]" /></div>
                     <div>
                       <label className="text-xs font-semibold text-slate-500 block mb-1">Perfil</label>
-                      <select value={formUsuario.perfil} onChange={e => setFormUsuario({...formUsuario, perfil: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#023A58]">
+                      <select value={formUsuario.perfil} onChange={e => setFormUsuario({...formUsuario, perfil: textoSeguro(e.target.value)})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#023A58]">
                          <option value="SUPERVISOR">Supervisor (Operação)</option>
                          <option value="RH">RH</option>
                          <option value="SESMT">SESMT</option>
@@ -802,7 +818,7 @@ export default function PortalRH() {
                       <thead><tr className="text-xs text-slate-400 border-b border-slate-100"><th className="pb-2 pr-4">Nome</th><th className="pb-2 pr-4">Perfil</th><th className="pb-2 text-right">Ação</th></tr></thead>
                       <tbody className="text-sm">
                         {listaUsuarios.map((usr) => (
-                          <tr key={usr.id} className="border-b border-slate-50"><td className="py-3 font-medium text-slate-700 pr-4">{usr?.nome || ''}</td><td className="py-3 pr-4"><span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${usr?.perfil === 'SUPERVISOR' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-600'}`}>{usr?.perfil || ''}</span></td><td className="py-3 text-right">{usr?.login !== 'admin' && <button onClick={() => tentarExcluirUsuario(usr.id, usr.login, usr.perfil)} className="text-rose-500 text-xs hover:text-rose-700 font-bold transition-colors"><i className="fas fa-trash-alt"></i> Excluir</button>}</td></tr>
+                          <tr key={usr.id} className="border-b border-slate-50"><td className="py-3 font-medium text-slate-700 pr-4">{textoSeguro(usr?.nome)}</td><td className="py-3 pr-4"><span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${usr?.perfil === 'SUPERVISOR' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-600'}`}>{textoSeguro(usr?.perfil)}</span></td><td className="py-3 text-right">{usr?.login !== 'admin' && <button onClick={() => tentarExcluirUsuario(usr.id, usr.login, usr.perfil)} className="text-rose-500 text-xs hover:text-rose-700 font-bold transition-colors"><i className="fas fa-trash-alt"></i> Excluir</button>}</td></tr>
                         ))}
                       </tbody>
                     </table>
@@ -823,16 +839,16 @@ export default function PortalRH() {
             <div className="p-5 border-b border-slate-100 flex justify-between"><h3 className="font-bold text-slate-800">Editar Complementos</h3><button onClick={() => setColaboradorEditando(null)}><i className="fas fa-times text-slate-400 hover:text-rose-500 transition-colors"></i></button></div>
             <form onSubmit={salvarEdicao} className="p-6 flex flex-col gap-4 bg-slate-50/50">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><label className="text-xs font-semibold text-slate-500 block mb-1">Matrícula</label><input disabled value={colaboradorEditando?.matricula || ''} className="w-full bg-slate-100 border border-slate-200 rounded-xl p-3 text-sm text-slate-500 cursor-not-allowed" /></div>
-                <div><label className="text-xs font-semibold text-slate-500 block mb-1">Nome Completo</label><input disabled value={colaboradorEditando?.nome_completo || ''} className="w-full bg-slate-100 border border-slate-200 rounded-xl p-3 text-sm text-slate-500 cursor-not-allowed" /></div>
+                <div><label className="text-xs font-semibold text-slate-500 block mb-1">Matrícula</label><input disabled value={textoSeguro(colaboradorEditando?.matricula)} className="w-full bg-slate-100 border border-slate-200 rounded-xl p-3 text-sm text-slate-500 cursor-not-allowed" /></div>
+                <div><label className="text-xs font-semibold text-slate-500 block mb-1">Nome Completo</label><input disabled value={textoSeguro(colaboradorEditando?.nome_completo)} className="w-full bg-slate-100 border border-slate-200 rounded-xl p-3 text-sm text-slate-500 cursor-not-allowed" /></div>
               </div>
               <div className="w-full mt-2">
                 <label className="text-xs font-semibold text-slate-500 block mb-1">Função / Cargo {podeEditarFuncao && <span className="text-orange-500 ml-1">(Editável) <i className="fas fa-pencil-alt"></i></span>}</label>
-                <input type="text" disabled={!podeEditarFuncao} value={colaboradorEditando?.desc_funcao || ''} onChange={e => setColaboradorEditando({...colaboradorEditando, desc_funcao: e.target.value.toUpperCase()})} className={`w-full border border-slate-200 rounded-xl p-3 text-sm uppercase focus:border-[#023A58] focus:outline-none transition-all ${podeEditarFuncao ? 'bg-white shadow-sm' : 'bg-slate-100 text-slate-500 cursor-not-allowed'}`} />
+                <input type="text" disabled={!podeEditarFuncao} value={textoSeguro(colaboradorEditando?.desc_funcao)} onChange={e => setColaboradorEditando({...colaboradorEditando, desc_funcao: textoSeguro(e.target.value).toUpperCase()})} className={`w-full border border-slate-200 rounded-xl p-3 text-sm uppercase focus:border-[#023A58] focus:outline-none transition-all ${podeEditarFuncao ? 'bg-white shadow-sm' : 'bg-slate-100 text-slate-500 cursor-not-allowed'}`} />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
-                <div><label className="text-xs font-semibold text-slate-800 block mb-1">Tipo Sanguíneo</label><input type="text" value={colaboradorEditando?.tipo_sanguineo || ''} onChange={e => setColaboradorEditando({...colaboradorEditando, tipo_sanguineo: e.target.value})} className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm uppercase focus:border-[#023A58] focus:outline-none shadow-sm" placeholder="O+" /></div>
-                <div><label className="text-xs font-semibold text-[#0a84ff] block mb-1">Link QR Code</label><input type="url" value={colaboradorEditando?.link_qrcode || ''} onChange={e => setColaboradorEditando({...colaboradorEditando, link_qrcode: e.target.value})} className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-[#0a84ff] focus:outline-none shadow-sm" placeholder="https://" /></div>
+                <div><label className="text-xs font-semibold text-slate-800 block mb-1">Tipo Sanguíneo</label><input type="text" value={textoSeguro(colaboradorEditando?.tipo_sanguineo)} onChange={e => setColaboradorEditando({...colaboradorEditando, tipo_sanguineo: textoSeguro(e.target.value)})} className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm uppercase focus:border-[#023A58] focus:outline-none shadow-sm" placeholder="O+" /></div>
+                <div><label className="text-xs font-semibold text-[#0a84ff] block mb-1">Link QR Code</label><input type="url" value={textoSeguro(colaboradorEditando?.link_qrcode)} onChange={e => setColaboradorEditando({...colaboradorEditando, link_qrcode: textoSeguro(e.target.value)})} className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-[#0a84ff] focus:outline-none shadow-sm" placeholder="https://" /></div>
               </div>
               <div className="flex justify-end gap-3 mt-4"><button type="button" onClick={() => setColaboradorEditando(null)} className="px-6 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancelar</button><button type="submit" disabled={salvandoEdicao} className="px-6 py-2.5 bg-orange-500 hover:bg-orange-600 rounded-xl text-sm font-semibold text-white transition-colors">Atualizar</button></div>
             </form>
@@ -853,7 +869,7 @@ export default function PortalRH() {
                   <thead className="bg-slate-50 sticky top-0 border-b border-slate-100"><tr className="text-[10px] uppercase font-bold text-slate-500"><th className="p-4 pl-6">Data e Hora</th><th className="p-4">Motivo</th><th className="p-4">Emitido por</th></tr></thead>
                   <tbody className="text-sm">
                     {historicoAberto.map((hist, idx) => (
-                      <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50"><td className="p-4 pl-6 font-semibold text-slate-700">{hist?.data_emissao ? new Date(hist.data_emissao).toLocaleString('pt-BR') : ''}</td><td><span className="bg-blue-50 text-[#0a84ff] px-2 py-1 rounded text-xs font-bold">{hist?.motivo || ''}</span></td><td className="p-4 font-medium text-slate-600">{hist?.emitido_por || ''}</td></tr>
+                      <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50"><td className="p-4 pl-6 font-semibold text-slate-700">{hist?.data_emissao ? new Date(hist.data_emissao).toLocaleString('pt-BR') : ''}</td><td><span className="bg-blue-50 text-[#0a84ff] px-2 py-1 rounded text-xs font-bold">{textoSeguro(hist?.motivo)}</span></td><td className="p-4 font-medium text-slate-600">{textoSeguro(hist?.emitido_por)}</td></tr>
                     ))}
                   </tbody>
                 </table>
@@ -868,8 +884,8 @@ export default function PortalRH() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animation-fade-in border-t-4 border-[#0a84ff]">
             <div className="p-5 border-b border-slate-100 flex justify-between"><h3 className="font-bold text-slate-800 flex items-center gap-2"><i className="fas fa-key text-[#0a84ff]"></i>Alterar Senha</h3><button onClick={() => setMostrarModalSenha(false)}><i className="fas fa-times text-slate-400 hover:text-rose-500"></i></button></div>
             <form onSubmit={handleAlterarSenha} className="p-6 flex flex-col gap-4">
-              <div><label className="text-xs font-semibold text-slate-500 block mb-1">Nova Senha</label><input type="password" required value={novaSenha} onChange={e => setNovaSenha(e.target.value)} className="w-full border border-slate-300 rounded-xl p-3 text-sm focus:outline-none focus:border-[#023A58]" placeholder="••••••••" /></div>
-              <div><label className="text-xs font-semibold text-slate-500 block mb-1">Confirmar Senha</label><input type="password" required value={confirmarSenha} onChange={e => setConfirmarSenha(e.target.value)} className="w-full border border-slate-300 rounded-xl p-3 text-sm focus:outline-none focus:border-[#023A58]" placeholder="••••••••" /></div>
+              <div><label className="text-xs font-semibold text-slate-500 block mb-1">Nova Senha</label><input type="password" required value={novaSenha} onChange={e => setNovaSenha(textoSeguro(e.target.value))} className="w-full border border-slate-300 rounded-xl p-3 text-sm focus:outline-none focus:border-[#023A58]" placeholder="••••••••" /></div>
+              <div><label className="text-xs font-semibold text-slate-500 block mb-1">Confirmar Senha</label><input type="password" required value={confirmarSenha} onChange={e => setConfirmarSenha(textoSeguro(e.target.value))} className="w-full border border-slate-300 rounded-xl p-3 text-sm focus:outline-none focus:border-[#023A58]" placeholder="••••••••" /></div>
               <button type="submit" disabled={salvandoSenha} className="w-full bg-[#023A58] hover:bg-[#035B8B] text-white py-3 rounded-xl font-semibold mt-2 transition-colors">Alterar Senha</button>
             </form>
           </div>
@@ -881,33 +897,33 @@ export default function PortalRH() {
       {colaboradoresParaImprimir.length > 0 && (
       <div className="print-container">
          {colaboradoresParaImprimir.map((c, index) => {
-           const nomeMostrar = c?.nome_cracha_frente || obterOpcoesNome(c?.nome_completo || '')[0] || '';
+           const nomeMostrar = textoSeguro(c?.nome_cracha_frente) || obterOpcoesNome(c?.nome_completo)[0] || '';
            return (
            <React.Fragment key={index}>
               <div className="cracha-card w-[54mm] h-[86mm] bg-white relative flex flex-col items-center overflow-hidden box-border" style={{ border: '1px solid #ccc' }}>
                 <div className="mt-[4mm] w-[26mm] h-[35mm] flex items-center justify-center overflow-hidden z-10 border border-slate-300 bg-white">{c?.foto_url && <img src={c.foto_url} className="w-full h-full object-cover" alt="Foto" />}</div>
-                <div className="mt-[2mm] text-center z-10 w-full px-2"><div className="text-[#051e42] font-black text-[18px] leading-[1.0]" style={{ fontFamily: 'Arial, sans-serif' }}>{(nomeMostrar || '').split(' ')[0]}<br/>{(nomeMostrar || '').split(' ').slice(1).join(' ') || ''}</div></div>
+                <div className="mt-[2mm] text-center z-10 w-full px-2"><div className="text-[#051e42] font-black text-[18px] leading-[1.0]" style={{ fontFamily: 'Arial, sans-serif' }}>{nomeMostrar.split(' ')[0]}<br/>{nomeMostrar.split(' ').slice(1).join(' ')}</div></div>
                 <div className="absolute bottom-0 left-0 w-full h-[32mm] z-0"><img src="/Imagem1.png" className="w-full h-full object-fill" alt="Fundo" /></div>
                 <div className="absolute bottom-[13mm] left-[1mm] z-10 w-[24mm] h-[8mm] flex items-center justify-start"><img src="/dinamo.png" className="max-h-full max-w-full object-contain" alt="Dínamo" /></div>
               </div>
               <div className="cracha-card w-[54mm] h-[86mm] bg-white relative p-[2mm] flex flex-col box-border" style={{ border: '1px solid #ccc' }}>
-                <div className="mt-[2mm] w-full flex flex-col gap-[2mm]">
-                  <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span><div className="text-[7.5px] text-black font-semibold uppercase pt-[0.5mm]">{c?.nome_completo || ''}</div></div>
+                <div className="mt-[2mm] w-full flex flex-col gap-[2.5mm]">
+                  <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span><div className="text-[7.5px] text-black font-semibold uppercase pt-[1mm]">{textoSeguro(c?.nome_completo)}</div></div>
                   <div className="flex w-full gap-[2mm]">
-                    <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] flex-1 flex items-center justify-center"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">CPF</span><div className="text-[8px] text-black font-semibold uppercase pt-[0.5mm]">{c?.cpf || '000.000.000-00'}</div></div>
-                    <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] w-[14mm] flex items-center justify-center bg-white"><span className="absolute -top-[2.5mm] left-[1mm] bg-white px-[0.5mm] text-[5px] font-bold text-black leading-none">Tp. Sangue</span><div className="text-[8px] text-black font-black uppercase pt-[0.5mm]">{c?.tipo_sanguineo || ''}</div></div>
+                    <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex-1 flex items-center justify-center"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">CPF</span><div className="text-[8px] text-black font-semibold uppercase pt-[1mm]">{textoSeguro(c?.cpf, '000.000.000-00')}</div></div>
+                    <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] w-[14mm] flex items-center justify-center bg-white"><span className="absolute -top-[2.5mm] left-[1mm] bg-white px-[0.5mm] text-[5px] font-bold text-black leading-none">Tp. Sangue</span><div className="text-[8px] text-black font-black uppercase pt-[1mm]">{textoSeguro(c?.tipo_sanguineo)}</div></div>
                   </div>
                   <div className="flex w-full gap-[2mm] items-stretch">
-                      <div className="flex flex-col flex-1 justify-between gap-[2mm]">
-                        <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Função</span><div className="text-[7px] text-black font-semibold uppercase truncate px-1 pt-[0.5mm]">{c?.desc_funcao || ''}</div></div>
-                        <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Car. Identidade</span><div className="text-[8px] text-black font-semibold uppercase pt-[0.5mm]">{c?.rg || '0000000000'}</div></div>
-                        <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Matrícula</span><div className="text-[8px] text-black font-semibold uppercase pt-[0.5mm]">{String(c?.matricula || '').padStart(8, '0')}</div></div>
+                      <div className="flex flex-col flex-1 justify-between gap-[2.5mm]">
+                        <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Função</span><div className="text-[7px] text-black font-semibold uppercase truncate px-1 pt-[1mm]">{textoSeguro(c?.desc_funcao)}</div></div>
+                        <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Car. Identidade</span><div className="text-[8px] text-black font-semibold uppercase pt-[1mm]">{textoSeguro(c?.rg, '0000000000')}</div></div>
+                        <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Matrícula</span><div className="text-[8px] text-black font-semibold uppercase pt-[1mm]">{textoSeguro(c?.matricula).padStart(8, '0')}</div></div>
                       </div>
-                      <div className="w-[21.5mm] flex-shrink-0 flex items-center justify-center border border-slate-200 p-[0.5mm] bg-white rounded-sm z-10">{c?.link_qrcode && <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(c?.link_qrcode || '')}`} className="w-full h-full object-contain" alt="QR Code" />}</div>
+                      <div className="w-[21.5mm] flex-shrink-0 flex items-center justify-center border border-slate-200 p-[0.5mm] bg-white rounded-sm z-10">{c?.link_qrcode && <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(textoSeguro(c.link_qrcode))}`} className="w-full h-full object-contain" alt="QR Code" />}</div>
                   </div>
-                  <div className="relative border-[1.5px] border-black rounded-[4px] h-[6.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Empresa</span><div className="text-[8px] text-black font-semibold uppercase pt-[0.5mm]">DINAMO ENGENHARIA</div></div>
+                  <div className="relative border-[1.5px] border-black rounded-[4px] h-[6.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Empresa</span><div className="text-[8px] text-black font-semibold uppercase pt-[1mm]">DINAMO ENGENHARIA</div></div>
                 </div>
-                <div className="absolute bottom-[1.5mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center"><div className="text-[7px] text-black leading-[1.2] mb-[1.5mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div><div className="text-center w-full mb-[1mm]"><div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div><div className="text-[6px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div></div><div className="text-[5.5px] text-black font-bold text-right w-full">Emitido em: {dataHoraAtual || ''}</div></div>
+                <div className="absolute bottom-[1.5mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center"><div className="text-[7px] text-black leading-[1.2] mb-[1.5mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div><div className="text-center w-full mb-[1mm]"><div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div><div className="text-[6px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div></div><div className="text-[5.5px] text-black font-bold text-right w-full">Emitido em: {textoSeguro(dataHoraAtual)}</div></div>
               </div>
            </React.Fragment>
            );
