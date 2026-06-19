@@ -9,6 +9,18 @@ export default function PortalRH() {
   const [toast, setToast] = useState({ ativo: false, mensagem: '', tipo: 'sucesso' });
   const [confirmDialog, setConfirmDialog] = useState({ ativo: false, mensagem: '', acao: () => {} });
 
+  // Relógio protegido contra Erro de Hidratação da Vercel
+  const [dataHoraAtual, setDataHoraAtual] = useState('');
+  useEffect(() => {
+    const atualizarData = () => {
+      const data = new Date();
+      setDataHoraAtual(`${data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })} ${data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`);
+    };
+    atualizarData();
+    const intervalo = setInterval(atualizarData, 60000);
+    return () => clearInterval(intervalo);
+  }, []);
+
   const mostrarToast = (mensagem: string, tipo: 'sucesso' | 'erro' | 'aviso' = 'sucesso') => {
     setToast({ ativo: true, mensagem, tipo });
     setTimeout(() => setToast({ ativo: false, mensagem: '', tipo: 'sucesso' }), 4000);
@@ -34,8 +46,10 @@ export default function PortalRH() {
   const KEY = "sb_publishable_6Ss9lNdcbyeE2o3U5jcJ7w_qI61wmIr";
 
   useEffect(() => {
-    const loginSalvo = localStorage.getItem('dinamo_lembrar_login');
-    if (loginSalvo) { setLoginInput(loginSalvo); setLembrarLogin(true); }
+    try {
+      const loginSalvo = localStorage.getItem('dinamo_lembrar_login');
+      if (loginSalvo) { setLoginInput(loginSalvo); setLembrarLogin(true); }
+    } catch (e) { console.error("Acesso ao cache bloqueado"); }
   }, []);
 
   const handleEsqueceuSenha = () => {
@@ -49,7 +63,7 @@ export default function PortalRH() {
     try {
       const response = await fetch(`${URL}/rest/v1/usuarios_sistema?login=eq.${loginInput}&senha=eq.${senhaInput}&select=*`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
       const data = await response.json();
-      if (data && data.length > 0) {
+      if (Array.isArray(data) && data.length > 0) {
         const user = data[0];
         setUsuarioAutenticado(user);
         if (user?.perfil === 'SUPERVISOR') setAbaAtiva('emissao');
@@ -57,7 +71,7 @@ export default function PortalRH() {
         else setAbaAtiva('colaboradores');
         
         setSenhaInput('');
-        if (lembrarLogin) localStorage.setItem('dinamo_lembrar_login', loginInput); else localStorage.removeItem('dinamo_lembrar_login');
+        try { if (lembrarLogin) localStorage.setItem('dinamo_lembrar_login', loginInput); else localStorage.removeItem('dinamo_lembrar_login'); } catch (e) {}
       } else { setErroLogin('Credenciais inválidas. Tente novamente.'); }
     } catch (error) { setErroLogin('Erro de comunicação com o servidor.'); } finally { setCarregandoLogin(false); }
   };
@@ -66,9 +80,7 @@ export default function PortalRH() {
 
   const getMenuItens = () => {
     if (!usuarioAutenticado) return [];
-    if (usuarioAutenticado?.perfil === 'SUPERVISOR') {
-      return [ { id: 'emissao', nome: 'Captura & Solicitação', icone: 'fa-camera' } ];
-    }
+    if (usuarioAutenticado?.perfil === 'SUPERVISOR') { return [ { id: 'emissao', nome: 'Captura & Solicitação', icone: 'fa-camera' } ]; }
     const itensBasicos = [ { id: 'colaboradores', nome: 'Base de Colaboradores', icone: 'fa-users' }, { id: 'emissao', nome: 'Emissão Individual', icone: 'fa-id-badge' } ];
     if (usuarioAutenticado?.perfil === 'ADM' || usuarioAutenticado?.perfil === 'RH') {
       return [ { id: 'solicitacoes', nome: 'Caixa de Solicitações', icone: 'fa-inbox' }, ...itensBasicos, { id: 'lote', nome: 'Emissão em Lote', icone: 'fa-layer-group' }, { id: 'cadastro', nome: 'Cadastro Manual', icone: 'fa-user-plus' }, { id: 'configuracoes', nome: 'Gestão de Acessos', icone: 'fa-shield-alt' } ];
@@ -89,8 +101,6 @@ export default function PortalRH() {
     return [...new Set(opcoes)];
   };
 
-  const obterDataHoraAtual = () => { const data = new Date(); return `${data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })} ${data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`; };
-
   // ========================== ABA: CAIXA DE SOLICITAÇÕES (RH/ADM) ==========================
   const [listaSolicitacoes, setListaSolicitacoes] = useState<any[]>([]);
   const [carregandoSolicitacoes, setCarregandoSolicitacoes] = useState(false);
@@ -99,7 +109,8 @@ export default function PortalRH() {
     setCarregandoSolicitacoes(true);
     try {
       const response = await fetch(`${URL}/rest/v1/solicitacoes_crachas?status=eq.PENDENTE&order=data_solicitacao.desc`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
-      const data = await response.json(); setListaSolicitacoes(data || []);
+      const data = await response.json(); 
+      setListaSolicitacoes(Array.isArray(data) ? data : []);
     } catch (error) { mostrarToast("Erro ao carregar solicitações", "erro"); } finally { setCarregandoSolicitacoes(false); }
   };
 
@@ -118,7 +129,8 @@ export default function PortalRH() {
     if (!usuarioAutenticado || usuarioAutenticado?.perfil !== 'SUPERVISOR') return;
     try {
       const response = await fetch(`${URL}/rest/v1/solicitacoes_crachas?solicitado_por=eq.${encodeURIComponent(usuarioAutenticado?.nome || '')}&order=data_solicitacao.desc&limit=10`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
-      const data = await response.json(); setListaSolicitacoesSupervisor(data || []);
+      const data = await response.json(); 
+      setListaSolicitacoesSupervisor(Array.isArray(data) ? data : []);
     } catch (e) {}
   };
 
@@ -141,7 +153,10 @@ export default function PortalRH() {
     const isNum = /^\d+$/.test(buscaTabela.trim());
     let fetchUrl = `${URL}/rest/v1/colaboradores?select=*&limit=50`;
     if (buscaTabela.trim()) { if (isNum) fetchUrl += `&matricula=eq.${buscaTabela.trim()}`; else fetchUrl += `&nome_completo=ilike.*${buscaTabela.trim()}*`; }
-    try { const response = await fetch(fetchUrl, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } }); const data = await response.json(); setResultadosBusca(data || []);
+    try { 
+      const response = await fetch(fetchUrl, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } }); 
+      const data = await response.json(); 
+      setResultadosBusca(Array.isArray(data) ? data : []);
     } catch (error) { mostrarToast("Erro ao buscar dados", "erro"); } finally { setCarregandoLista(false); }
   };
   
@@ -164,7 +179,8 @@ export default function PortalRH() {
     setNomeHistoricoAberto(nome);
     try {
       const response = await fetch(`${URL}/rest/v1/historico_impressoes?matricula_colaborador=eq.${matricula}&order=data_emissao.desc`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
-      const data = await response.json(); setHistoricoAberto(data || []);
+      const data = await response.json(); 
+      setHistoricoAberto(Array.isArray(data) ? data : []);
     } catch (error) { mostrarToast("Erro ao carregar auditoria.", "erro"); }
   };
 
@@ -180,7 +196,7 @@ export default function PortalRH() {
     try {
       const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${matriculaLote.trim()}&select=*`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
       const data = await response.json();
-      if (data && data.length > 0) { 
+      if (Array.isArray(data) && data.length > 0) { 
         const novoColab = data[0]; novoColab.nome_cracha_frente = obterOpcoesNome(novoColab.nome_completo)[0]; 
         setListaLote([...listaLote, novoColab]); setMatriculaLote(''); 
       } else { mostrarToast('Matrícula não encontrada.', 'erro'); }
@@ -218,7 +234,7 @@ export default function PortalRH() {
     try {
       const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${matriculaAlvo}&select=*`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
       const data = await response.json();
-      if (data && data.length > 0) { 
+      if (Array.isArray(data) && data.length > 0) { 
         setColaborador(data[0]); setFotoCapturada(data[0].foto_url || null); setNomeCrachaIndividual(obterOpcoesNome(data[0].nome_completo)[0]); setAbaAtiva('emissao'); setBuscaEmissao('');
       } else { setColaborador(null); mostrarToast('Matrícula não encontrada.', "erro"); }
     } catch (error) { mostrarToast('Erro de ligação.', "erro"); } finally { setCarregandoEmissao(false); }
@@ -292,7 +308,10 @@ export default function PortalRH() {
 
   const carregarUsuarios = async () => {
     setCarregandoUsuarios(true);
-    try { const response = await fetch(`${URL}/rest/v1/usuarios_sistema?select=*&order=created_at.desc`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } }); const data = await response.json(); setListaUsuarios(data || []);
+    try { 
+      const response = await fetch(`${URL}/rest/v1/usuarios_sistema?select=*&order=created_at.desc`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } }); 
+      const data = await response.json(); 
+      setListaUsuarios(Array.isArray(data) ? data : []);
     } catch (error) { mostrarToast("Erro ao carregar usuários", "erro"); } finally { setCarregandoUsuarios(false); }
   };
   useEffect(() => { if ((usuarioAutenticado?.perfil === 'ADM' || usuarioAutenticado?.perfil === 'RH') && abaAtiva === 'configuracoes') { carregarUsuarios(); } }, [abaAtiva, usuarioAutenticado]);
@@ -327,7 +346,9 @@ export default function PortalRH() {
   const navegarPara = (id: string) => { setAbaAtiva(id); setMenuAberto(false); };
   const podeEditarFuncao = usuarioAutenticado?.perfil === 'ADM' || usuarioAutenticado?.perfil === 'RH';
 
-  // Se o usuário ainda não estiver logado, não tente carregar as telas protegidas
+  const colaboradoresParaImprimir = abaAtiva === 'lote' ? listaLote : (colaborador && abaAtiva === 'emissao' ? [{ ...colaborador, foto_url: fotoCapturada || colaborador.foto_url, nome_cracha_frente: nomeCrachaIndividual }] : []);
+
+  // ========================== TELA DE LOGIN ==========================
   if (!usuarioAutenticado) {
     return (
       <div className="flex h-screen bg-[#f4f7f6] font-sans items-center justify-center relative overflow-hidden">
@@ -568,7 +589,6 @@ export default function PortalRH() {
       </main>
 
       {/* MOTOR DE IMPRESSÃO INVISÍVEL */}
-      {/* O loop é protegido garantindo que 'colaboradoresParaImprimir' tenha itens válidos */}
       {colaboradoresParaImprimir.length > 0 && (
       <div className="print-container">
          {colaboradoresParaImprimir.map((c, index) => {
@@ -598,7 +618,7 @@ export default function PortalRH() {
                   </div>
                   <div className="relative border-[1.5px] border-black rounded-[4px] h-[6.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Empresa</span><div className="text-[8px] text-black font-semibold uppercase pt-[0.5mm]">DINAMO ENGENHARIA</div></div>
                 </div>
-                <div className="absolute bottom-[1.5mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center"><div className="text-[7px] text-black leading-[1.2] mb-[1.5mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div><div className="text-center w-full mb-[1mm]"><div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div><div className="text-[6px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div></div><div className="text-[5.5px] text-black font-bold text-right w-full">Emitido em: {obterDataHoraAtual()}</div></div>
+                <div className="absolute bottom-[1.5mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center"><div className="text-[7px] text-black leading-[1.2] mb-[1.5mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div><div className="text-center w-full mb-[1mm]"><div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div><div className="text-[6px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div></div><div className="text-[5.5px] text-black font-bold text-right w-full">Emitido em: {dataHoraAtual}</div></div>
               </div>
            </React.Fragment>
            );
@@ -616,7 +636,6 @@ export default function PortalRH() {
         .animation-fade-in { animation: fadeIn 0.3s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* BLINDAGEM CONTRA MARCAS D'ÁGUA EM POPUPS E TOASTS NA IMPRESSÃO */
         @media screen { .print-container { display: none !important; } }
         @media print {
           .hide-on-print, [role="status"], .fixed { display: none !important; visibility: hidden !important; opacity: 0 !important; }
