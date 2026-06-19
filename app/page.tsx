@@ -14,7 +14,7 @@ export default function PortalRH() {
     setTimeout(() => setToast({ ativo: false, mensagem: '', tipo: 'sucesso' }), 4000);
   };
 
-  // ========================== ESTADOS DE AUTENTICAÇÃO (LOGIN) ==========================
+  // ========================== ESTADOS DE AUTENTICAÇÃO E NAVEGAÇÃO ==========================
   const [usuarioAutenticado, setUsuarioAutenticado] = useState<any>(null);
   const [loginInput, setLoginInput] = useState('');
   const [senhaInput, setSenhaInput] = useState('');
@@ -23,7 +23,6 @@ export default function PortalRH() {
   const [erroLogin, setErroLogin] = useState('');
   const [abaAtiva, setAbaAtiva] = useState('colaboradores');
   const [menuAberto, setMenuAberto] = useState(false);
-  const [cameraTraseira, setCameraTraseira] = useState(true);
 
   const [mostrarModalSenha, setMostrarModalSenha] = useState(false);
   const [novaSenha, setNovaSenha] = useState('');
@@ -39,9 +38,9 @@ export default function PortalRH() {
     if (loginSalvo) { setLoginInput(loginSalvo); setLembrarLogin(true); }
   }, []);
 
-  // ---> AQUI ESTÁ A FUNÇÃO QUE A VERCEL RECLAMOU QUE FALTAVA <---
-  const handleEsqueceuSenha = () => { 
-    mostrarToast("Acesso restrito. Solicite a redefinição de senha ao Administrador do Sistema.", "aviso"); 
+  // CORREÇÃO DO ERRO DA VERCEL: Função definida no topo
+  const handleEsqueceuSenha = () => {
+    mostrarToast("Acesso restrito. Solicite a redefinição de senha ao Administrador do Sistema.", "aviso");
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -52,8 +51,15 @@ export default function PortalRH() {
       const response = await fetch(`${URL}/rest/v1/usuarios_sistema?login=eq.${loginInput}&senha=eq.${senhaInput}&select=*`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
       const data = await response.json();
       if (data && data.length > 0) {
-        setUsuarioAutenticado(data[0]); setAbaAtiva('colaboradores'); setSenhaInput('');
-        if (lembrarLogin) { localStorage.setItem('dinamo_lembrar_login', loginInput); } else { localStorage.removeItem('dinamo_lembrar_login'); setLoginInput(''); }
+        const user = data[0];
+        setUsuarioAutenticado(user);
+        // Inteligência de redirecionamento por perfil
+        if (user.perfil === 'SUPERVISOR') setAbaAtiva('emissao');
+        else if (user.perfil === 'RH' || user.perfil === 'ADM') setAbaAtiva('solicitacoes');
+        else setAbaAtiva('colaboradores');
+        
+        setSenhaInput('');
+        if (lembrarLogin) localStorage.setItem('dinamo_lembrar_login', loginInput); else localStorage.removeItem('dinamo_lembrar_login');
       } else { setErroLogin('Credenciais inválidas. Tente novamente.'); }
     } catch (error) { setErroLogin('Erro de comunicação com o servidor.'); } finally { setCarregandoLogin(false); }
   };
@@ -62,37 +68,61 @@ export default function PortalRH() {
 
   const getMenuItens = () => {
     if (!usuarioAutenticado) return [];
+    if (usuarioAutenticado.perfil === 'SUPERVISOR') {
+      return [ { id: 'emissao', nome: 'Captura & Solicitação', icone: 'fa-camera' } ];
+    }
     const itensBasicos = [ { id: 'colaboradores', nome: 'Base de Colaboradores', icone: 'fa-users' }, { id: 'emissao', nome: 'Emissão Individual', icone: 'fa-id-badge' } ];
     if (usuarioAutenticado.perfil === 'ADM' || usuarioAutenticado.perfil === 'RH') {
-      return [ ...itensBasicos, { id: 'lote', nome: 'Emissão em Lote', icone: 'fa-layer-group' }, { id: 'cadastro', nome: 'Cadastro Manual', icone: 'fa-user-plus' }, { id: 'configuracoes', nome: 'Gestão de Acessos', icone: 'fa-shield-alt' } ];
+      return [ { id: 'solicitacoes', nome: 'Caixa de Solicitações', icone: 'fa-inbox' }, ...itensBasicos, { id: 'lote', nome: 'Emissão em Lote', icone: 'fa-layer-group' }, { id: 'cadastro', nome: 'Cadastro Manual', icone: 'fa-user-plus' }, { id: 'configuracoes', nome: 'Gestão de Acessos', icone: 'fa-shield-alt' } ];
     }
     return itensBasicos;
   };
   const menuItens = getMenuItens();
 
-  // ========================== FUNÇÃO DE INTELIGÊNCIA DE NOMES ==========================
   const obterOpcoesNome = (nomeCompleto: string) => {
     if (!nomeCompleto) return ["NOME INDEFINIDO"];
     const partes = nomeCompleto.trim().split(" ").filter(p => p.length > 0);
     if (partes.length === 0) return ["NOME INDEFINIDO"];
     if (partes.length === 1) return [partes[0]];
     if (partes.length === 2) return [`${partes[0]} ${partes[1]}`];
-    
-    const opcoes = [];
-    const primeiro = partes[0];
-    const ultimo = partes[partes.length - 1];
-    opcoes.push(`${primeiro} ${ultimo}`);
-    for (let i = 1; i < partes.length - 1; i++) { if (partes[i].length > 2) { opcoes.push(`${primeiro} ${partes[i]}`); } }
+    const opcoes = [ `${partes[0]} ${partes[partes.length - 1]}` ];
+    for (let i = 1; i < partes.length - 1; i++) { if (partes[i].length > 2) opcoes.push(`${partes[0]} ${partes[i]}`); }
     return [...new Set(opcoes)];
   };
 
-  // ========================== ABA: HUB CENTRAL ==========================
+  const obterDataHoraAtual = () => { const data = new Date(); return `${data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })} ${data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`; };
+
+  // ========================== ABA: CAIXA DE SOLICITAÇÕES (RH/ADM) ==========================
+  const [listaSolicitacoes, setListaSolicitacoes] = useState<any[]>([]);
+  const [carregandoSolicitacoes, setCarregandoSolicitacoes] = useState(false);
+
+  const carregarSolicitacoes = async () => {
+    setCarregandoSolicitacoes(true);
+    try {
+      const response = await fetch(`${URL}/rest/v1/solicitacoes_crachas?status=eq.PENDENTE&order=data_solicitacao.desc`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
+      const data = await response.json(); setListaSolicitacoes(data || []);
+    } catch (error) { mostrarToast("Erro ao carregar solicitações", "erro"); } finally { setCarregandoSolicitacoes(false); }
+  };
+
+  useEffect(() => { if ((usuarioAutenticado?.perfil === 'ADM' || usuarioAutenticado?.perfil === 'RH') && abaAtiva === 'solicitacoes') carregarSolicitacoes(); }, [abaAtiva, usuarioAutenticado]);
+
+  const processarSolicitacao = async (solicitacao: any) => {
+    setBuscaEmissao(solicitacao.matricula_colaborador);
+    await buscarColaboradorParaEmissao(solicitacao.matricula_colaborador);
+    setAbaAtiva('emissao');
+    try { await fetch(`${URL}/rest/v1/solicitacoes_crachas?id=eq.${solicitacao.id}`, { method: 'PATCH', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'EM PROCESSAMENTO' }) }); } catch(e){}
+  };
+
+  // ========================== ABA: HUB CENTRAL & HISTÓRICO ==========================
   const [buscaTabela, setBuscaTabela] = useState('');
   const [resultadosBusca, setResultadosBusca] = useState<any[]>([]);
   const [carregandoLista, setCarregandoLista] = useState(false);
   const [pesquisaRealizada, setPesquisaRealizada] = useState(false);
   const [colaboradorEditando, setColaboradorEditando] = useState<any>(null);
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
+  
+  const [historicoAberto, setHistoricoAberto] = useState<any[] | null>(null);
+  const [nomeHistoricoAberto, setNomeHistoricoAberto] = useState('');
 
   const handlePesquisaTabela = async (e?: React.FormEvent) => {
     if (e) e.preventDefault(); if (!buscaTabela.trim() && !pesquisaRealizada) return; 
@@ -110,25 +140,31 @@ export default function PortalRH() {
     e.preventDefault(); if (!colaboradorEditando) return; setSalvandoEdicao(true);
     try {
       const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${colaboradorEditando.matricula}`, { 
-        method: 'PATCH', 
-        headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }, 
+        method: 'PATCH', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }, 
         body: JSON.stringify({ tipo_sanguineo: colaboradorEditando.tipo_sanguineo || null, link_qrcode: colaboradorEditando.link_qrcode || null, desc_funcao: colaboradorEditando.desc_funcao }) 
       });
       if (!response.ok) throw new Error('Erro');
       setListaLote(prev => prev.map(c => c.matricula === colaboradorEditando.matricula ? { ...c, tipo_sanguineo: colaboradorEditando.tipo_sanguineo, link_qrcode: colaboradorEditando.link_qrcode, desc_funcao: colaboradorEditando.desc_funcao } : c));
-      setColaboradorEditando(null); handlePesquisaTabela(); mostrarToast("Informações atualizadas com sucesso!", "sucesso");
+      setColaboradorEditando(null); handlePesquisaTabela(); mostrarToast("Informações atualizadas!", "sucesso");
     } catch (err) { mostrarToast("Erro ao salvar alterações.", "erro"); } finally { setSalvandoEdicao(false); }
+  };
+
+  const abrirHistorico = async (matricula: string, nome: string) => {
+    setNomeHistoricoAberto(nome);
+    try {
+      const response = await fetch(`${URL}/rest/v1/historico_impressoes?matricula_colaborador=eq.${matricula}&order=data_emissao.desc`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
+      const data = await response.json(); setHistoricoAberto(data || []);
+    } catch (error) { mostrarToast("Erro ao carregar auditoria.", "erro"); }
   };
 
   // ========================== ABA: EMISSÃO EM LOTE ==========================
   const [listaLote, setListaLote] = useState<any[]>([]);
   const [matriculaLote, setMatriculaLote] = useState('');
   const [carregandoLote, setCarregandoLote] = useState(false);
-  const [erroLote, setErroLote] = useState('');
 
   const adicionarAoLote = async (e: React.FormEvent) => {
-    e.preventDefault(); setErroLote(''); if (!matriculaLote.trim()) return;
-    if (listaLote.find(c => String(c.matricula) === String(matriculaLote.trim()))) { setErroLote('Já está na fila.'); setMatriculaLote(''); return; }
+    e.preventDefault(); if (!matriculaLote.trim()) return;
+    if (listaLote.find(c => String(c.matricula) === String(matriculaLote.trim()))) { mostrarToast('Já está na fila.', 'aviso'); setMatriculaLote(''); return; }
     setCarregandoLote(true);
     try {
       const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${matriculaLote.trim()}&select=*`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
@@ -136,24 +172,33 @@ export default function PortalRH() {
       if (data && data.length > 0) { 
         const novoColab = data[0]; novoColab.nome_cracha_frente = obterOpcoesNome(novoColab.nome_completo)[0]; 
         setListaLote([...listaLote, novoColab]); setMatriculaLote(''); 
-        if (!novoColab.foto_url) mostrarToast(`Atenção: ${novoColab.nome_completo} não possui foto!`, "aviso"); 
-        if (!novoColab.link_qrcode) mostrarToast(`Atenção: ${novoColab.nome_completo} não possui Link QR!`, "aviso");
-      } else { setErroLote('Matrícula não encontrada.'); }
-    } catch (error) { setErroLote('Erro na base.'); } finally { setCarregandoLote(false); }
+      } else { mostrarToast('Matrícula não encontrada.', 'erro'); }
+    } catch (error) { mostrarToast('Erro na base.', 'erro'); } finally { setCarregandoLote(false); }
   };
   const removerDoLote = (matricula: string) => { setListaLote(listaLote.filter(c => String(c.matricula) !== String(matricula))); };
   const atualizarNomeLote = (matricula: string, novoNome: string) => { setListaLote(listaLote.map(c => c.matricula === matricula ? { ...c, nome_cracha_frente: novoNome } : c)); };
 
-  // ========================== ABA: EMISSÃO INDIVIDUAL ==========================
+  const registrarImpressoesEmLote = async () => {
+    if (listaLote.length === 0) return;
+    try {
+      const registros = listaLote.map(c => ({ matricula_colaborador: c.matricula, nome_colaborador: c.nome_completo, emitido_por: usuarioAutenticado.nome, motivo: 'Emissão em Lote' }));
+      await fetch(`${URL}/rest/v1/historico_impressoes`, { method: 'POST', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify(registros) });
+      window.print();
+    } catch (e) { mostrarToast("Falha ao registar histórico.", "erro"); }
+  };
+
+  // ========================== ABA: EMISSÃO INDIVIDUAL & SOLICITAÇÃO ==========================
   const [colaborador, setColaborador] = useState<any>(null);
   const [buscaEmissao, setBuscaEmissao] = useState('');
   const [carregandoEmissao, setCarregandoEmissao] = useState(false);
   const [cameraAtiva, setCameraAtiva] = useState(false);
+  const [cameraTraseira, setCameraTraseira] = useState(true);
   const [fotoCapturada, setFotoCapturada] = useState<string | null>(null);
   const [rawFoto, setRawFoto] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1); const [panX, setPanX] = useState(0); const [panY, setPanY] = useState(0); const [clarear, setClarear] = useState(false);
   const [salvandoFoto, setSalvandoFoto] = useState(false);
   const [nomeCrachaIndividual, setNomeCrachaIndividual] = useState(''); 
+  const [motivoAcao, setMotivoAcao] = useState('1ª Via'); 
   const videoRef = useRef<HTMLVideoElement>(null);
   const fotoAlterada = fotoCapturada && fotoCapturada !== colaborador?.foto_url;
 
@@ -193,12 +238,28 @@ export default function PortalRH() {
   const salvarFotoNoSupabase = async () => {
     if (!fotoCapturada || !colaborador) return; setSalvandoFoto(true);
     try {
-      const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${colaborador.matricula}`, { method: 'PATCH', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }, body: JSON.stringify({ foto_url: fotoCapturada }) });
-      if (!response.ok) throw new Error('Erro ao salvar'); 
-      setColaborador({ ...colaborador, foto_url: fotoCapturada });
-      setListaLote(prev => prev.map(c => c.matricula === colaborador.matricula ? { ...c, foto_url: fotoCapturada } : c));
-      mostrarToast('Fotografia salva com sucesso!', "sucesso");
+      await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${colaborador.matricula}`, { method: 'PATCH', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }, body: JSON.stringify({ foto_url: fotoCapturada }) });
+      setColaborador({ ...colaborador, foto_url: fotoCapturada }); setListaLote(prev => prev.map(c => c.matricula === colaborador.matricula ? { ...c, foto_url: fotoCapturada } : c)); mostrarToast('Fotografia salva com sucesso!', "sucesso");
     } catch (err) { mostrarToast('Erro ao guardar foto.', "erro"); } finally { setSalvandoFoto(false); }
+  };
+
+  const registrarEImprimir = async () => {
+    if (!colaborador) return;
+    try {
+      await fetch(`${URL}/rest/v1/historico_impressoes`, { method: 'POST', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ matricula_colaborador: colaborador.matricula, nome_colaborador: colaborador.nome_completo, emitido_por: usuarioAutenticado.nome, motivo: motivoAcao }) });
+      mostrarToast('Impressão auditada e registada.', 'sucesso');
+      setTimeout(() => window.print(), 500);
+    } catch (e) { mostrarToast("Falha na auditoria.", "erro"); }
+  };
+
+  const enviarSolicitacaoAoRH = async () => {
+    if (!colaborador) return;
+    if (!fotoCapturada) { mostrarToast("É obrigatório ter fotografia para solicitar o crachá.", "aviso"); return; }
+    try {
+      await fetch(`${URL}/rest/v1/solicitacoes_crachas`, { method: 'POST', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ matricula_colaborador: colaborador.matricula, nome_colaborador: colaborador.nome_completo, solicitado_por: usuarioAutenticado.nome, motivo: motivoAcao }) });
+      mostrarToast('Solicitação enviada ao RH com sucesso!', 'sucesso');
+      setColaborador(null); setBuscaEmissao('');
+    } catch (e) { mostrarToast("Erro ao enviar solicitação.", "erro"); }
   };
 
   // ========================== ABA: CADASTRO MANUAL ==========================
@@ -217,7 +278,7 @@ export default function PortalRH() {
   // ========================== ABA: CONFIGURAÇÕES ==========================
   const [listaUsuarios, setListaUsuarios] = useState<any[]>([]);
   const [carregandoUsuarios, setCarregandoUsuarios] = useState(false);
-  const [formUsuario, setFormUsuario] = useState({ nome: '', login: '', senha: '', perfil: 'RH' });
+  const [formUsuario, setFormUsuario] = useState({ nome: '', login: '', senha: '', perfil: 'SUPERVISOR' });
   const [salvandoUsuario, setSalvandoUsuario] = useState(false);
 
   const carregarUsuarios = async () => {
@@ -234,7 +295,7 @@ export default function PortalRH() {
     try {
       const response = await fetch(`${URL}/rest/v1/usuarios_sistema`, { method: 'POST', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }, body: JSON.stringify(formUsuario) });
       if (!response.ok) { const errData = await response.json().catch(() => ({})); if(response.status === 409) throw new Error('Login já em uso.'); throw new Error(`Erro de sistema.`); }
-      mostrarToast('Utilizador criado com sucesso!', 'sucesso'); setFormUsuario({ nome: '', login: '', senha: '', perfil: 'RH' }); carregarUsuarios();
+      mostrarToast('Utilizador criado com sucesso!', 'sucesso'); setFormUsuario({ nome: '', login: '', senha: '', perfil: 'SUPERVISOR' }); carregarUsuarios();
     } catch (err: any) { mostrarToast(err.message, 'erro'); } finally { setSalvandoUsuario(false); }
   };
   
@@ -256,7 +317,6 @@ export default function PortalRH() {
     } catch (err: any) { setErroSenha(err.message || 'Erro ao alterar senha.'); } finally { setSalvandoSenha(false); }
   };
 
-  const obterDataHoraAtual = () => { const data = new Date(); return `${data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })} ${data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`; };
   const colaboradoresParaImprimir = abaAtiva === 'lote' ? listaLote : (colaborador && abaAtiva === 'emissao' ? [{ ...colaborador, foto_url: fotoCapturada || colaborador.foto_url, nome_cracha_frente: nomeCrachaIndividual }] : []);
   const navegarPara = (id: string) => { setAbaAtiva(id); setMenuAberto(false); };
   const podeEditarFuncao = usuarioAutenticado?.perfil === 'ADM' || usuarioAutenticado?.perfil === 'RH';
@@ -322,6 +382,44 @@ export default function PortalRH() {
 
         <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-10 custom-scrollbar print-padding-remove">
 
+          {/* NOVA ABA: CAIXA DE SOLICITAÇÕES (RH/ADM) */}
+          {abaAtiva === 'solicitacoes' && (
+            <div className="max-w-full lg:max-w-7xl mx-auto hide-on-print flex flex-col h-full gap-6 animation-fade-in">
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col flex-1 overflow-hidden">
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                  <h3 className="font-bold text-[#023A58] text-lg flex items-center gap-2"><i className="fas fa-inbox text-[#0a84ff]"></i> Pedidos Pendentes do Campo</h3>
+                  <button onClick={carregarSolicitacoes} className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50 shadow-sm"><i className="fas fa-sync-alt mr-2"></i>Atualizar Caixa</button>
+                </div>
+                <div className="overflow-x-auto overflow-y-auto custom-scrollbar flex-1 p-4">
+                  {listaSolicitacoes.length === 0 ? (
+                    <div className="text-center py-20"><div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl"><i className="fas fa-check-double"></i></div><h3 className="text-lg font-bold text-slate-700">Tudo limpo!</h3><p className="text-slate-500">Nenhum pedido de crachá pendente.</p></div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {listaSolicitacoes.map((sol) => (
+                        <div key={sol.id} className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+                          <div className="absolute top-0 left-0 w-1 h-full bg-amber-400"></div>
+                          <div className="flex justify-between items-start mb-2">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-amber-500 bg-amber-50 px-2 py-1 rounded">Pendente</span>
+                            <span className="text-[10px] font-bold text-slate-400">{new Date(sol.data_solicitacao).toLocaleDateString('pt-BR')}</span>
+                          </div>
+                          <h4 className="font-bold text-slate-800 text-base">{sol.nome_colaborador}</h4>
+                          <p className="text-xs font-semibold text-[#0a84ff] mb-4">Matrícula: {sol.matricula_colaborador}</p>
+                          <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 mb-4">
+                            <div className="text-[10px] text-slate-500 font-bold uppercase">Motivo do Pedido</div>
+                            <div className="text-sm font-semibold text-slate-700">{sol.motivo}</div>
+                            <div className="text-[10px] text-slate-500 font-bold uppercase mt-2">Solicitado por</div>
+                            <div className="text-xs font-semibold text-slate-700"><i className="fas fa-hard-hat text-amber-500 mr-1"></i> {sol.solicitado_por}</div>
+                          </div>
+                          <button onClick={() => processarSolicitacao(sol)} className="w-full bg-[#023A58] text-white font-semibold py-2.5 rounded-lg text-sm hover:bg-[#035B8B] transition-colors"><i className="fas fa-cog mr-1"></i> Processar & Imprimir</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ABA 1: BASE DE COLABORADORES */}
           {abaAtiva === 'colaboradores' && (
             <div className="max-w-full lg:max-w-7xl mx-auto hide-on-print flex flex-col h-full gap-6 animation-fade-in">
@@ -344,7 +442,13 @@ export default function PortalRH() {
                             <td className="p-4 pl-6 font-semibold text-slate-800">{colab.nome_completo}</td><td className="p-4 font-semibold text-[#0a84ff]">{colab.matricula}</td>
                             <td className="p-4 text-center">{colab.foto_url ? <span className="text-emerald-600 bg-emerald-50 px-2 py-1 rounded text-[10px] font-bold"><i className="fas fa-check"></i> SIM</span> : <span className="text-rose-500 bg-rose-50 px-2 py-1 rounded text-[10px] font-bold"><i className="fas fa-times"></i> NÃO</span>}</td>
                             <td className="p-4 text-center">{colab.link_qrcode ? <span className="text-[#0a84ff] bg-blue-50 px-2 py-1 rounded text-[10px] font-bold"><i className="fas fa-link"></i> OK</span> : <span className="text-slate-400 bg-slate-100 px-2 py-1 rounded text-[10px] font-bold">VAZIO</span>}</td>
-                            <td className="p-4 text-right pr-6 flex justify-end gap-2"><button onClick={() => { setBuscaEmissao(colab.matricula); buscarColaboradorParaEmissao(colab.matricula); }} className="bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors">Emitir Crachá</button><button onClick={() => abrirEdicao(colab)} className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors">Editar</button></td>
+                            <td className="p-4 text-right pr-6 flex justify-end gap-2">
+                              {/* NOVO: Botão de Histórico */}
+                              <button onClick={() => abrirHistorico(colab.matricula, colab.nome_completo)} className="bg-slate-100 border border-slate-200 text-slate-600 hover:bg-slate-200 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors" title="Ver Histórico de Impressões"><i className="fas fa-history"></i></button>
+                              
+                              <button onClick={() => { setBuscaEmissao(colab.matricula); buscarColaboradorParaEmissao(colab.matricula); }} className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors">Emitir</button>
+                              <button onClick={() => abrirEdicao(colab)} className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors">Editar</button>
+                            </td>
                           </tr>
                         ))
                       )}
@@ -368,7 +472,7 @@ export default function PortalRH() {
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col flex-1 overflow-hidden">
                 <div className="p-5 border-b border-slate-100 flex justify-between items-center">
                   <h3 className="font-semibold text-slate-800">Fila de Impressão ({listaLote.length})</h3>
-                  <button onClick={() => window.print()} disabled={listaLote.length === 0} className={`font-semibold px-5 py-2 text-sm rounded-lg transition-all flex items-center gap-2 ${listaLote.length > 0 ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}><i className="fas fa-print"></i> Imprimir Tudo</button>
+                  <button onClick={registrarImpressoesEmLote} disabled={listaLote.length === 0} className={`font-semibold px-5 py-2 text-sm rounded-lg transition-all flex items-center gap-2 ${listaLote.length > 0 ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-md' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}><i className="fas fa-print"></i> Registrar & Imprimir</button>
                 </div>
                 <div className="overflow-x-auto overflow-y-auto custom-scrollbar flex-1">
                   <table className="w-full text-left border-collapse whitespace-nowrap">
@@ -400,18 +504,18 @@ export default function PortalRH() {
             </div>
           )}
 
-          {/* ABA 3: EMISSÃO INDIVIDUAL */}
+          {/* ABA 3: EMISSÃO INDIVIDUAL & SOLICITAÇÃO (INTELIGÊNCIA DE PERFIL) */}
           {abaAtiva === 'emissao' && (
             <div className="max-w-full lg:max-w-6xl mx-auto hide-on-print animation-fade-in">
               <form onSubmit={(e) => { e.preventDefault(); buscarColaboradorParaEmissao(buscaEmissao); }} className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 mb-6 flex flex-col md:flex-row gap-4 items-end">
-                <div className="flex-1 w-full"><label className="block text-sm font-semibold text-slate-700 mb-2">Matrícula</label><input type="text" placeholder="Ex: 6294" value={buscaEmissao} onChange={(e) => setBuscaEmissao(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:border-[#023A58] transition-all" /></div>
-                <button type="submit" disabled={carregandoEmissao} className="w-full md:w-auto bg-[#023A58] text-white font-semibold px-8 py-3 rounded-xl hover:bg-[#035B8B] shadow-sm transition-all">Buscar Ficha</button>
+                <div className="flex-1 w-full"><label className="block text-sm font-semibold text-slate-700 mb-2">Matrícula do Colaborador</label><input type="text" placeholder="Ex: 6294" value={buscaEmissao} onChange={(e) => setBuscaEmissao(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:border-[#023A58] transition-all font-bold text-[#0a84ff]" /></div>
+                <button type="submit" disabled={carregandoEmissao} className="w-full md:w-auto bg-[#023A58] text-white font-semibold px-8 py-3 rounded-xl hover:bg-[#035B8B] shadow-sm transition-all"><i className="fas fa-search mr-2"></i>Buscar Ficha</button>
               </form>
 
               {colaborador && (
                 <div className="flex flex-col lg:flex-row gap-6">
                   <div className="w-full lg:w-1/3 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center">
-                    <h3 className="text-md font-bold text-slate-800 mb-4">Fotografia</h3>
+                    <h3 className="text-md font-bold text-slate-800 mb-4">Captura de Fotografia</h3>
                     {rawFoto ? (
                       <div className="flex flex-col items-center w-full">
                         <div className="relative w-48 h-64 bg-slate-900 overflow-hidden mb-4 rounded-xl" style={{ filter: clarear ? 'brightness(1.25) contrast(1.15)' : 'none' }}><img src={rawFoto} alt="Raw" style={{ transform: `scale(${zoom}) translate(${panX}px, ${panY}px)`, transformOrigin: 'center', width: '100%', height: '100%', objectFit: 'cover' }} /></div>
@@ -426,68 +530,94 @@ export default function PortalRH() {
                     ) : (
                       <div className="w-full flex flex-col items-center">
                         <div className="w-48 h-64 bg-slate-50 border border-slate-200 rounded-xl overflow-hidden relative flex items-center justify-center mb-4">{cameraAtiva ? <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" /> : fotoCapturada ? <img src={fotoCapturada} alt="Crachá" className="w-full h-full object-cover" /> : <i className="fas fa-user text-4xl text-slate-300"></i>}</div>
-                        <div className="w-full flex flex-col gap-2">{cameraAtiva ? (<button onClick={tirarFoto} className="w-full bg-rose-500 text-white font-semibold py-2.5 rounded-xl text-sm">Disparar</button>) : (<button onClick={() => ligarCameraMobile(cameraTraseira)} className="w-full bg-[#023A58] text-white font-semibold py-2.5 rounded-xl text-sm">Abrir Câmara</button>)}<label className="block w-full bg-white border border-slate-200 text-slate-600 text-center font-semibold py-2.5 rounded-xl cursor-pointer text-sm">Arquivo <input type="file" accept="image/*" onChange={handleUploadFoto} className="hidden" /></label></div>
-                        <button onClick={salvarFotoNoSupabase} disabled={!fotoAlterada || salvandoFoto} className={`w-full mt-4 font-semibold py-3 rounded-xl text-sm transition-colors ${fotoAlterada ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-400'}`}>Guardar</button>
+                        <div className="w-full flex flex-col gap-2">{cameraAtiva ? (<button onClick={tirarFoto} className="w-full bg-rose-500 text-white font-semibold py-2.5 rounded-xl text-sm"><i className="fas fa-camera mr-2"></i> Disparar</button>) : (<button onClick={() => ligarCameraMobile(cameraTraseira)} className="w-full bg-slate-800 text-white font-semibold py-2.5 rounded-xl text-sm"><i className="fas fa-camera mr-2"></i> Abrir Câmara</button>)}<label className="block w-full bg-white border border-slate-200 text-slate-600 text-center font-semibold py-2.5 rounded-xl cursor-pointer text-sm"><i className="fas fa-folder-open mr-2"></i> Arquivo <input type="file" accept="image/*" onChange={handleUploadFoto} className="hidden" /></label></div>
+                        <button onClick={salvarFotoNoSupabase} disabled={!fotoAlterada || salvandoFoto} className={`w-full mt-4 font-semibold py-3 rounded-xl text-sm transition-colors shadow-sm ${fotoAlterada ? 'bg-orange-500 text-white hover:bg-orange-600' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}>Salvar Foto na Ficha</button>
                       </div>
                     )}
                   </div>
 
-                  <div className="w-full lg:flex-1 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-                    <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-md font-bold text-slate-800">Visualização</h3>
-                      <button onClick={() => window.print()} disabled={!fotoCapturada || !!rawFoto} className={`font-semibold px-5 py-2 rounded-lg text-sm ${fotoCapturada && !rawFoto ? 'bg-[#0a84ff] text-white' : 'bg-slate-100 text-slate-400'}`}>Imprimir</button>
-                    </div>
-                    
-                    <div className="mb-6 bg-blue-50 border border-blue-100 p-4 rounded-xl">
-                      <label className="block text-[11px] font-bold text-[#0a84ff] uppercase tracking-widest mb-2">Nome de Guerra (Frente do Crachá)</label>
-                      <select value={nomeCrachaIndividual} onChange={(e) => setNomeCrachaIndividual(e.target.value)} className="w-full bg-white border border-blue-200 rounded-lg p-3 text-sm font-bold text-[#023A58] focus:outline-none focus:border-[#0a84ff] uppercase shadow-sm cursor-pointer">
-                        {obterOpcoesNome(colaborador.nome_completo).map((opcao, idx) => ( <option key={idx} value={opcao}>{opcao}</option> ))}
-                      </select>
-                    </div>
+                  {/* LÓGICA DE TELAS: RH VÊ O CRACHÁ. SUPERVISOR VÊ O FORM DE SOLICITAÇÃO. */}
+                  {usuarioAutenticado.perfil === 'SUPERVISOR' ? (
+                    <div className="w-full lg:flex-1 bg-white p-8 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center items-center text-center">
+                      <div className="w-20 h-20 bg-blue-50 text-[#0a84ff] rounded-full flex items-center justify-center mb-6 text-4xl"><i className="fas fa-paper-plane"></i></div>
+                      <h3 className="text-xl font-bold text-[#023A58] mb-2">Solicitar Novo Crachá</h3>
+                      <p className="text-slate-500 text-sm mb-8 max-w-md">A fotografia atualizada de <b>{colaborador.nome_completo}</b> será enviada ao RH junto com a sua solicitação de impressão.</p>
+                      
+                      <div className="w-full max-w-md text-left mb-6">
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Motivo da Solicitação *</label>
+                        <select value={motivoAcao} onChange={e => setMotivoAcao(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-sm font-bold text-[#023A58] focus:outline-none focus:border-[#0a84ff] cursor-pointer">
+                          <option value="1ª Via">1ª Via (Novo Colaborador)</option>
+                          <option value="Perda">Perda / Extravio</option>
+                          <option value="Dano">Crachá Danificado</option>
+                          <option value="Mudança de Função">Mudança de Função</option>
+                        </select>
+                      </div>
 
-                    <div className="flex flex-col md:flex-row justify-center bg-slate-50 p-6 rounded-xl border border-slate-100 overflow-x-auto gap-6 flex-1">
-                      {/* CARTÃO FRENTE */}
-                      <div className="cracha-card w-[54mm] h-[86mm] bg-white relative flex flex-col items-center overflow-hidden box-border flex-shrink-0" style={{ border: '1px solid #ccc' }}>
-                        <div className="mt-[4mm] w-[26mm] h-[35mm] flex items-center justify-center overflow-hidden z-10 border border-slate-300 bg-white">
-                          {fotoCapturada ? <img src={fotoCapturada} className="w-full h-full object-cover" alt="Foto" /> : <div className="w-full h-full bg-white"></div>}
+                      <button onClick={enviarSolicitacaoAoRH} className="w-full max-w-md bg-[#0a84ff] hover:bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-500/30 transition-all text-sm"><i className="fas fa-paper-plane mr-2"></i> Enviar Solicitação ao RH</button>
+                    </div>
+                  ) : (
+                    <div className="w-full lg:flex-1 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                        <h3 className="text-md font-bold text-slate-800">Processo de Impressão</h3>
+                        <div className="flex items-center gap-3 w-full md:w-auto">
+                           <select value={motivoAcao} onChange={e => setMotivoAcao(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-600 focus:outline-none focus:border-[#0a84ff] cursor-pointer">
+                            <option value="1ª Via">1ª Via</option><option value="Perda">Perda</option><option value="Dano">Dano</option><option value="Mudança de Função">Nova Função</option>
+                           </select>
+                           <button onClick={registrarEImprimir} disabled={!fotoCapturada || !!rawFoto} className={`font-bold px-5 py-2.5 rounded-lg text-xs shadow-sm flex items-center gap-2 ${fotoCapturada && !rawFoto ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}><i className="fas fa-print"></i> Registrar e Imprimir</button>
                         </div>
-                        <div className="mt-[2mm] text-center z-10 w-full px-2">
-                          <div className="text-[#051e42] font-black text-[18px] leading-[1.0]" style={{ fontFamily: 'Arial, sans-serif' }}>
-                            {nomeCrachaIndividual.split(' ')[0]}<br/>{nomeCrachaIndividual.split(' ').slice(1).join(' ') || ''}
-                          </div>
-                        </div>
-                        <div className="absolute bottom-0 left-0 w-full h-[32mm] z-0"><img src="/Imagem1.png" className="w-full h-full object-fill" alt="Fundo" /></div>
-                        <div className="absolute bottom-[13mm] left-[1mm] z-10 w-[24mm] h-[8mm] flex items-center justify-start"><img src="/dinamo.png" className="max-h-full max-w-full object-contain" alt="Dínamo" /></div>
                       </div>
                       
-                      {/* CARTÃO VERSO */}
-                      <div className="cracha-card w-[54mm] h-[86mm] bg-white relative p-[2mm] flex flex-col box-border flex-shrink-0" style={{ border: '1px solid #ccc' }}>
-                        <div className="mt-[2mm] w-full flex flex-col gap-[2mm]">
-                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span><div className="text-[7.5px] text-black font-semibold uppercase pt-[0.5mm]">{colaborador.nome_completo}</div></div>
-                          <div className="flex w-full gap-[2mm]">
-                            <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] flex-1 flex items-center justify-center"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">CPF</span><div className="text-[8px] text-black font-semibold uppercase pt-[0.5mm]">{colaborador.cpf || '000.000.000-00'}</div></div>
-                            <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] w-[14mm] flex items-center justify-center bg-white"><span className="absolute -top-[2.5mm] left-[1mm] bg-white px-[0.5mm] text-[5px] font-bold text-black leading-none">Tp. Sangue</span><div className="text-[8px] text-black font-black uppercase pt-[0.5mm]">{colaborador.tipo_sanguineo || ''}</div></div>
+                      <div className="mb-6 bg-blue-50 border border-blue-100 p-4 rounded-xl">
+                        <label className="block text-[11px] font-bold text-[#0a84ff] uppercase tracking-widest mb-2">Nome de Guerra (Frente)</label>
+                        <select value={nomeCrachaIndividual} onChange={(e) => setNomeCrachaIndividual(e.target.value)} className="w-full bg-white border border-blue-200 rounded-lg p-3 text-sm font-bold text-[#023A58] focus:outline-none focus:border-[#0a84ff] uppercase shadow-sm cursor-pointer">
+                          {obterOpcoesNome(colaborador.nome_completo).map((opcao, idx) => ( <option key={idx} value={opcao}>{opcao}</option> ))}
+                        </select>
+                      </div>
+
+                      <div className="flex flex-col md:flex-row justify-center bg-slate-50 p-6 rounded-xl border border-slate-100 overflow-x-auto gap-6 flex-1">
+                        {/* CARTÃO FRENTE */}
+                        <div className="cracha-card w-[54mm] h-[86mm] bg-white relative flex flex-col items-center overflow-hidden box-border flex-shrink-0" style={{ border: '1px solid #ccc' }}>
+                          <div className="mt-[4mm] w-[26mm] h-[35mm] flex items-center justify-center overflow-hidden z-10 border border-slate-300 bg-white">
+                            {fotoCapturada ? <img src={fotoCapturada} className="w-full h-full object-cover" alt="Foto" /> : <div className="w-full h-full bg-white"></div>}
                           </div>
-                          <div className="flex w-full gap-[2mm] items-stretch">
-                             <div className="flex flex-col flex-1 justify-between gap-[2mm]">
-                                <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Função</span><div className="text-[7px] text-black font-semibold uppercase truncate px-1 pt-[0.5mm]">{colaborador.desc_funcao}</div></div>
-                                <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Car. Identidade</span><div className="text-[8px] text-black font-semibold uppercase pt-[0.5mm]">{colaborador.rg || '0000000000'}</div></div>
-                                <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Matrícula</span><div className="text-[8px] text-black font-semibold uppercase pt-[0.5mm]">{String(colaborador.matricula).padStart(8, '0')}</div></div>
-                             </div>
-                             <div className="w-[21.5mm] flex-shrink-0 flex items-center justify-center border border-slate-200 p-[0.5mm] bg-white rounded-sm z-10">
-                               {colaborador.link_qrcode ? <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(colaborador.link_qrcode)}`} className="w-full h-full object-contain" alt="QR Code" /> : <div className="w-full h-full bg-white"></div>}
-                             </div>
+                          <div className="mt-[2mm] text-center z-10 w-full px-2">
+                            <div className="text-[#051e42] font-black text-[18px] leading-[1.0]" style={{ fontFamily: 'Arial, sans-serif' }}>
+                              {nomeCrachaIndividual.split(' ')[0]}<br/>{nomeCrachaIndividual.split(' ').slice(1).join(' ') || ''}
+                            </div>
                           </div>
-                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[6.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Empresa</span><div className="text-[8px] text-black font-semibold uppercase pt-[0.5mm]">DINAMO ENGENHARIA</div></div>
+                          <div className="absolute bottom-0 left-0 w-full h-[32mm] z-0"><img src="/Imagem1.png" className="w-full h-full object-fill" alt="Fundo" /></div>
+                          <div className="absolute bottom-[13mm] left-[1mm] z-10 w-[24mm] h-[8mm] flex items-center justify-start"><img src="/dinamo.png" className="max-h-full max-w-full object-contain" alt="Dínamo" /></div>
                         </div>
-                        <div className="absolute bottom-[1.5mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center">
-                          <div className="text-[7px] text-black leading-[1.2] mb-[1.5mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div>
-                          <div className="text-center w-full mb-[1mm]"><div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div><div className="text-[6px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div></div>
-                          <div className="text-[5.5px] text-black font-bold text-right w-full">Emitido em: {obterDataHoraAtual()}</div>
+                        
+                        {/* CARTÃO VERSO */}
+                        <div className="cracha-card w-[54mm] h-[86mm] bg-white relative p-[2mm] flex flex-col box-border flex-shrink-0" style={{ border: '1px solid #ccc' }}>
+                          <div className="mt-[2mm] w-full flex flex-col gap-[2mm]">
+                            <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span><div className="text-[7.5px] text-black font-semibold uppercase pt-[0.5mm]">{colaborador.nome_completo}</div></div>
+                            <div className="flex w-full gap-[2mm]">
+                              <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] flex-1 flex items-center justify-center"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">CPF</span><div className="text-[8px] text-black font-semibold uppercase pt-[0.5mm]">{colaborador.cpf || '000.000.000-00'}</div></div>
+                              <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] w-[14mm] flex items-center justify-center bg-white"><span className="absolute -top-[2.5mm] left-[1mm] bg-white px-[0.5mm] text-[5px] font-bold text-black leading-none">Tp. Sangue</span><div className="text-[8px] text-black font-black uppercase pt-[0.5mm]">{colaborador.tipo_sanguineo || ''}</div></div>
+                            </div>
+                            <div className="flex w-full gap-[2mm] items-stretch">
+                               <div className="flex flex-col flex-1 justify-between gap-[2mm]">
+                                  <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Função</span><div className="text-[7px] text-black font-semibold uppercase truncate px-1 pt-[0.5mm]">{colaborador.desc_funcao}</div></div>
+                                  <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Car. Identidade</span><div className="text-[8px] text-black font-semibold uppercase pt-[0.5mm]">{colaborador.rg || '0000000000'}</div></div>
+                                  <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Matrícula</span><div className="text-[8px] text-black font-semibold uppercase pt-[0.5mm]">{String(colaborador.matricula).padStart(8, '0')}</div></div>
+                               </div>
+                               <div className="w-[21.5mm] flex-shrink-0 flex items-center justify-center border border-slate-200 p-[0.5mm] bg-white rounded-sm z-10">
+                                 {colaborador.link_qrcode ? <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(colaborador.link_qrcode)}`} className="w-full h-full object-contain" alt="QR Code" /> : <div className="w-full h-full bg-white"></div>}
+                               </div>
+                            </div>
+                            <div className="relative border-[1.5px] border-black rounded-[4px] h-[6.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Empresa</span><div className="text-[8px] text-black font-semibold uppercase pt-[0.5mm]">DINAMO ENGENHARIA</div></div>
+                          </div>
+                          <div className="absolute bottom-[1.5mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center">
+                            <div className="text-[7px] text-black leading-[1.2] mb-[1.5mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div>
+                            <div className="text-center w-full mb-[1mm]"><div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div><div className="text-[6px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div></div>
+                            <div className="text-[5.5px] text-black font-bold text-right w-full">Emitido em: {obterDataHoraAtual()}</div>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               )}
             </div>
@@ -530,9 +660,10 @@ export default function PortalRH() {
                       <div>
                         <label className="text-xs font-semibold text-slate-500 block mb-1">Perfil</label>
                         <select value={formUsuario.perfil} onChange={e => setFormUsuario({...formUsuario, perfil: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#023A58]">
-                          <option value="RH">RH</option>
-                          <option value="SESMT">SESMT</option>
-                          {usuarioAutenticado?.perfil === 'ADM' && <option value="ADM">Administrador</option>}
+                           <option value="SUPERVISOR">Supervisor (Operação)</option>
+                           <option value="RH">RH</option>
+                           <option value="SESMT">SESMT</option>
+                           {usuarioAutenticado?.perfil === 'ADM' && <option value="ADM">Administrador</option>}
                         </select>
                       </div>
                       <button type="submit" className="w-full bg-[#023A58] text-white font-semibold py-2.5 rounded-lg mt-2 hover:bg-[#035B8B] transition-colors">Criar Utilizador</button>
@@ -545,7 +676,7 @@ export default function PortalRH() {
                         <thead><tr className="text-xs text-slate-400 border-b border-slate-100"><th className="pb-2 pr-4">Nome</th><th className="pb-2 pr-4">Perfil</th><th className="pb-2 text-right">Ação</th></tr></thead>
                         <tbody className="text-sm">
                           {listaUsuarios.map((usr) => (
-                            <tr key={usr.id} className="border-b border-slate-50"><td className="py-3 font-medium text-slate-700 pr-4">{usr.nome}</td><td className="py-3 pr-4"><span className="bg-slate-100 px-2 py-1 rounded text-xs font-semibold">{usr.perfil}</span></td><td className="py-3 text-right">{usr.login !== 'admin' && <button onClick={() => tentarExcluirUsuario(usr.id, usr.login, usr.perfil)} className="text-rose-500 hover:text-rose-700 text-xs font-bold transition-colors"><i className="fas fa-trash-alt"></i> Excluir</button>}</td></tr>
+                            <tr key={usr.id} className="border-b border-slate-50"><td className="py-3 font-medium text-slate-700 pr-4">{usr.nome}</td><td className="py-3 pr-4"><span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${usr.perfil === 'SUPERVISOR' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-600'}`}>{usr.perfil}</span></td><td className="py-3 text-right">{usr.login !== 'admin' && <button onClick={() => tentarExcluirUsuario(usr.id, usr.login, usr.perfil)} className="text-rose-500 text-xs hover:text-rose-700 font-bold transition-colors"><i className="fas fa-trash-alt"></i> Excluir</button>}</td></tr>
                           ))}
                         </tbody>
                       </table>
@@ -558,6 +689,8 @@ export default function PortalRH() {
 
         </div>
 
+        {/* ==================== MODAIS FLUTUANTES ==================== */}
+
         {/* MODAL EDIÇÃO COLABORADOR */}
         {colaboradorEditando && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -568,20 +701,10 @@ export default function PortalRH() {
                   <div><label className="text-xs font-semibold text-slate-500 block mb-1">Matrícula</label><input disabled value={colaboradorEditando.matricula} className="w-full bg-slate-100 border border-slate-200 rounded-xl p-3 text-sm text-slate-500 cursor-not-allowed" /></div>
                   <div><label className="text-xs font-semibold text-slate-500 block mb-1">Nome Completo</label><input disabled value={colaboradorEditando.nome_completo} className="w-full bg-slate-100 border border-slate-200 rounded-xl p-3 text-sm text-slate-500 cursor-not-allowed" /></div>
                 </div>
-                
                 <div className="w-full mt-2">
-                  <label className="text-xs font-semibold text-slate-500 block mb-1">
-                    Função / Cargo {podeEditarFuncao && <span className="text-orange-500 ml-1">(Editável) <i className="fas fa-pencil-alt"></i></span>}
-                  </label>
-                  <input 
-                    type="text" 
-                    disabled={!podeEditarFuncao}
-                    value={colaboradorEditando.desc_funcao || ''} 
-                    onChange={e => setColaboradorEditando({...colaboradorEditando, desc_funcao: e.target.value.toUpperCase()})} 
-                    className={`w-full border border-slate-200 rounded-xl p-3 text-sm uppercase focus:border-[#023A58] focus:outline-none transition-all ${podeEditarFuncao ? 'bg-white shadow-sm' : 'bg-slate-100 text-slate-500 cursor-not-allowed'}`} 
-                  />
+                  <label className="text-xs font-semibold text-slate-500 block mb-1">Função / Cargo {podeEditarFuncao && <span className="text-orange-500 ml-1">(Editável) <i className="fas fa-pencil-alt"></i></span>}</label>
+                  <input type="text" disabled={!podeEditarFuncao} value={colaboradorEditando.desc_funcao || ''} onChange={e => setColaboradorEditando({...colaboradorEditando, desc_funcao: e.target.value.toUpperCase()})} className={`w-full border border-slate-200 rounded-xl p-3 text-sm uppercase focus:border-[#023A58] focus:outline-none transition-all ${podeEditarFuncao ? 'bg-white shadow-sm' : 'bg-slate-100 text-slate-500 cursor-not-allowed'}`} />
                 </div>
-
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
                   <div><label className="text-xs font-semibold text-slate-800 block mb-1">Tipo Sanguíneo</label><input type="text" value={colaboradorEditando.tipo_sanguineo || ''} onChange={e => setColaboradorEditando({...colaboradorEditando, tipo_sanguineo: e.target.value})} className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm uppercase focus:border-[#023A58] focus:outline-none shadow-sm" placeholder="O+" /></div>
                   <div><label className="text-xs font-semibold text-[#0a84ff] block mb-1">Link QR Code</label><input type="url" value={colaboradorEditando.link_qrcode || ''} onChange={e => setColaboradorEditando({...colaboradorEditando, link_qrcode: e.target.value})} className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-[#0a84ff] focus:outline-none shadow-sm" placeholder="https://" /></div>
@@ -592,9 +715,48 @@ export default function PortalRH() {
           </div>
         )}
 
+        {/* MODAL HISTÓRICO DE IMPRESSÕES */}
+        {historicoAberto && (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden animation-fade-in flex flex-col max-h-[80vh]">
+              <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <div>
+                  <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2"><i className="fas fa-history text-[#0a84ff]"></i> Auditoria de Impressões</h3>
+                  <p className="text-xs font-semibold text-slate-500 mt-1">{nomeHistoricoAberto}</p>
+                </div>
+                <button onClick={() => setHistoricoAberto(null)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-200 text-slate-600 hover:bg-rose-100 hover:text-rose-600 transition-colors"><i className="fas fa-times"></i></button>
+              </div>
+              <div className="p-0 overflow-y-auto custom-scrollbar flex-1 bg-white">
+                {historicoAberto.length === 0 ? (
+                  <div className="p-12 text-center text-slate-400 font-medium">Nenhum crachá impresso para este colaborador até o momento.</div>
+                ) : (
+                  <table className="w-full text-left whitespace-nowrap">
+                    <thead className="bg-slate-50 sticky top-0 border-b border-slate-100">
+                      <tr className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">
+                        <th className="p-4 pl-6">Data e Hora</th>
+                        <th className="p-4">Motivo</th>
+                        <th className="p-4">Emitido por</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-sm">
+                      {historicoAberto.map((hist, idx) => (
+                        <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                          <td className="p-4 pl-6 font-semibold text-slate-700">{new Date(hist.data_emissao).toLocaleString('pt-BR')}</td>
+                          <td className="p-4"><span className="bg-blue-50 text-[#0a84ff] px-2 py-1 rounded text-xs font-bold">{hist.motivo}</span></td>
+                          <td className="p-4 font-medium text-slate-600"><i className="fas fa-user-circle mr-1 text-slate-400"></i> {hist.emitido_por}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* MODAL ALTERAR SENHA */}
         {mostrarModalSenha && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animation-fade-in border-t-4 border-[#0a84ff]">
               <div className="p-5 border-b border-slate-100 flex justify-between"><h3 className="font-bold text-slate-800 flex items-center gap-2"><i className="fas fa-key text-[#0a84ff]"></i>Alterar Senha</h3><button onClick={() => setMostrarModalSenha(false)}><i className="fas fa-times text-slate-400 hover:text-rose-500"></i></button></div>
               <form onSubmit={handleAlterarSenha} className="p-6 flex flex-col gap-4">
@@ -606,6 +768,55 @@ export default function PortalRH() {
           </div>
         )}
 
+        {/* MOTOR DE IMPRESSÃO INVISÍVEL */}
+        <div className="print-container">
+           {colaboradoresParaImprimir.map((c, index) => {
+             // Garante o nome correto na impressão em lote ou individual
+             const nomeMostrar = c.nome_cracha_frente || obterOpcoesNome(c.nome_completo)[0];
+             return (
+             <React.Fragment key={index}>
+                <div className="cracha-card w-[54mm] h-[86mm] bg-white relative flex flex-col items-center overflow-hidden box-border" style={{ border: '1px solid #ccc' }}>
+                  <div className="mt-[4mm] w-[26mm] h-[35mm] flex items-center justify-center overflow-hidden z-10 border border-slate-300 bg-white">
+                    {c.foto_url ? <img src={c.foto_url} className="w-full h-full object-cover" alt="Foto" /> : <div className="w-full h-full bg-white"></div>}
+                  </div>
+                  <div className="mt-[2mm] text-center z-10 w-full px-2">
+                    <div className="text-[#051e42] font-black text-[18px] leading-[1.0]" style={{ fontFamily: 'Arial, sans-serif' }}>
+                      {nomeMostrar.split(' ')[0]}<br/>{nomeMostrar.split(' ').slice(1).join(' ') || ''}
+                    </div>
+                  </div>
+                  <div className="absolute bottom-0 left-0 w-full h-[32mm] z-0"><img src="/Imagem1.png" className="w-full h-full object-fill" alt="Fundo" /></div>
+                  <div className="absolute bottom-[13mm] left-[1mm] z-10 w-[24mm] h-[8mm] flex items-center justify-start"><img src="/dinamo.png" className="max-h-full max-w-full object-contain" alt="Dínamo" /></div>
+                </div>
+
+                <div className="cracha-card w-[54mm] h-[86mm] bg-white relative p-[2mm] flex flex-col box-border" style={{ border: '1px solid #ccc' }}>
+                  <div className="mt-[2mm] w-full flex flex-col gap-[2.5mm]">
+                    <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span><div className="text-[7.5px] text-black font-semibold uppercase pt-[1mm]">{c.nome_completo}</div></div>
+                    <div className="flex w-full gap-[2mm]">
+                      <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex-1 flex items-center justify-center"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">CPF</span><div className="text-[8px] text-black font-semibold uppercase pt-[1mm]">{c.cpf || '000.000.000-00'}</div></div>
+                      <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] w-[14mm] flex items-center justify-center bg-white"><span className="absolute -top-[2.5mm] left-[1mm] bg-white px-[0.5mm] text-[5px] font-bold text-black leading-none">Tp. Sangue</span><div className="text-[8px] text-black font-black uppercase pt-[1mm]">{c.tipo_sanguineo || ''}</div></div>
+                    </div>
+                    <div className="flex w-full gap-[2mm] items-stretch">
+                        <div className="flex flex-col flex-1 justify-between gap-[2.5mm]">
+                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Função</span><div className="text-[7px] text-black font-semibold uppercase truncate px-1 pt-[1mm]">{c.desc_funcao}</div></div>
+                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Car. Identidade</span><div className="text-[8px] text-black font-semibold uppercase pt-[1mm]">{c.rg || '0000000000'}</div></div>
+                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Matrícula</span><div className="text-[8px] text-black font-semibold uppercase pt-[1mm]">{String(c.matricula).padStart(8, '0')}</div></div>
+                        </div>
+                        <div className="w-[21.5mm] flex-shrink-0 flex items-center justify-center border border-slate-200 p-[0.5mm] bg-white rounded-sm z-10">
+                          {c.link_qrcode ? <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(c.link_qrcode)}`} className="w-full h-full object-contain" alt="QR Code" /> : <div className="w-full h-full bg-white"></div>}
+                        </div>
+                    </div>
+                    <div className="relative border-[1.5px] border-black rounded-[4px] h-[6.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Empresa</span><div className="text-[8px] text-black font-semibold uppercase pt-[1mm]">DINAMO ENGENHARIA</div></div>
+                  </div>
+                  <div className="absolute bottom-[1.5mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center pb-[1mm]">
+                    <div className="text-[7px] text-black leading-[1.3] mb-[2mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div>
+                    <div className="text-center w-full mb-[1mm]"><div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div><div className="text-[6.5px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div></div>
+                    <div className="text-[5.5px] text-black font-bold text-right w-full mt-[1mm]">Emitido em: {obterDataHoraAtual()}</div>
+                  </div>
+                </div>
+             </React.Fragment>
+             );
+           })}
+        </div>
       </main>
 
       <style jsx global>{`
