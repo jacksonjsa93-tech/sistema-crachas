@@ -130,7 +130,6 @@ export default function PortalRH() {
       });
       if (!response.ok) throw new Error('Erro');
       
-      // Atualiza a ficha na fila de lote se ela estiver lá
       setListaLote(prev => prev.map(c => c.matricula === colaboradorEditando.matricula ? { ...c, tipo_sanguineo: colaboradorEditando.tipo_sanguineo, link_qrcode: colaboradorEditando.link_qrcode } : c));
       
       setColaboradorEditando(null); handlePesquisaTabela(); 
@@ -227,10 +226,7 @@ export default function PortalRH() {
       const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${colaborador.matricula}`, { method: 'PATCH', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }, body: JSON.stringify({ foto_url: fotoCapturada }) });
       if (!response.ok) throw new Error('Erro ao salvar'); 
       setColaborador({ ...colaborador, foto_url: fotoCapturada });
-      
-      // Atualiza a ficha na fila de lote se ela estiver lá
       setListaLote(prev => prev.map(c => c.matricula === colaborador.matricula ? { ...c, foto_url: fotoCapturada } : c));
-      
       mostrarToast('Fotografia salva com sucesso!', "sucesso");
     } catch (err) { mostrarToast('Erro ao guardar foto.', "erro"); } finally { setSalvandoFoto(false); }
   };
@@ -815,6 +811,54 @@ export default function PortalRH() {
           </div>
         )}
 
+        {/* MOTOR DE IMPRESSÃO INVISÍVEL */}
+        <div className="print-container">
+           {colaboradoresParaImprimir.map((c, index) => (
+             <React.Fragment key={index}>
+                <div className="cracha-card w-[54mm] h-[86mm] bg-white relative flex flex-col items-center overflow-hidden box-border" style={{ border: '1px solid #ccc' }}>
+                  <div className="mt-[4mm] w-[26mm] h-[35mm] flex items-center justify-center overflow-hidden z-10 border border-slate-300 bg-white">
+                    {c.foto_url ? <img src={c.foto_url} className="w-full h-full object-cover" alt="Foto" /> : <div className="w-full h-full bg-white"></div>}
+                  </div>
+                  <div className="mt-[2mm] text-center z-10 w-full px-2">
+                    <div className="text-[#051e42] font-black text-[18px] leading-[1.0]" style={{ fontFamily: 'Arial, sans-serif' }}>
+                      {formatarNomeCurto(c.nome_completo).split(' ')[0]}<br/>{formatarNomeCurto(c.nome_completo).split(' ')[1] || ''}
+                    </div>
+                  </div>
+                  <div className="absolute bottom-0 left-0 w-full h-[32mm] z-0"><img src="/Imagem1.png" className="w-full h-full object-fill" alt="Fundo" /></div>
+                  <div className="absolute bottom-[13mm] left-[1mm] z-10 w-[24mm] h-[8mm] flex items-center justify-start"><img src="/dinamo.png" className="max-h-full max-w-full object-contain" alt="Dínamo" /></div>
+                </div>
+
+                <div className="cracha-card w-[54mm] h-[86mm] bg-white relative p-[2mm] flex flex-col box-border" style={{ border: '1px solid #ccc' }}>
+                  <div className="mt-[2mm] w-full flex flex-col gap-[3mm]">
+                    <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span><div className="text-[7.5px] text-black font-semibold uppercase">{c.nome_completo}</div></div>
+                    <div className="flex w-full gap-[2mm]">
+                      <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex-1 flex items-center justify-center"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">CPF</span><div className="text-[8px] text-black font-semibold uppercase">{c.cpf || '000.000.000-00'}</div></div>
+                      <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] w-[14mm] flex items-center justify-center bg-white"><span className="absolute -top-[2.5mm] left-[1mm] bg-white px-[0.5mm] text-[5px] font-bold text-black leading-none">Tp. Sangue</span><div className="text-[8px] text-black font-black uppercase">{c.tipo_sanguineo || ''}</div></div>
+                    </div>
+                    <div className="flex w-full gap-[2mm] items-stretch h-[24mm]">
+                        <div className="flex flex-col flex-1 justify-between">
+                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Função</span><div className="text-[7px] text-black font-semibold uppercase truncate px-1">{c.desc_funcao}</div></div>
+                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Car. Identidade</span><div className="text-[8px] text-black font-semibold uppercase">{c.rg || '0000000000'}</div></div>
+                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Matrícula</span><div className="text-[8px] text-black font-semibold uppercase">{String(c.matricula).padStart(8, '0')}</div></div>
+                        </div>
+                        <div className="w-[21mm] flex-shrink-0 flex items-center justify-center border border-slate-100 p-[0.5mm] bg-white rounded-sm z-10">
+                          {c.link_qrcode ? <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(c.link_qrcode)}`} className="w-full h-full object-contain" alt="QR Code" /> : <div className="w-full h-full bg-white"></div>}
+                        </div>
+                    </div>
+                    <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Empresa</span><div className="text-[8px] text-black font-semibold uppercase">DINAMO ENGENHARIA</div></div>
+                  </div>
+                  <div className="absolute bottom-[2mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center p-b[2mm]">
+                    <div className="text-[7px] text-black leading-[1.3] mb-[3mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div>
+                    <div className="text-center w-full mb-[1mm]">
+                      <div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div>
+                      <div className="text-[6.5px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div>
+                    </div>
+                    <div className="text-[5.5px] text-black font-bold text-right w-full mt-[1mm]">Emitido em: {obterDataHoraAtual()}</div>
+                  </div>
+                </div>
+             </React.Fragment>
+           ))}
+        </div>
       </main>
 
       <style jsx global>{`
@@ -827,6 +871,10 @@ export default function PortalRH() {
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
         .animation-fade-in { animation: fadeIn 0.3s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        @media screen {
+          .print-container { display: none !important; }
+        }
 
         @media print {
           .hide-on-print { display: none !important; }
