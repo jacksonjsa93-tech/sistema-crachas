@@ -6,15 +6,15 @@ import React, { useState, useRef, useEffect } from 'react';
 
 export default function PortalRH() {
   // ========================== ESTADOS DE AUTENTICAÇÃO (LOGIN) ==========================
-  const [usuarioAutenticado, setUsuarioAutenticado] = useState<any>(null); // NULL = Tela de Login
+  const [usuarioAutenticado, setUsuarioAutenticado] = useState<any>(null);
   const [loginInput, setLoginInput] = useState('');
   const [senhaInput, setSenhaInput] = useState('');
   const [carregandoLogin, setCarregandoLogin] = useState(false);
   const [erroLogin, setErroLogin] = useState('');
 
   const [abaAtiva, setAbaAtiva] = useState('colaboradores');
-  const [menuAberto, setMenuAberto] = useState(false); 
-  const [cameraTraseira, setCameraTraseira] = useState(true); 
+  const [menuAberto, setMenuAberto] = useState(false);
+  const [cameraTraseira, setCameraTraseira] = useState(true);
 
   const URL = "https://dpndtwutvkaxrxrkyeyw.supabase.co";
   const KEY = "sb_publishable_6Ss9lNdcbyeE2o3U5jcJ7w_qI61wmIr";
@@ -34,7 +34,7 @@ export default function PortalRH() {
       
       if (data && data.length > 0) {
         setUsuarioAutenticado(data[0]);
-        setAbaAtiva('colaboradores'); // Todos entram direto na base após o login
+        setAbaAtiva('colaboradores');
         setLoginInput(''); setSenhaInput('');
       } else {
         setErroLogin('Credenciais inválidas. Verifique o seu login e senha.');
@@ -49,13 +49,11 @@ export default function PortalRH() {
   const getMenuItens = () => {
     if (!usuarioAutenticado) return [];
     
-    // SESMT vê apenas o básico
     const itensBasicos = [
       { id: 'colaboradores', nome: 'Base de Colaboradores', icone: 'fa-users' },
       { id: 'emissao', nome: 'Emissão Individual', icone: 'fa-id-badge' },
     ];
 
-    // ADM e RH veem tudo
     if (usuarioAutenticado.perfil === 'ADM' || usuarioAutenticado.perfil === 'RH') {
       return [
         ...itensBasicos,
@@ -141,7 +139,7 @@ export default function PortalRH() {
   const [erroEmissao, setErroEmissao] = useState('');
   const [cameraAtiva, setCameraAtiva] = useState(false);
   const [fotoCapturada, setFotoCapturada] = useState<string | null>(null);
-  const [rawFoto, setRawFoto] = useState<string | null>(null); 
+  const [rawFoto, setRawFoto] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1); const [panX, setPanX] = useState(0); const [panY, setPanY] = useState(0); const [clarear, setClarear] = useState(false);
   const [salvandoFoto, setSalvandoFoto] = useState(false); const [msgFoto, setMsgFoto] = useState({ texto: '', tipo: '' });
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -261,12 +259,9 @@ export default function PortalRH() {
 
   const excluirUsuario = async (id: string, login: string, perfilUsuarioAlvo: string) => {
     if(login === 'admin') { alert("O Administrador principal não pode ser excluído."); return; }
-    
-    // BLINDAGEM DE PERFIL: O RH não pode apagar um ADM
     if(usuarioAutenticado?.perfil === 'RH' && perfilUsuarioAlvo === 'ADM') {
       alert("Acesso Negado: O seu perfil (RH) não tem permissão para excluir um Administrador."); return;
     }
-
     if(!window.confirm("Deseja excluir este acesso?")) return;
     try { await fetch(`${URL}/rest/v1/usuarios_sistema?id=eq.${id}`, { method: 'DELETE', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } }); carregarUsuarios(); } catch (err) { alert("Erro ao excluir."); }
   };
@@ -276,44 +271,44 @@ export default function PortalRH() {
   const colaboradoresParaImprimir = abaAtiva === 'lote' ? listaLote : (colaborador && abaAtiva === 'emissao' ? [{ ...colaborador, foto_url: fotoCapturada || colaborador.foto_url }] : []);
   const navegarPara = (id: string) => { setAbaAtiva(id); setMenuAberto(false); };
 
-  // ========================== TELA DE LOGIN (FASE 4) ==========================
+  // ========================== TELA DE LOGIN ==========================
   if (!usuarioAutenticado) {
     return (
-      <div className="flex h-screen bg-[#f4f7f6] font-poppins items-center justify-center relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-1/2 bg-[#023A58]"></div>
+      <div className="flex h-screen bg-gradient-to-br from-slate-50 to-slate-100 font-sans items-center justify-center relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-r from-[#012B40] to-[#023A58]"></div>
         
-        <div className="z-10 w-full max-w-md p-8 animation-fade-in">
-          <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100">
-            <div className="p-10 flex flex-col items-center border-b border-slate-100 bg-slate-50">
+        <div className="z-10 w-full max-w-md p-8">
+          <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl shadow-slate-200/50 overflow-hidden border border-white/50">
+            <div className="p-10 flex flex-col items-center border-b border-slate-200/50 bg-gradient-to-b from-slate-50 to-white">
               <img src="/logodinamobranca.png" alt="Dínamo" className="max-h-14 mb-4 object-contain brightness-0 filter" style={{ filter: 'brightness(0) saturate(100%) invert(18%) sepia(50%) saturate(2250%) hue-rotate(180deg) brightness(95%) contrast(98%)' }} />
-              <h2 className="text-2xl font-black text-[#023A58] tracking-tight">Portal Operacional</h2>
-              <p className="text-sm text-slate-500 font-medium mt-1">Sessão restrita a colaboradores autorizados</p>
+              <h2 className="text-2xl font-bold tracking-tight text-slate-800">Portal Operacional</h2>
+              <p className="text-sm text-slate-500 mt-1">Sessão restrita a colaboradores autorizados</p>
             </div>
             
             <form onSubmit={handleLogin} className="p-8 flex flex-col gap-6 bg-white">
               {erroLogin && (
-                <div className="bg-rose-50 border border-rose-200 text-rose-600 p-4 rounded-xl text-sm font-bold flex items-start gap-3">
+                <div className="bg-rose-50 border border-rose-200 text-rose-600 p-4 rounded-2xl text-sm font-medium flex items-start gap-3">
                   <i className="fas fa-exclamation-triangle mt-0.5"></i> <span>{erroLogin}</span>
                 </div>
               )}
               
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Utilizador</label>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2">Utilizador</label>
                 <div className="relative">
                   <i className="fas fa-user absolute left-4 top-[14px] text-slate-400"></i>
-                  <input type="text" value={loginInput} onChange={(e) => setLoginInput(e.target.value.toLowerCase().replace(/\s/g, ''))} placeholder="Seu login..." className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent font-bold text-slate-800 transition-all lowercase" />
+                  <input type="text" value={loginInput} onChange={(e) => setLoginInput(e.target.value.toLowerCase().replace(/\s/g, ''))} placeholder="Seu login..." className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent font-medium text-slate-800 transition-all lowercase" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Senha Segura</label>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2">Senha Segura</label>
                 <div className="relative">
                   <i className="fas fa-lock absolute left-4 top-[14px] text-slate-400"></i>
-                  <input type="password" value={senhaInput} onChange={(e) => setSenhaInput(e.target.value)} placeholder="••••••••" className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent font-bold text-slate-800 transition-all" />
+                  <input type="password" value={senhaInput} onChange={(e) => setSenhaInput(e.target.value)} placeholder="••••••••" className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent font-medium text-slate-800 transition-all" />
                 </div>
               </div>
 
-              <button type="submit" disabled={carregandoLogin} className="w-full bg-[#0a84ff] text-white font-bold py-4 rounded-xl hover:bg-blue-600 transition-all shadow-lg shadow-blue-500/30 flex justify-center items-center gap-2 mt-2">
+              <button type="submit" disabled={carregandoLogin} className="w-full bg-[#0a84ff] text-white font-semibold py-4 rounded-2xl hover:bg-blue-600 transition-all shadow-lg shadow-blue-500/20 flex justify-center items-center gap-2 mt-2">
                 {carregandoLogin ? <i className="fas fa-spinner fa-spin text-lg"></i> : 'Acessar Sistema'}
               </button>
             </form>
@@ -328,33 +323,32 @@ export default function PortalRH() {
 
   // ========================== DASHBOARD PRINCIPAL (PÓS-LOGIN) ==========================
   return (
-    <div className="flex h-screen bg-[#f4f7f6] font-poppins text-slate-800 overflow-hidden screen-only relative">
+    <div className="flex h-screen bg-slate-100 font-sans text-slate-800 overflow-hidden screen-only relative">
       
       {/* OVERLAY MOBILE */}
-      {menuAberto && <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 md:hidden transition-opacity" onClick={() => setMenuAberto(false)}></div>}
+      {menuAberto && <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 md:hidden transition-opacity" onClick={() => setMenuAberto(false)}></div>}
 
-      {/* MENU LATERAL DINÂMICO */}
-      <aside className={`${menuAberto ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed md:relative z-50 w-72 h-full flex flex-col shadow-2xl transition-transform duration-300 ease-out hide-on-print border-r border-[#035B8B]/20`} style={{ backgroundColor: '#023A58' }}>
+      {/* MENU LATERAL */}
+      <aside className={`${menuAberto ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed md:relative z-50 w-72 h-full flex flex-col shadow-2xl transition-transform duration-300 ease-out hide-on-print border-r border-white/10`} style={{ background: 'linear-gradient(180deg, #023A58 0%, #012B40 100%)' }}>
         <div className="h-24 flex items-center justify-between md:justify-center border-b border-white/10 px-6">
           <img src="/logodinamobranca.png" alt="Dínamo" className="max-h-12 object-contain drop-shadow-lg" />
           <button className="md:hidden text-white/70 hover:text-white text-2xl" onClick={() => setMenuAberto(false)}><i className="fas fa-times"></i></button>
         </div>
         <nav className="flex-1 overflow-y-auto py-8 px-4 space-y-2 custom-scrollbar">
-          <div className="text-white/40 text-[10px] font-black uppercase tracking-widest mb-4 px-4">Menu Principal</div>
+          <div className="text-white/40 text-[10px] font-bold uppercase tracking-widest mb-4 px-4">Menu Principal</div>
           {menuItens.map((item) => (
             <button key={item.id} onClick={() => navegarPara(item.id)}
-              className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-300 font-semibold text-sm outline-none
-                ${abaAtiva === item.id ? 'bg-[#0a84ff] text-white shadow-lg shadow-[#0a84ff]/30 transform translate-x-1' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}>
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${abaAtiva === item.id ? 'bg-white/20' : 'bg-white/5'}`}>
+              className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 font-semibold text-sm outline-none
+                ${abaAtiva === item.id ? 'bg-white/15 text-white shadow-lg shadow-white/10 ring-1 ring-white/20' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}>
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${abaAtiva === item.id ? 'bg-white/20' : 'bg-white/5'}`}>
                  <i className={`fas ${item.icone} text-center`}></i>
               </div>
               {item.nome}
             </button>
           ))}
         </nav>
-        {/* LOGOUT */}
         <div className="p-4 border-t border-white/10">
-          <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white/5 text-white/70 hover:bg-rose-500 hover:text-white rounded-xl transition-all font-bold text-sm">
+          <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white/5 text-white/70 hover:bg-rose-500/80 hover:text-white rounded-2xl transition-all font-semibold text-sm">
              <i className="fas fa-sign-out-alt"></i> Encerrar Sessão
           </button>
         </div>
@@ -366,23 +360,22 @@ export default function PortalRH() {
         {/* HEADER */}
         <header className="h-24 bg-white shadow-sm border-b border-slate-200 flex items-center justify-between px-6 md:px-10 z-10 hide-on-print relative">
           <div className="flex items-center gap-4">
-            <button className="md:hidden w-10 h-10 flex items-center justify-center rounded-lg bg-slate-100 text-[#023A58] hover:bg-slate-200 transition-colors" onClick={() => setMenuAberto(true)}>
+            <button className="md:hidden w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors" onClick={() => setMenuAberto(true)}>
               <i className="fas fa-bars text-lg"></i>
             </button>
-            <h2 className="text-xl md:text-2xl font-black text-[#023A58] hidden sm:flex items-center gap-3 tracking-tight">
+            <h2 className="text-xl md:text-2xl font-bold text-slate-800 hidden sm:flex items-center gap-3 tracking-tight">
               <i className={`fas ${menuItens.find(m => m.id === abaAtiva)?.icone} text-[#0a84ff]`}></i> {menuItens.find(m => m.id === abaAtiva)?.nome || 'Módulo Restrito'}
             </h2>
           </div>
 
           <div className="flex items-center gap-4">
-            {/* O PERFIL REAL É EXIBIDO AQUI (Sem simulador) */}
             <div className="flex items-center gap-3 bg-slate-50 px-2 pr-4 py-2 rounded-full border border-slate-200 shadow-sm">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#023A58] to-[#0a84ff] flex items-center justify-center text-white font-black text-sm shadow-md uppercase">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#023A58] to-[#0a84ff] flex items-center justify-center text-white font-bold text-sm shadow-md uppercase">
                 {usuarioAutenticado.nome.substring(0, 2)}
               </div>
               <div className="flex flex-col">
-                <span className="text-sm font-black text-slate-800 leading-tight">{usuarioAutenticado.nome}</span>
-                <span className={`text-[9px] font-black uppercase tracking-widest ${usuarioAutenticado.perfil === 'ADM' ? 'text-[#0a84ff]' : usuarioAutenticado.perfil === 'SESMT' ? 'text-orange-500' : 'text-emerald-500'}`}>
+                <span className="text-sm font-semibold text-slate-800 leading-tight">{usuarioAutenticado.nome}</span>
+                <span className={`text-[9px] font-bold uppercase tracking-widest ${usuarioAutenticado.perfil === 'ADM' ? 'text-[#0a84ff]' : usuarioAutenticado.perfil === 'SESMT' ? 'text-orange-500' : 'text-emerald-500'}`}>
                    Perfil: {usuarioAutenticado.perfil}
                 </span>
               </div>
@@ -392,22 +385,20 @@ export default function PortalRH() {
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 custom-scrollbar print-padding-remove">
 
-          {/* ========================================================================= */}
-          {/* ABA 1: BASE DE COLABORADORES                                              */}
-          {/* ========================================================================= */}
+          {/* ABA 1: BASE DE COLABORADORES */}
           {abaAtiva === 'colaboradores' && (
-            <div className="animation-fade-in max-w-7xl mx-auto hide-on-print flex flex-col h-full gap-6">
+            <div className="max-w-7xl mx-auto hide-on-print flex flex-col h-full gap-6">
               
               <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200">
                 <form onSubmit={handlePesquisaTabela} className="flex flex-col md:flex-row gap-4 items-end">
                   <div className="flex-1 w-full">
-                    <label className="block text-sm font-bold text-[#023A58] mb-2">Pesquisa Inteligente</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Pesquisa Inteligente</label>
                     <div className="relative">
                       <i className="fas fa-search absolute left-4 top-[14px] text-slate-400 text-lg"></i>
-                      <input type="text" placeholder="Digite a Matrícula ou Nome do colaborador..." value={buscaTabela} onChange={(e) => setBuscaTabela(e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-12 pr-4 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent transition-all font-medium text-slate-700" />
+                      <input type="text" placeholder="Digite a Matrícula ou Nome do colaborador..." value={buscaTabela} onChange={(e) => setBuscaTabela(e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-2xl pl-12 pr-4 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent transition-all font-medium text-slate-700" />
                     </div>
                   </div>
-                  <button type="submit" disabled={carregandoLista} className="w-full md:w-auto bg-[#023A58] text-white font-bold px-8 py-3.5 rounded-xl hover:bg-[#035B8B] shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
+                  <button type="submit" disabled={carregandoLista} className="w-full md:w-auto bg-[#023A58] text-white font-semibold px-8 py-3.5 rounded-2xl hover:bg-[#035B8B] shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
                     {carregandoLista ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-search"></i>} Localizar
                   </button>
                 </form>
@@ -415,12 +406,12 @@ export default function PortalRH() {
 
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col flex-1 overflow-hidden">
                 <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-                  <h3 className="font-bold text-[#023A58] text-lg">Resultados {resultadosBusca.length > 0 && <span className="text-[#0a84ff] bg-blue-50 px-2 py-0.5 rounded-md text-sm ml-2">{resultadosBusca.length}</span>}</h3>
+                  <h3 className="font-bold text-slate-800 text-lg">Resultados {resultadosBusca.length > 0 && <span className="text-[#0a84ff] bg-blue-50 px-2 py-0.5 rounded-md text-sm ml-2">{resultadosBusca.length}</span>}</h3>
                 </div>
                 <div className="overflow-x-auto overflow-y-auto custom-scrollbar max-h-[600px]">
                   <table className="w-full text-left border-collapse whitespace-nowrap">
                     <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm border-b border-slate-200">
-                      <tr className="text-[11px] uppercase tracking-wider text-slate-500 font-black">
+                      <tr className="text-[11px] uppercase tracking-wider text-slate-500 font-bold">
                         <th className="p-4 pl-6">Colaborador</th>
                         <th className="p-4">Matrícula</th>
                         <th className="p-4 text-center">Foto</th>
@@ -436,19 +427,17 @@ export default function PortalRH() {
                       ) : (
                         resultadosBusca.map((colab) => (
                           <tr key={colab.matricula} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                            <td className="p-4 pl-6 font-bold text-slate-800">{colab.nome_completo}</td>
-                            <td className="p-4 font-bold text-[#0a84ff]">{colab.matricula}</td>
+                            <td className="p-4 pl-6 font-semibold text-slate-800">{colab.nome_completo}</td>
+                            <td className="p-4 font-semibold text-[#0a84ff]">{colab.matricula}</td>
                             <td className="p-4 text-center">
-                              {colab.foto_url ? <span className="bg-emerald-50 text-emerald-600 border border-emerald-200 px-3 py-1 rounded-lg text-[10px] font-black uppercase"><i className="fas fa-check mr-1"></i> Possui</span> : <span className="bg-rose-50 text-rose-600 border border-rose-200 px-3 py-1 rounded-lg text-[10px] font-black uppercase"><i className="fas fa-times mr-1"></i> Faltando</span>}
+                              {colab.foto_url ? <span className="bg-emerald-50 text-emerald-600 border border-emerald-200 px-3 py-1 rounded-lg text-[10px] font-bold uppercase"><i className="fas fa-check mr-1"></i> Possui</span> : <span className="bg-rose-50 text-rose-600 border border-rose-200 px-3 py-1 rounded-lg text-[10px] font-bold uppercase"><i className="fas fa-times mr-1"></i> Faltando</span>}
                             </td>
                             <td className="p-4 text-center">
-                              {colab.link_qrcode ? <span className="bg-blue-50 text-blue-600 border border-blue-200 px-3 py-1 rounded-lg text-[10px] font-black uppercase"><i className="fas fa-link mr-1"></i> Vinculado</span> : <span className="bg-slate-100 text-slate-500 border border-slate-200 px-3 py-1 rounded-lg text-[10px] font-black uppercase"><i className="fas fa-unlink mr-1"></i> Vazio</span>}
+                              {colab.link_qrcode ? <span className="bg-blue-50 text-blue-600 border border-blue-200 px-3 py-1 rounded-lg text-[10px] font-bold uppercase"><i className="fas fa-link mr-1"></i> Vinculado</span> : <span className="bg-slate-100 text-slate-500 border border-slate-200 px-3 py-1 rounded-lg text-[10px] font-bold uppercase"><i className="fas fa-unlink mr-1"></i> Vazio</span>}
                             </td>
                             <td className="p-4 text-right pr-6 flex justify-end gap-2">
-                              <button onClick={() => { setBuscaEmissao(colab.matricula); buscarColaboradorParaEmissao(colab.matricula); }} className="bg-white border border-slate-200 text-[#023A58] hover:bg-slate-100 px-4 py-2 text-xs font-bold rounded-lg shadow-sm transition-colors">Emitir Crachá</button>
-                              
-                              {/* O botão "Editar" agora fica disponível para todos os 3 perfis, pois todos editam ou complementam dados */}
-                              <button onClick={() => abrirEdicao(colab)} className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 text-xs font-bold rounded-lg shadow-sm transition-colors"><i className="fas fa-edit mr-1"></i> Editar Dados</button>
+                              <button onClick={() => { setBuscaEmissao(colab.matricula); buscarColaboradorParaEmissao(colab.matricula); }} className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 px-4 py-2 text-xs font-semibold rounded-xl shadow-sm transition-colors">Emitir Crachá</button>
+                              <button onClick={() => abrirEdicao(colab)} className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 text-xs font-semibold rounded-xl shadow-sm transition-colors"><i className="fas fa-edit mr-1"></i> Editar Dados</button>
                             </td>
                           </tr>
                         ))
@@ -460,35 +449,33 @@ export default function PortalRH() {
             </div>
           )}
 
-          {/* ========================================================================= */}
-          {/* ABA 2: EMISSÃO EM LOTE (Bloqueada para SESMT na matriz)                   */}
-          {/* ========================================================================= */}
+          {/* ABA 2: EMISSÃO EM LOTE */}
           {abaAtiva === 'lote' && (usuarioAutenticado.perfil === 'ADM' || usuarioAutenticado.perfil === 'RH') && (
-            <div className="animation-fade-in max-w-6xl mx-auto hide-on-print flex flex-col h-full gap-6">
+            <div className="max-w-6xl mx-auto hide-on-print flex flex-col h-full gap-6">
               <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200">
                 <form onSubmit={adicionarAoLote} className="flex flex-col md:flex-row gap-4 items-end">
                   <div className="flex-1 w-full">
-                    <label className="block text-sm font-bold text-[#023A58] mb-2">Adicionar à Fila de Impressão</label>
-                    <input type="text" placeholder="Digite a Matrícula (Ex: 6294)" value={matriculaLote} onChange={(e) => setMatriculaLote(e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent font-medium" />
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Adicionar à Fila de Impressão</label>
+                    <input type="text" placeholder="Digite a Matrícula (Ex: 6294)" value={matriculaLote} onChange={(e) => setMatriculaLote(e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-2xl px-4 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent font-medium" />
                   </div>
-                  <button type="submit" disabled={carregandoLote} className="w-full md:w-auto bg-[#023A58] text-white font-bold px-8 py-3.5 rounded-xl hover:bg-[#035B8B] transition-all shadow-md flex items-center justify-center gap-2">
+                  <button type="submit" disabled={carregandoLote} className="w-full md:w-auto bg-[#023A58] text-white font-semibold px-8 py-3.5 rounded-2xl hover:bg-[#035B8B] transition-all shadow-md flex items-center justify-center gap-2">
                     {carregandoLote ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-plus"></i>} Adicionar
                   </button>
                 </form>
-                {erroLote && <p className="text-rose-600 text-xs font-bold mt-3"><i className="fas fa-exclamation-triangle mr-1"></i>{erroLote}</p>}
+                {erroLote && <p className="text-rose-600 text-xs font-medium mt-3"><i className="fas fa-exclamation-triangle mr-1"></i>{erroLote}</p>}
               </div>
 
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col flex-1 overflow-hidden">
                 <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-                  <h3 className="font-bold text-[#023A58] text-lg">Fila de Impressão <span className="text-[#0a84ff] bg-blue-50 px-2 py-0.5 rounded-md text-sm ml-1">{listaLote.length}</span></h3>
-                  <button onClick={() => window.print()} disabled={listaLote.length === 0} className={`font-bold px-6 py-2.5 text-sm rounded-xl transition-all shadow-sm flex items-center gap-2 ${listaLote.length > 0 ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}>
+                  <h3 className="font-bold text-slate-800 text-lg">Fila de Impressão <span className="text-[#0a84ff] bg-blue-50 px-2 py-0.5 rounded-md text-sm ml-1">{listaLote.length}</span></h3>
+                  <button onClick={() => window.print()} disabled={listaLote.length === 0} className={`font-semibold px-6 py-2.5 text-sm rounded-xl transition-all shadow-sm flex items-center gap-2 ${listaLote.length > 0 ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}>
                     <i className="fas fa-print"></i> Imprimir Tudo
                   </button>
                 </div>
                 <div className="overflow-x-auto overflow-y-auto custom-scrollbar max-h-[500px]">
                   <table className="w-full text-left border-collapse whitespace-nowrap">
                     <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm border-b border-slate-200">
-                      <tr className="text-[11px] uppercase tracking-wider text-slate-500 font-black">
+                      <tr className="text-[11px] uppercase tracking-wider text-slate-500 font-bold">
                         <th className="p-4 pl-6">Matrícula</th>
                         <th className="p-4">Colaborador</th>
                         <th className="p-4 text-center">Foto</th>
@@ -502,19 +489,19 @@ export default function PortalRH() {
                       ) : (
                         listaLote.map((colab) => (
                           <tr key={colab.matricula} className={`border-b border-slate-100 transition-colors ${!colab.foto_url ? 'bg-rose-50/50' : 'hover:bg-slate-50'}`}>
-                            <td className="p-4 pl-6 font-bold text-[#0a84ff]">{colab.matricula}</td>
-                            <td className="p-4 font-bold text-slate-800">
+                            <td className="p-4 pl-6 font-semibold text-[#0a84ff]">{colab.matricula}</td>
+                            <td className="p-4 font-semibold text-slate-800">
                                {colab.nome_completo}
-                               {!colab.foto_url && <span className="ml-3 text-[9px] bg-rose-500 text-white px-2 py-1 rounded-md uppercase font-black tracking-widest shadow-sm">Alerta: Sem Foto</span>}
+                               {!colab.foto_url && <span className="ml-3 text-[9px] bg-rose-500 text-white px-2 py-1 rounded-md uppercase font-bold tracking-widest shadow-sm">Alerta: Sem Foto</span>}
                             </td>
                             <td className="p-4 text-center">
                               {colab.foto_url ? <i className="fas fa-check-circle text-emerald-500 text-lg"></i> : <i className="fas fa-times-circle text-rose-500 text-lg"></i>}
                             </td>
                             <td className="p-4 text-center">
-                              {colab.link_qrcode ? <i className="fas fa-link text-blue-500 text-lg"></i> : <span className="text-slate-400 text-xs font-bold">VAZIO</span>}
+                              {colab.link_qrcode ? <i className="fas fa-link text-blue-500 text-lg"></i> : <span className="text-slate-400 text-xs font-medium">VAZIO</span>}
                             </td>
                             <td className="p-4 text-center">
-                              <button onClick={() => removerDoLote(colab.matricula)} className="w-8 h-8 rounded-lg bg-white border border-slate-200 text-rose-500 hover:bg-rose-50 hover:border-rose-200 transition-colors shadow-sm"><i className="fas fa-trash-alt"></i></button>
+                              <button onClick={() => removerDoLote(colab.matricula)} className="w-8 h-8 rounded-xl bg-white border border-slate-200 text-rose-500 hover:bg-rose-50 hover:border-rose-200 transition-colors shadow-sm"><i className="fas fa-trash-alt"></i></button>
                             </td>
                           </tr>
                         ))
@@ -526,43 +513,41 @@ export default function PortalRH() {
             </div>
           )}
 
-          {/* ========================================================================= */}
-          {/* ABA 3: EMISSÃO INDIVIDUAL                                                 */}
-          {/* ========================================================================= */}
+          {/* ABA 3: EMISSÃO INDIVIDUAL */}
           {abaAtiva === 'emissao' && (
-            <div className="animation-fade-in max-w-6xl mx-auto hide-on-print">
+            <div className="max-w-6xl mx-auto hide-on-print">
               <form onSubmit={(e) => { e.preventDefault(); buscarColaboradorParaEmissao(buscaEmissao); }} className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200 mb-8 flex flex-col md:flex-row gap-4 items-end">
                 <div className="flex-1 w-full">
-                  <label className="block text-sm font-bold text-[#023A58] mb-2">Matrícula do Colaborador</label>
-                  <input type="text" placeholder="Ex: 6294" value={buscaEmissao} onChange={(e) => setBuscaEmissao(e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent font-medium" />
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Matrícula do Colaborador</label>
+                  <input type="text" placeholder="Ex: 6294" value={buscaEmissao} onChange={(e) => setBuscaEmissao(e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent font-medium" />
                 </div>
-                <button type="submit" disabled={carregandoEmissao} className="w-full md:w-auto bg-[#023A58] text-white font-bold px-8 py-3.5 rounded-xl hover:bg-[#035B8B] shadow-md transition-all">Buscar Ficha</button>
+                <button type="submit" disabled={carregandoEmissao} className="w-full md:w-auto bg-[#023A58] text-white font-semibold px-8 py-3.5 rounded-2xl hover:bg-[#035B8B] shadow-md transition-all">Buscar Ficha</button>
               </form>
 
-              {erroEmissao && <p className="text-rose-600 mb-6 bg-rose-50 p-4 rounded-xl font-bold border border-rose-100 flex items-center gap-2"><i className="fas fa-exclamation-circle text-xl"></i> {erroEmissao}</p>}
+              {erroEmissao && <p className="text-rose-600 mb-6 bg-rose-50 p-4 rounded-2xl font-medium border border-rose-100 flex items-center gap-2"><i className="fas fa-exclamation-circle text-xl"></i> {erroEmissao}</p>}
 
               {colaborador && (
                 <div className="flex flex-col xl:flex-row gap-8">
                   <div className="xl:w-1/3 bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center">
-                    <h3 className="text-lg font-black text-[#023A58] mb-6 w-full text-center">Adicionar Fotografia</h3>
+                    <h3 className="text-lg font-bold text-slate-800 mb-6 w-full text-center">Adicionar Fotografia</h3>
                     {rawFoto ? (
-                      <div className="flex flex-col items-center w-full animation-fade-in">
-                        <div className="relative w-48 h-64 bg-slate-900 overflow-hidden mb-6 rounded-xl shadow-inner border-4 border-emerald-400" style={{ filter: clarear ? 'brightness(1.25) contrast(1.15)' : 'none' }}>
+                      <div className="flex flex-col items-center w-full">
+                        <div className="relative w-48 h-64 bg-slate-900 overflow-hidden mb-6 rounded-2xl shadow-inner border-4 border-emerald-400" style={{ filter: clarear ? 'brightness(1.25) contrast(1.15)' : 'none' }}>
                           <img src={rawFoto} alt="Raw" style={{ transform: `scale(${zoom}) translate(${panX}px, ${panY}px)`, transformOrigin: 'center', width: '100%', height: '100%', objectFit: 'cover' }} />
                           <div className="absolute inset-0 border-2 border-dashed border-white/50 pointer-events-none"></div>
                         </div>
-                        <div className="w-full space-y-4 bg-slate-50 p-5 rounded-xl border border-slate-200">
-                          <div><label className="text-xs font-bold text-slate-500 mb-1 flex justify-between"><span>🔍 Zoom</span></label><input type="range" min="1" max="3" step="0.05" value={zoom} onChange={e => setZoom(Number(e.target.value))} className="w-full accent-[#0a84ff]" /></div>
-                          <div><label className="text-xs font-bold text-slate-500 mb-1 block">↔️ Esquerda / Direita</label><input type="range" min="-150" max="150" value={panX} onChange={e => setPanX(Number(e.target.value))} className="w-full accent-[#0a84ff]" /></div>
-                          <div><label className="text-xs font-bold text-slate-500 mb-1 block">↕️ Cima / Baixo</label><input type="range" min="-150" max="150" value={panY} onChange={e => setPanY(Number(e.target.value))} className="w-full accent-[#0a84ff]" /></div>
+                        <div className="w-full space-y-4 bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                          <div><label className="text-xs font-semibold text-slate-500 mb-1 flex justify-between"><span>🔍 Zoom</span></label><input type="range" min="1" max="3" step="0.05" value={zoom} onChange={e => setZoom(Number(e.target.value))} className="w-full accent-[#0a84ff]" /></div>
+                          <div><label className="text-xs font-semibold text-slate-500 mb-1 block">↔️ Esquerda / Direita</label><input type="range" min="-150" max="150" value={panX} onChange={e => setPanX(Number(e.target.value))} className="w-full accent-[#0a84ff]" /></div>
+                          <div><label className="text-xs font-semibold text-slate-500 mb-1 block">↕️ Cima / Baixo</label><input type="range" min="-150" max="150" value={panY} onChange={e => setPanY(Number(e.target.value))} className="w-full accent-[#0a84ff]" /></div>
                         </div>
-                        <label className="flex items-center justify-center gap-2 mt-4 w-full bg-white border border-slate-200 p-3 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors">
+                        <label className="flex items-center justify-center gap-2 mt-4 w-full bg-white border border-slate-200 p-3 rounded-2xl cursor-pointer hover:bg-slate-50 transition-colors">
                           <input type="checkbox" checked={clarear} onChange={e => setClarear(e.target.checked)} className="w-5 h-5 accent-[#023A58]" />
-                          <span className="text-sm font-bold text-[#023A58]">Clarear Fundo</span>
+                          <span className="text-sm font-semibold text-slate-700">Clarear Fundo</span>
                         </label>
                         <div className="flex gap-3 w-full mt-4">
-                          <button onClick={usarFotoOriginal} className="flex-1 bg-slate-200 text-slate-700 font-bold py-3 text-xs rounded-xl shadow-sm hover:bg-slate-300">Pular Corte</button>
-                          <button onClick={aplicarRecorte} className="flex-1 bg-emerald-500 text-white font-bold py-3 text-xs rounded-xl shadow-md hover:bg-emerald-600"><i className="fas fa-crop-alt mr-1"></i> Cortar</button>
+                          <button onClick={usarFotoOriginal} className="flex-1 bg-slate-200 text-slate-700 font-semibold py-3 text-xs rounded-2xl shadow-sm hover:bg-slate-300">Pular Corte</button>
+                          <button onClick={aplicarRecorte} className="flex-1 bg-emerald-500 text-white font-semibold py-3 text-xs rounded-2xl shadow-md hover:bg-emerald-600"><i className="fas fa-crop-alt mr-1"></i> Cortar</button>
                         </div>
                       </div>
                     ) : (
@@ -574,13 +559,13 @@ export default function PortalRH() {
                         <div className="w-full flex flex-col gap-3">
                           {cameraAtiva ? (
                             <div className="flex gap-2">
-                               <button onClick={alternarCamera} className="w-14 bg-slate-200 text-slate-700 font-bold rounded-xl shadow-sm hover:bg-slate-300 flex items-center justify-center" title="Virar Câmara"><i className="fas fa-sync-alt"></i></button>
-                               <button onClick={tirarFoto} className="flex-1 bg-rose-500 text-white font-bold py-3.5 rounded-xl shadow-md hover:bg-rose-600 text-sm"><i className="fas fa-camera mr-2"></i> Disparar</button>
+                               <button onClick={alternarCamera} className="w-14 bg-slate-200 text-slate-700 font-semibold rounded-2xl shadow-sm hover:bg-slate-300 flex items-center justify-center" title="Virar Câmara"><i className="fas fa-sync-alt"></i></button>
+                               <button onClick={tirarFoto} className="flex-1 bg-rose-500 text-white font-semibold py-3.5 rounded-2xl shadow-md hover:bg-rose-600 text-sm"><i className="fas fa-camera mr-2"></i> Disparar</button>
                             </div>
                           ) : (
-                            <button onClick={() => ligarCameraMobile(cameraTraseira)} className="w-full bg-[#023A58] text-white font-bold py-3.5 rounded-xl shadow-md hover:bg-[#035B8B] transition-colors text-sm"><i className="fas fa-camera mr-2"></i> Ativar Câmara</button>
+                            <button onClick={() => ligarCameraMobile(cameraTraseira)} className="w-full bg-[#023A58] text-white font-semibold py-3.5 rounded-2xl shadow-md hover:bg-[#035B8B] transition-colors text-sm"><i className="fas fa-camera mr-2"></i> Ativar Câmara</button>
                           )}
-                          <label className="block w-full bg-white border border-slate-300 hover:bg-slate-50 text-[#023A58] text-center font-bold py-3.5 rounded-xl cursor-pointer transition-colors shadow-sm text-sm">
+                          <label className="block w-full bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-center font-semibold py-3.5 rounded-2xl cursor-pointer transition-colors shadow-sm text-sm">
                             <i className="fas fa-folder-open mr-2"></i> Anexar Ficheiro <input type="file" accept="image/*" onChange={handleUploadFoto} className="hidden" />
                           </label>
                         </div>
@@ -589,12 +574,12 @@ export default function PortalRH() {
                           <button 
                             onClick={salvarFotoNoSupabase} 
                             disabled={!fotoAlterada || salvandoFoto} 
-                            className={`w-full font-bold py-4 rounded-xl shadow-md transition-all flex justify-center items-center gap-2 text-sm ${fotoAlterada && !salvandoFoto ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'}`}
+                            className={`w-full font-semibold py-4 rounded-2xl shadow-md transition-all flex justify-center items-center gap-2 text-sm ${fotoAlterada && !salvandoFoto ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'}`}
                           >
                             {salvandoFoto ? <i className="fas fa-spinner fa-spin text-lg"></i> : <i className="fas fa-cloud-upload-alt text-lg"></i>} 
                             Guardar Nova Fotografia
                           </button>
-                          {msgFoto.texto && <div className={`text-xs text-center mt-3 font-bold p-2 rounded-lg ${msgFoto.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>{msgFoto.texto}</div>}
+                          {msgFoto.texto && <div className={`text-xs text-center mt-3 font-medium p-2 rounded-lg ${msgFoto.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>{msgFoto.texto}</div>}
                         </div>
                       </div>
                     )}
@@ -602,8 +587,8 @@ export default function PortalRH() {
 
                   <div className="xl:col-span-2 bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-full">
                     <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-lg font-black text-[#023A58]">Crachá Gerado</h3>
-                      <button onClick={() => window.print()} disabled={!fotoCapturada || !!rawFoto} className={`font-bold px-6 py-2.5 rounded-xl transition-all shadow-sm text-sm flex items-center gap-2 ${fotoCapturada && !rawFoto ? 'bg-[#0a84ff] hover:bg-blue-600 text-white' : 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'}`}><i className="fas fa-print"></i> Imprimir</button>
+                      <h3 className="text-lg font-bold text-slate-800">Crachá Gerado</h3>
+                      <button onClick={() => window.print()} disabled={!fotoCapturada || !!rawFoto} className={`font-semibold px-6 py-2.5 rounded-2xl transition-all shadow-sm text-sm flex items-center gap-2 ${fotoCapturada && !rawFoto ? 'bg-[#0a84ff] hover:bg-blue-600 text-white' : 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'}`}><i className="fas fa-print"></i> Imprimir</button>
                     </div>
 
                     <div className="flex-1 flex flex-col md:flex-row gap-8 justify-center items-center bg-slate-50 p-8 rounded-2xl border border-slate-200 overflow-x-auto">
@@ -657,79 +642,66 @@ export default function PortalRH() {
             </div>
           )}
 
-          {/* ========================================================================= */}
-          {/* ABA 4: CADASTRO MANUAL (Bloqueada para SESMT na matriz)                   */}
-          {/* ========================================================================= */}
+          {/* ABA 4: CADASTRO MANUAL (SEM UPLOAD EM LOTE) */}
           {abaAtiva === 'cadastro' && (usuarioAutenticado.perfil === 'ADM' || usuarioAutenticado.perfil === 'RH') && (
-            <div className="animation-fade-in max-w-4xl mx-auto hide-on-print flex flex-col gap-8">
-              <div className="bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center opacity-70 transition-opacity hover:opacity-100">
-                <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4 text-[#0a84ff] text-2xl"><i className="fas fa-file-excel"></i></div>
-                <h3 className="font-bold text-slate-700 text-lg">Importação em Lote (Excel)</h3>
-                <p className="text-sm text-slate-500 mt-2 max-w-md mx-auto">Funcionalidade reservada para a etapa final do projeto.</p>
-                <button disabled className="mt-5 bg-slate-200 text-slate-400 font-bold px-6 py-2 rounded-lg cursor-not-allowed">Em breve</button>
-              </div>
-
+            <div className="max-w-4xl mx-auto hide-on-print flex flex-col gap-8">
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="bg-white border-b border-slate-100 p-6 md:p-8">
-                  <h3 className="font-black text-[#023A58] text-xl flex items-center gap-3"><i className="fas fa-user-plus text-[#0a84ff]"></i>Cadastro de Colaborador</h3>
+                  <h3 className="font-bold text-slate-800 text-xl flex items-center gap-3"><i className="fas fa-user-plus text-[#0a84ff]"></i>Cadastro de Colaborador</h3>
                   <p className="text-slate-500 text-sm mt-1">Preencha os dados abaixo para inserir manualmente na base de dados.</p>
                 </div>
                 <form onSubmit={handleCadastroManual} className="p-6 md:p-8 flex flex-col gap-6 bg-slate-50/30">
-                  {msgCadastro.texto && <div className={`p-4 rounded-xl font-bold text-sm shadow-sm ${msgCadastro.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>{msgCadastro.texto}</div>}
+                  {msgCadastro.texto && <div className={`p-4 rounded-2xl font-medium text-sm shadow-sm ${msgCadastro.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>{msgCadastro.texto}</div>}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div><label className="block text-sm font-bold text-slate-700 mb-2">Matrícula *</label><input type="text" placeholder="Ex: 6294" required value={formCadastro.matricula} onChange={e => setFormCadastro({...formCadastro, matricula: e.target.value})} className="w-full bg-white border border-slate-300 rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent transition-all" /></div>
-                    <div><label className="block text-sm font-bold text-slate-700 mb-2">Nome Completo *</label><input type="text" placeholder="Ex: JOÃO DA SILVA" required value={formCadastro.nome_completo} onChange={e => setFormCadastro({...formCadastro, nome_completo: e.target.value.toUpperCase()})} className="w-full bg-white border border-slate-300 rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent uppercase transition-all" /></div>
+                    <div><label className="block text-sm font-semibold text-slate-700 mb-2">Matrícula *</label><input type="text" placeholder="Ex: 6294" required value={formCadastro.matricula} onChange={e => setFormCadastro({...formCadastro, matricula: e.target.value})} className="w-full bg-white border border-slate-300 rounded-2xl p-3.5 focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent transition-all" /></div>
+                    <div><label className="block text-sm font-semibold text-slate-700 mb-2">Nome Completo *</label><input type="text" placeholder="Ex: JOÃO DA SILVA" required value={formCadastro.nome_completo} onChange={e => setFormCadastro({...formCadastro, nome_completo: e.target.value.toUpperCase()})} className="w-full bg-white border border-slate-300 rounded-2xl p-3.5 focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent uppercase transition-all" /></div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div><label className="block text-sm font-bold text-slate-700 mb-2">CPF</label><input type="text" placeholder="000.000.000-00" value={formCadastro.cpf} onChange={e => setFormCadastro({...formCadastro, cpf: e.target.value})} className="w-full bg-white border border-slate-300 rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent transition-all" /></div>
-                    <div><label className="block text-sm font-bold text-slate-700 mb-2">RG</label><input type="text" placeholder="0000000" value={formCadastro.rg} onChange={e => setFormCadastro({...formCadastro, rg: e.target.value})} className="w-full bg-white border border-slate-300 rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent transition-all" /></div>
-                    <div><label className="block text-sm font-bold text-slate-700 mb-2">Função / Cargo</label><input type="text" placeholder="Ex: ELETRICISTA" value={formCadastro.desc_funcao} onChange={e => setFormCadastro({...formCadastro, desc_funcao: e.target.value.toUpperCase()})} className="w-full bg-white border border-slate-300 rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent uppercase transition-all" /></div>
+                    <div><label className="block text-sm font-semibold text-slate-700 mb-2">CPF</label><input type="text" placeholder="000.000.000-00" value={formCadastro.cpf} onChange={e => setFormCadastro({...formCadastro, cpf: e.target.value})} className="w-full bg-white border border-slate-300 rounded-2xl p-3.5 focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent transition-all" /></div>
+                    <div><label className="block text-sm font-semibold text-slate-700 mb-2">RG</label><input type="text" placeholder="0000000" value={formCadastro.rg} onChange={e => setFormCadastro({...formCadastro, rg: e.target.value})} className="w-full bg-white border border-slate-300 rounded-2xl p-3.5 focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent transition-all" /></div>
+                    <div><label className="block text-sm font-semibold text-slate-700 mb-2">Função / Cargo</label><input type="text" placeholder="Ex: ELETRICISTA" value={formCadastro.desc_funcao} onChange={e => setFormCadastro({...formCadastro, desc_funcao: e.target.value.toUpperCase()})} className="w-full bg-white border border-slate-300 rounded-2xl p-3.5 focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent uppercase transition-all" /></div>
                   </div>
                   <div className="border-t border-slate-200 pt-6 flex justify-end mt-2">
-                    <button type="submit" disabled={salvandoCadastro} className="bg-emerald-500 text-white font-bold px-8 py-3.5 rounded-xl hover:bg-emerald-600 transition-all shadow-md flex items-center justify-center gap-2 w-full md:w-auto">{salvandoCadastro ? <i className="fas fa-spinner fa-spin text-lg"></i> : <i className="fas fa-check text-lg"></i>} Cadastrar Colaborador</button>
+                    <button type="submit" disabled={salvandoCadastro} className="bg-emerald-500 text-white font-semibold px-8 py-3.5 rounded-2xl hover:bg-emerald-600 transition-all shadow-md flex items-center justify-center gap-2 w-full md:w-auto">{salvandoCadastro ? <i className="fas fa-spinner fa-spin text-lg"></i> : <i className="fas fa-check text-lg"></i>} Cadastrar Colaborador</button>
                   </div>
                 </form>
               </div>
             </div>
           )}
 
-          {/* ========================================================================= */}
-          {/* ABA 5: GESTÃO DE ACESSOS (Configurações)                                  */}
-          {/* ========================================================================= */}
+          {/* ABA 5: GESTÃO DE ACESSOS */}
           {abaAtiva === 'configuracoes' && (
-            <div className="animation-fade-in max-w-7xl mx-auto hide-on-print">
-              
-              {/* PROTEÇÃO RIGOROSA: Apenas ADM ou RH podem ver o painel */}
+            <div className="max-w-7xl mx-auto hide-on-print">
               {(usuarioAutenticado?.perfil !== 'ADM' && usuarioAutenticado?.perfil !== 'RH') ? (
                  <div className="bg-white p-16 rounded-2xl border border-slate-200 shadow-sm text-center flex flex-col items-center justify-center h-[60vh]">
                     <div className="w-24 h-24 bg-rose-50 rounded-full flex items-center justify-center mb-6">
                       <i className="fas fa-lock text-rose-500 text-4xl"></i>
                     </div>
-                    <h2 className="text-3xl font-black text-slate-800 mb-3">Acesso Restrito</h2>
-                    <p className="text-slate-500 max-w-md text-lg">O seu perfil (<span className="font-bold text-[#023A58]">{usuarioAutenticado?.perfil}</span>) não tem permissão para gerir a equipa.</p>
+                    <h2 className="text-3xl font-bold text-slate-800 mb-3">Acesso Restrito</h2>
+                    <p className="text-slate-500 max-w-md text-lg">O seu perfil (<span className="font-semibold text-[#023A58]">{usuarioAutenticado?.perfil}</span>) não tem permissão para gerir a equipa.</p>
                  </div>
               ) : (
                 <div className="flex flex-col xl:flex-row gap-8">
                   <div className="xl:w-1/3 flex flex-col gap-6">
                      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                        <div className="bg-white border-b border-slate-100 p-6">
-                         <h3 className="font-black text-[#023A58] text-lg flex items-center gap-2"><i className="fas fa-user-shield text-[#0a84ff]"></i>Novo Acesso</h3>
+                         <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2"><i className="fas fa-user-shield text-[#0a84ff]"></i>Novo Acesso</h3>
                          <p className="text-slate-500 text-xs mt-1">Crie um login e senha para a sua equipa.</p>
                        </div>
                        <form onSubmit={handleCriarUsuario} className="p-6 flex flex-col gap-5 bg-slate-50/30">
-                          {msgUsuario.texto && <div className={`p-4 rounded-xl font-bold text-xs shadow-sm ${msgUsuario.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}><i className={`fas ${msgUsuario.tipo === 'sucesso' ? 'fa-check-circle' : 'fa-exclamation-triangle'} mr-1`}></i> {msgUsuario.texto}</div>}
-                          <div><label className="block text-xs font-bold text-slate-700 mb-2">Nome do Utilizador *</label><input type="text" required value={formUsuario.nome} onChange={e => setFormUsuario({...formUsuario, nome: e.target.value})} placeholder="Ex: César SESMT" className="w-full bg-white border border-slate-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent transition-all" /></div>
-                          <div><label className="block text-xs font-bold text-slate-700 mb-2">Login de Acesso *</label><input type="text" required value={formUsuario.login} onChange={e => setFormUsuario({...formUsuario, login: e.target.value.toLowerCase().replace(/\s/g, '')})} placeholder="cesar.sesmt" className="w-full bg-white border border-slate-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent lowercase transition-all" /></div>
-                          <div><label className="block text-xs font-bold text-slate-700 mb-2">Senha Inicial *</label><input type="password" required value={formUsuario.senha} onChange={e => setFormUsuario({...formUsuario, senha: e.target.value})} placeholder="••••••••" className="w-full bg-white border border-slate-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent transition-all" /></div>
+                          {msgUsuario.texto && <div className={`p-4 rounded-2xl font-medium text-xs shadow-sm ${msgUsuario.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}><i className={`fas ${msgUsuario.tipo === 'sucesso' ? 'fa-check-circle' : 'fa-exclamation-triangle'} mr-1`}></i> {msgUsuario.texto}</div>}
+                          <div><label className="block text-xs font-semibold text-slate-700 mb-2">Nome do Utilizador *</label><input type="text" required value={formUsuario.nome} onChange={e => setFormUsuario({...formUsuario, nome: e.target.value})} placeholder="Ex: César SESMT" className="w-full bg-white border border-slate-300 rounded-2xl p-3 focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent transition-all" /></div>
+                          <div><label className="block text-xs font-semibold text-slate-700 mb-2">Login de Acesso *</label><input type="text" required value={formUsuario.login} onChange={e => setFormUsuario({...formUsuario, login: e.target.value.toLowerCase().replace(/\s/g, '')})} placeholder="cesar.sesmt" className="w-full bg-white border border-slate-300 rounded-2xl p-3 focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent lowercase transition-all" /></div>
+                          <div><label className="block text-xs font-semibold text-slate-700 mb-2">Senha Inicial *</label><input type="password" required value={formUsuario.senha} onChange={e => setFormUsuario({...formUsuario, senha: e.target.value})} placeholder="••••••••" className="w-full bg-white border border-slate-300 rounded-2xl p-3 focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent transition-all" /></div>
                           <div>
-                            <label className="block text-xs font-bold text-slate-700 mb-2">Nível de Permissão *</label>
-                            <select value={formUsuario.perfil} onChange={e => setFormUsuario({...formUsuario, perfil: e.target.value})} className="w-full bg-white border border-slate-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent font-bold text-[#023A58] cursor-pointer transition-all">
+                            <label className="block text-xs font-semibold text-slate-700 mb-2">Nível de Permissão *</label>
+                            <select value={formUsuario.perfil} onChange={e => setFormUsuario({...formUsuario, perfil: e.target.value})} className="w-full bg-white border border-slate-300 rounded-2xl p-3 focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent font-semibold text-slate-700 cursor-pointer transition-all">
                                <option value="RH">Perfil RH</option>
                                <option value="SESMT">Perfil SESMT</option>
                                <option value="ADM">Administrador Geral</option>
                             </select>
                           </div>
-                          <button type="submit" disabled={salvandoUsuario} className="mt-2 bg-[#023A58] text-white font-bold py-3.5 rounded-xl hover:bg-[#035B8B] transition-all shadow-md flex justify-center items-center gap-2">
+                          <button type="submit" disabled={salvandoUsuario} className="mt-2 bg-[#023A58] text-white font-semibold py-3.5 rounded-2xl hover:bg-[#035B8B] transition-all shadow-md flex justify-center items-center gap-2">
                              {salvandoUsuario ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-plus"></i>} Registar Acesso
                           </button>
                        </form>
@@ -739,12 +711,12 @@ export default function PortalRH() {
                   <div className="xl:w-2/3 flex flex-col h-full">
                      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full min-h-[500px]">
                        <div className="p-6 border-b border-slate-100 bg-white">
-                         <h3 className="font-black text-[#023A58] text-lg">Equipa e Permissões Ativas</h3>
+                         <h3 className="font-bold text-slate-800 text-lg">Equipa e Permissões Ativas</h3>
                        </div>
                        <div className="overflow-y-auto custom-scrollbar flex-1 bg-slate-50/30">
                           <table className="w-full text-left border-collapse whitespace-nowrap">
                             <thead className="bg-slate-100/50 border-b border-slate-200">
-                              <tr className="text-[11px] uppercase tracking-wider text-slate-500 font-black">
+                              <tr className="text-[11px] uppercase tracking-wider text-slate-500 font-bold">
                                 <th className="p-4 pl-6">Utilizador</th>
                                 <th className="p-4 text-center">Login</th>
                                 <th className="p-4 text-center">Perfil</th>
@@ -759,22 +731,22 @@ export default function PortalRH() {
                               ) : (
                                 listaUsuarios.map((usr) => (
                                   <tr key={usr.id} className="border-b border-slate-100 hover:bg-white transition-colors">
-                                    <td className="p-4 pl-6 font-bold text-slate-800">{usr.nome}</td>
-                                    <td className="p-4 text-center font-mono text-xs font-bold text-slate-600">
+                                    <td className="p-4 pl-6 font-semibold text-slate-800">{usr.nome}</td>
+                                    <td className="p-4 text-center font-mono text-xs font-semibold text-slate-600">
                                        <span className="bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm">{usr.login}</span>
                                     </td>
                                     <td className="p-4 text-center">
-                                      <span className={`px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest shadow-sm ${usr.perfil === 'ADM' ? 'bg-[#023A58] text-white' : usr.perfil === 'SESMT' ? 'bg-orange-500 text-white' : 'bg-[#0a84ff] text-white'}`}>
+                                      <span className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest shadow-sm ${usr.perfil === 'ADM' ? 'bg-[#023A58] text-white' : usr.perfil === 'SESMT' ? 'bg-orange-500 text-white' : 'bg-[#0a84ff] text-white'}`}>
                                         {usr.perfil}
                                       </span>
                                     </td>
                                     <td className="p-4 text-right pr-6">
                                       {usr.login !== 'admin' ? (
-                                        <button onClick={() => excluirUsuario(usr.id, usr.login, usr.perfil)} className="w-8 h-8 rounded-lg bg-white border border-slate-200 text-rose-500 hover:bg-rose-50 hover:border-rose-200 transition-colors shadow-sm" title="Remover Acesso">
+                                        <button onClick={() => excluirUsuario(usr.id, usr.login, usr.perfil)} className="w-8 h-8 rounded-xl bg-white border border-slate-200 text-rose-500 hover:bg-rose-50 hover:border-rose-200 transition-colors shadow-sm" title="Remover Acesso">
                                           <i className="fas fa-trash-alt"></i>
                                         </button>
                                       ) : (
-                                        <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest"><i className="fas fa-crown mr-1 text-amber-400"></i>Master</span>
+                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest"><i className="fas fa-crown mr-1 text-amber-400"></i>Master</span>
                                       )}
                                     </td>
                                   </tr>
@@ -792,44 +764,42 @@ export default function PortalRH() {
 
         </div>
 
-        {/* ========================================================================= */}
-        {/* MODAL DE EDIÇÃO (DISPONÍVEL PARA TODOS QUE FOREM AUTORIZADOS)             */}
-        {/* ========================================================================= */}
+        {/* MODAL DE EDIÇÃO */}
         {colaboradorEditando && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animation-fade-in hide-on-print">
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hide-on-print">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col border-t-4 border-[#f39c12]">
               <div className="bg-white border-b border-slate-200 p-6 flex justify-between items-center">
-                <h3 className="font-black text-[#023A58] text-xl flex items-center gap-3"><i className="fas fa-lock text-[#f39c12]"></i>Edição e Complementos</h3>
+                <h3 className="font-bold text-slate-800 text-xl flex items-center gap-3"><i className="fas fa-lock text-[#f39c12]"></i>Edição e Complementos</h3>
                 <button onClick={() => setColaboradorEditando(null)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-rose-100 hover:text-rose-600 transition-colors"><i className="fas fa-times"></i></button>
               </div>
               <form onSubmit={salvarEdicao} className="p-6 flex flex-col gap-6 overflow-y-auto max-h-[75vh] bg-slate-50/50">
                 
-                <div className="bg-white border border-slate-200 p-5 rounded-xl relative shadow-sm">
-                   <div className="absolute -top-3 left-4 bg-white border border-slate-200 px-3 py-0.5 rounded-full text-[9px] font-black text-slate-400 uppercase tracking-widest shadow-sm">Dados do Sistema Base (Inalteráveis pelo Crachá)</div>
+                <div className="bg-white border border-slate-200 p-5 rounded-2xl relative shadow-sm">
+                   <div className="absolute -top-3 left-4 bg-white border border-slate-200 px-3 py-0.5 rounded-full text-[9px] font-bold text-slate-400 uppercase tracking-widest shadow-sm">Dados do Sistema Base (Inalteráveis pelo Crachá)</div>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                     <div><label className="block text-xs font-bold text-slate-500 mb-1">Matrícula</label><input type="text" value={colaboradorEditando.matricula} disabled className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-slate-500 cursor-not-allowed font-bold" /></div>
-                     <div><label className="block text-xs font-bold text-slate-500 mb-1">Nome Completo</label><input type="text" value={colaboradorEditando.nome_completo || ''} disabled className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-slate-500 cursor-not-allowed font-bold" /></div>
+                     <div><label className="block text-xs font-semibold text-slate-500 mb-1">Matrícula</label><input type="text" value={colaboradorEditando.matricula} disabled className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-500 cursor-not-allowed font-medium" /></div>
+                     <div><label className="block text-xs font-semibold text-slate-500 mb-1">Nome Completo</label><input type="text" value={colaboradorEditando.nome_completo || ''} disabled className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-500 cursor-not-allowed font-medium" /></div>
                    </div>
                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                     <div><label className="block text-xs font-bold text-slate-500 mb-1">CPF</label><input type="text" value={colaboradorEditando.cpf || ''} disabled className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-slate-500 cursor-not-allowed font-bold" /></div>
-                     <div><label className="block text-xs font-bold text-slate-500 mb-1">RG</label><input type="text" value={colaboradorEditando.rg || ''} disabled className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-slate-500 cursor-not-allowed font-bold" /></div>
-                     <div><label className="block text-xs font-bold text-slate-500 mb-1">Função / Cargo</label><input type="text" value={colaboradorEditando.desc_funcao || ''} disabled className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-slate-500 cursor-not-allowed font-bold truncate" /></div>
+                     <div><label className="block text-xs font-semibold text-slate-500 mb-1">CPF</label><input type="text" value={colaboradorEditando.cpf || ''} disabled className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-500 cursor-not-allowed font-medium" /></div>
+                     <div><label className="block text-xs font-semibold text-slate-500 mb-1">RG</label><input type="text" value={colaboradorEditando.rg || ''} disabled className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-500 cursor-not-allowed font-medium" /></div>
+                     <div><label className="block text-xs font-semibold text-slate-500 mb-1">Função / Cargo</label><input type="text" value={colaboradorEditando.desc_funcao || ''} disabled className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-500 cursor-not-allowed font-medium truncate" /></div>
                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
                   <div>
-                    <label className="block text-sm font-bold text-rose-600 mb-2"><i className="fas fa-tint mr-1"></i> Tipo Sanguíneo</label>
-                    <input type="text" value={colaboradorEditando.tipo_sanguineo || ''} onChange={e => setColaboradorEditando({...colaboradorEditando, tipo_sanguineo: e.target.value})} placeholder="Ex: O+" className="w-full bg-white border border-slate-300 p-3.5 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100 text-slate-800 font-bold uppercase transition-all shadow-sm" />
+                    <label className="block text-sm font-semibold text-rose-600 mb-2"><i className="fas fa-tint mr-1"></i> Tipo Sanguíneo</label>
+                    <input type="text" value={colaboradorEditando.tipo_sanguineo || ''} onChange={e => setColaboradorEditando({...colaboradorEditando, tipo_sanguineo: e.target.value})} placeholder="Ex: O+" className="w-full bg-white border border-slate-300 p-3.5 rounded-2xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100 text-slate-800 font-medium uppercase transition-all shadow-sm" />
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-[#0a84ff] mb-2"><i className="fas fa-link mr-1"></i> Link QR Code (Acesso pelo telemóvel)</label>
-                    <input type="url" placeholder="https://..." value={colaboradorEditando.link_qrcode || ''} onChange={e => setColaboradorEditando({...colaboradorEditando, link_qrcode: e.target.value})} className="w-full bg-white border border-slate-300 p-3.5 rounded-xl focus:outline-none focus:border-[#0a84ff] focus:ring-2 focus:ring-blue-100 text-[#023A58] transition-all shadow-sm" />
+                    <label className="block text-sm font-semibold text-[#0a84ff] mb-2"><i className="fas fa-link mr-1"></i> Link QR Code (Acesso pelo telemóvel)</label>
+                    <input type="url" placeholder="https://..." value={colaboradorEditando.link_qrcode || ''} onChange={e => setColaboradorEditando({...colaboradorEditando, link_qrcode: e.target.value})} className="w-full bg-white border border-slate-300 p-3.5 rounded-2xl focus:outline-none focus:border-[#0a84ff] focus:ring-2 focus:ring-blue-100 text-slate-800 transition-all shadow-sm" />
                   </div>
                 </div>
                 <div className="flex justify-end gap-3 mt-4 border-t border-slate-200 pt-6">
-                  <button type="button" onClick={() => setColaboradorEditando(null)} className="px-8 py-3.5 rounded-xl font-bold text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 transition-all shadow-sm">Cancelar</button>
-                  <button type="submit" disabled={salvandoEdicao} className="px-8 py-3.5 rounded-xl font-bold text-white bg-orange-500 hover:bg-orange-600 transition-all flex items-center gap-2 shadow-md">
+                  <button type="button" onClick={() => setColaboradorEditando(null)} className="px-8 py-3.5 rounded-2xl font-semibold text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 transition-all shadow-sm">Cancelar</button>
+                  <button type="submit" disabled={salvandoEdicao} className="px-8 py-3.5 rounded-2xl font-semibold text-white bg-orange-500 hover:bg-orange-600 transition-all flex items-center gap-2 shadow-md">
                     {salvandoEdicao ? <i className="fas fa-spinner fa-spin text-lg"></i> : <i className="fas fa-save text-lg"></i>} Atualizar Dados
                   </button>
                 </div>
@@ -889,11 +859,9 @@ export default function PortalRH() {
       </main>
 
       <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
         @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css');
-        .font-poppins { font-family: 'Poppins', sans-serif; }
-        .animation-fade-in { animation: fadeIn 0.4s ease-out forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .font-sans { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
         .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
