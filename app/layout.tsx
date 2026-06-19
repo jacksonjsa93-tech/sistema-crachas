@@ -6,7 +6,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 // PODE ALTERAR O TEXTO ENTRE AS ASPAS PARA O QUE QUISER!
 export const metadata: Metadata = {
-  title: "Portal Crachás | Dínamo Engenharia",
+  title: "Emissão de Crachás | Dínamo Engenharia",
   description: "Sistema de Gestão e Emissão de Crachás",
 };
 
