@@ -8,78 +8,7 @@ import React, { useState, useRef, useEffect } from 'react';
 const URL = "https://dpndtwutvkaxrxrkyeyw.supabase.co";
 const KEY = "sb_publishable_6Ss9lNdcbyeE2o3U5jcJ7w_qI61wmIr";
 
-// ESTILOS ESTÁTICOS BLINDADOS (Isto impede a tela de "tremer" ao digitar)
-const globalCss = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
-  @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css');
-  
-  .font-sans { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
-  .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
-  
-  .animation-fade-in { animation: fadeIn 0.3s ease-out forwards; }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-
-  /* PADRÃO OURO DE CSS PARA IMPRESSÃO DE CRACHÁS (SEM TELA BRANCA) */
-  @media screen { 
-    .print-container { display: none !important; } 
-  }
-
-  @media print {
-    /* Esconde toda a interface do sistema (menus, abas, modais) */
-    .hide-on-print, [role="status"], .fixed { 
-      display: none !important; 
-      visibility: hidden !important; 
-      opacity: 0 !important; 
-    }
-    
-    /* Quebra as amarras da tela principal para a impressora ler a folha inteira */
-    html, body, .app-root { 
-      height: auto !important; 
-      min-height: 100vh !important;
-      overflow: visible !important; 
-      background: white !important; 
-      display: block !important; 
-      margin: 0 !important; 
-      padding: 0 !important; 
-    }
-    
-    /* Traz o crachá para a frente e define o tamanho milimétrico */
-    .print-container { 
-      display: block !important; 
-      visibility: visible !important; 
-      position: relative !important; 
-      width: 54mm !important; 
-    }
-    
-    .print-container * { 
-      visibility: visible !important; 
-    }
-    
-    @page { size: 54mm 86mm; margin: 0 !important; }
-    
-    /* Desenho exato do crachá para a Smart-51 */
-    .cracha-card { 
-      -webkit-print-color-adjust: exact !important; 
-      print-color-adjust: exact !important; 
-      width: 54mm !important; 
-      height: 86mm !important; 
-      box-sizing: border-box !important; 
-      page-break-after: always !important; 
-      break-after: page !important; 
-      background-color: white !important;
-      margin: 0 !important;
-      border: none !important;
-    }
-    
-    .cracha-card:last-of-type { 
-      page-break-after: auto !important; 
-      break-after: auto !important; 
-    }
-  }
-`;
-
+// BLINDAGEM 1: Garante que os nomes nunca quebram o código
 function obterOpcoesNome(nomeCompleto: any) {
   if (!nomeCompleto) return ["NOME INDEFINIDO"];
   const nomeStr = String(nomeCompleto).trim();
@@ -104,6 +33,7 @@ function obterDataHoraAtual() {
   } catch(e) { return ''; }
 }
 
+// BLINDAGEM 2: Previne "Object are not valid as React child"
 function textoSeguro(valor: any, fallback: string = '') {
   if (valor === null || valor === undefined) return fallback;
   return String(valor);
@@ -144,7 +74,6 @@ export default function PortalRH() {
     e.preventDefault(); 
     setErroLogin('');
     if (!loginInput || !senhaInput) { setErroLogin('Preencha usuário e senha.'); return; }
-    
     setCarregandoLogin(true);
     try {
       const response = await fetch(`${URL}/rest/v1/usuarios_sistema?login=eq.${loginInput}&senha=eq.${senhaInput}&select=*`, { 
@@ -155,7 +84,6 @@ export default function PortalRH() {
       if (Array.isArray(data) && data.length > 0) {
         const user = data[0];
         setUsuarioAutenticado(user);
-        
         if (user?.perfil === 'SUPERVISOR') setAbaAtiva('emissao');
         else if (user?.perfil === 'RH' || user?.perfil === 'ADM') setAbaAtiva('solicitacoes');
         else setAbaAtiva('colaboradores');
@@ -191,14 +119,9 @@ export default function PortalRH() {
 
   // ========================== ESTADOS DAS ABAS ==========================
   
-  // ABA: SOLICITAÇÕES
   const [listaSolicitacoes, setListaSolicitacoes] = useState<any[]>([]);
   const [carregandoSolicitacoes, setCarregandoSolicitacoes] = useState(false);
-
-  // ABA: HISTÓRICO SUPERVISOR
   const [solicitacoesSupervisor, setListaSolicitacoesSupervisor] = useState<any[]>([]);
-  
-  // ABA: COLABORADORES
   const [buscaTabela, setBuscaTabela] = useState('');
   const [resultadosBusca, setResultadosBusca] = useState<any[]>([]);
   const [carregandoLista, setCarregandoLista] = useState(false);
@@ -208,7 +131,6 @@ export default function PortalRH() {
   const [historicoAberto, setHistoricoAberto] = useState<any[] | null>(null);
   const [nomeHistoricoAberto, setNomeHistoricoAberto] = useState('');
 
-  // ABA: LOTE
   const [listaLote, setListaLote] = useState<any[]>([]);
   const [matriculaLote, setMatriculaLote] = useState('');
   const [carregandoLote, setCarregandoLote] = useState(false);
@@ -351,12 +273,11 @@ export default function PortalRH() {
     } catch (e) { mostrarToast("Falha ao registar histórico.", "erro"); }
   }
 
-  // ================== A ENGRENAGEM PRINCIPAL BLINDADA ==================
+  // BLINDAGEM MÁXIMA NA FUNÇÃO DE BUSCA E VALIDAÇÃO DE VIA
   async function buscarColaboradorParaEmissao(matriculaAlvo: string) {
     setRawFoto(null); 
     setCarregandoEmissao(true); 
     setBuscaEmissao(textoSeguro(matriculaAlvo));
-    
     try {
       const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${textoSeguro(matriculaAlvo)}&select=*`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
       const data = await response.json();
@@ -376,7 +297,6 @@ export default function PortalRH() {
         } catch(e) { setTemImpressaoAnterior(false); setMotivoAcao('1ª Via (Novo Acesso)'); }
 
         setAbaAtiva('emissao'); 
-        setBuscaEmissao('');
       } else { 
         setColaborador(null); 
         mostrarToast('Matrícula não encontrada.', "erro"); 
@@ -494,7 +414,7 @@ export default function PortalRH() {
   
   const colaboradoresParaImprimir = abaAtiva === 'lote' ? listaLote : (colaborador && abaAtiva === 'emissao' ? [{ ...colaborador, foto_url: fotoCapturada || colaborador?.foto_url, nome_cracha_frente: nomeCrachaIndividual }] : []);
 
-  // GARANTIA CONTRA TELA BRANCA DA VERCEL (Executa tudo apenas no lado do cliente)
+  // GARANTIA CONTRA TELA BRANCA DA VERCEL
   if (!isMounted) return null;
 
   // ========================== TELA DE LOGIN ==========================
@@ -525,7 +445,7 @@ export default function PortalRH() {
 
   // ========================== DASHBOARD PRINCIPAL ==========================
   return (
-    <div className="app-root flex h-screen bg-slate-50 font-sans text-slate-800 overflow-hidden relative">
+    <div className="flex h-screen bg-slate-50 font-sans text-slate-800 overflow-hidden relative">
       
       {/* COMPONENTES FLUTUANTES E MODAIS */}
       {toast.ativo && (<div className={`fixed top-8 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-full shadow-lg font-semibold text-sm flex items-center gap-3 animation-fade-in text-white hide-on-print ${toast.tipo === 'sucesso' ? 'bg-emerald-500' : toast.tipo === 'erro' ? 'bg-rose-500' : 'bg-amber-500'}`}><i className={`fas ${toast.tipo === 'sucesso' ? 'fa-check-circle' : toast.tipo === 'erro' ? 'fa-times-circle' : 'fa-exclamation-triangle'}`}></i> {toast.mensagem}</div>)}
@@ -690,12 +610,21 @@ export default function PortalRH() {
 
           {abaAtiva === 'emissao' && (
             <div className="max-w-full lg:max-w-6xl mx-auto flex flex-col gap-6 animation-fade-in">
-              <form onSubmit={(e) => { e.preventDefault(); buscarColaboradorParaEmissao(buscaEmissao); }} className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 items-end">
-                <div className="flex-1 w-full"><label className="block text-sm font-semibold text-slate-700 mb-2">Matrícula do Colaborador</label><input type="text" placeholder="Ex: 6294" value={buscaEmissao} onChange={(e) => setBuscaEmissao(textoSeguro(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#023A58]" /></div>
-                <button type="submit" disabled={carregandoEmissao} className="w-full md:w-auto bg-[#023A58] text-white font-semibold px-8 py-3 rounded-xl hover:bg-[#035B8B] shadow-sm flex items-center justify-center gap-2">
+              <div className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 items-end">
+                <div className="flex-1 w-full">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Matrícula do Colaborador</label>
+                  <input 
+                     type="text" 
+                     placeholder="Ex: 6294" 
+                     value={buscaEmissao} 
+                     onChange={(e) => setBuscaEmissao(textoSeguro(e.target.value))} 
+                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#023A58]" 
+                  />
+                </div>
+                <button onClick={() => buscarColaboradorParaEmissao(buscaEmissao)} disabled={carregandoEmissao || !buscaEmissao} className="w-full md:w-auto bg-[#023A58] text-white font-semibold px-8 py-3 rounded-xl hover:bg-[#035B8B] shadow-sm flex items-center justify-center gap-2">
                   {carregandoEmissao ? <i className="fas fa-spinner fa-spin"></i> : <><i className="fas fa-search"></i> Buscar</>}
                 </button>
-              </form>
+              </div>
 
               {colaborador && (
                 <div className="flex flex-col lg:flex-row gap-6">
@@ -798,7 +727,7 @@ export default function PortalRH() {
                           <div className="absolute bottom-[1.5mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center">
                             <div className="text-[7px] text-black leading-[1.2] mb-[1.5mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div>
                             <div className="text-center w-full mb-[1mm]"><div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div><div className="text-[6px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div></div>
-                            <div className="text-[5.5px] text-black font-bold text-right w-full">Emitido em: {textoSeguro(dataHoraAtual)}</div>
+                            <div className="text-[5.5px] text-black font-bold text-right w-full">Emitido em: {textoSeguro(obterDataHoraAtual())}</div>
                           </div>
                         </div>
                       </div>
@@ -1000,7 +929,7 @@ export default function PortalRH() {
                 <div className="absolute bottom-[1.5mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center">
                   <div className="text-[7px] text-black leading-[1.2] mb-[1.5mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div>
                   <div className="text-center w-full mb-[1mm]"><div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div><div className="text-[6px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div></div>
-                  <div className="text-[5.5px] text-black font-bold text-right w-full">Emitido em: {textoSeguro(dataHoraAtual)}</div>
+                  <div className="text-[5.5px] text-black font-bold text-right w-full">Emitido em: {textoSeguro(obterDataHoraAtual())}</div>
                 </div>
               </div>
            </React.Fragment>
@@ -1009,7 +938,72 @@ export default function PortalRH() {
       </div>
       )}
 
-      <style dangerouslySetInnerHTML={{__html: globalCss}} />
+      <style dangerouslySetInnerHTML={{__html: `
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
+        @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css');
+        
+        .font-sans { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+        
+        .animation-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* PADRÃO OURO DE CSS PARA IMPRESSÃO DE CRACHÁS */
+        @media screen { 
+          .print-container { display: none !important; } 
+        }
+
+        @media print {
+          .hide-on-print, [role="status"], .fixed { 
+            display: none !important; 
+            visibility: hidden !important; 
+            opacity: 0 !important; 
+          }
+          
+          html, body, main, .print-padding-remove { 
+            width: 54mm !important; 
+            height: auto !important; 
+            overflow: visible !important; 
+            margin: 0 !important; 
+            padding: 0 !important; 
+            background: white !important; 
+            display: block !important; 
+          }
+          
+          .print-container { 
+            display: block !important; 
+            visibility: visible !important; 
+            position: relative !important; 
+            width: 54mm !important; 
+          }
+          
+          .print-container * { 
+            visibility: visible !important; 
+          }
+          
+          @page { size: 54mm 86mm; margin: 0 !important; }
+          
+          .cracha-card { 
+            -webkit-print-color-adjust: exact !important; 
+            print-color-adjust: exact !important; 
+            width: 54mm !important; 
+            height: 86mm !important; 
+            box-sizing: border-box !important; 
+            page-break-after: always !important; 
+            break-after: page !important; 
+            background-color: white !important;
+            margin: 0 !important;
+            border: none !important;
+          }
+          
+          .cracha-card:last-of-type { 
+            page-break-after: auto !important; 
+            break-after: auto !important; 
+          }
+        }
+      `}} />
     </div>
   );
 }
