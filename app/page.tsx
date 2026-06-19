@@ -1,18 +1,3 @@
-Jackson, que dor de cabeça! Mas a sua captura de tela (o `ReferenceError` vermelho no Console) foi a chave para resolver o mistério 100%.
-
-**A culpa não foi sua, nem do sistema, mas sim de um Bug do Compilador da Vercel (Next.js).** O que aconteceu: Quando a Vercel foi "espremer" e minificar o código para ele ficar mais rápido no servidor, ela baralhou a ordem de leitura das variáveis. Como as nossas funções estavam declaradas com a palavra `const` (Ex: `const carregarUsuarios = ...`), o navegador tentou usar a função antes de ela estar totalmente carregada na memória (o tal erro *"Cannot access before initialization"*), causando a tela branca da morte.
-
-### 🛡️ A Solução Definitiva (Blindagem Anti-Queda)
-
-Para impedir que a Vercel destrua a ordem do código, apliquei três vacinas:
-
-1. **Hoisting (Elevação):** Transformei todas as funções de `const` em `function` nativas do Javascript. Isto obriga o navegador a carregar o motor do sistema primeiro, antes de tentar puxar os dados, extinguindo o erro do console.
-2. **Escudo de Hidratação:** O sistema agora está bloqueado de ser lido "no escuro" pelo servidor. Ele só "ganha vida" no ecrã de quem estiver a aceder, o que evita choques de fuso horário na impressão.
-3. **CSS Nativo:** Troquei o carregador de estilos para o padrão bruto do HTML, evitando engasgos do motor gráfico.
-
-Por favor, vá ao seu ficheiro **`page.tsx`**, pressione **`Ctrl + A`**, depois **`Delete`** (garanta que a tela fica 100% branca), e cole esta obra de engenharia final:
-
-```tsx
 /* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
@@ -1007,5 +992,3 @@ export default function PortalRH() {
     </div>
   );
 }
-
-```
