@@ -4,11 +4,86 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 
-// ========================== CONFIGURAÇÕES E UTILITÁRIOS GLOBAIS ==========================
+// ========================== CONFIGURAÇÕES E ESTILOS GLOBAIS ==========================
 const URL = "https://dpndtwutvkaxrxrkyeyw.supabase.co";
 const KEY = "sb_publishable_6Ss9lNdcbyeE2o3U5jcJ7w_qI61wmIr";
 
-// BLINDAGEM 1: Garante que os nomes nunca quebram o código
+// BLINDAGEM 1: Isolar o CSS evita que a página "trema" ao digitar a matrícula
+const globalCss = `
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
+  @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css');
+  
+  .font-sans { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+  .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+  
+  .animation-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* PADRÃO OURO DE IMPRESSÃO (Previne cortar o verso do crachá) */
+  @media screen { 
+    .print-container { display: none !important; } 
+  }
+
+  @media print {
+    /* Esconde a interface inteira do sistema */
+    .hide-on-print, [role="status"], .fixed { 
+      display: none !important; 
+      visibility: hidden !important; 
+      opacity: 0 !important; 
+    }
+    
+    /* Quebra o bloqueio de altura da tela para a impressora ler todas as páginas */
+    html, body, .app-container { 
+      height: auto !important; 
+      min-height: 100vh !important;
+      overflow: visible !important; 
+      background: white !important; 
+      display: block !important; 
+      margin: 0 !important; 
+      padding: 0 !important; 
+    }
+    
+    /* Liberta o container de impressão */
+    .print-container { 
+      display: block !important; 
+      visibility: visible !important; 
+      position: relative !important; 
+      width: 54mm !important; 
+    }
+    
+    .print-container * { 
+      visibility: visible !important; 
+    }
+    
+    @page { size: 54mm 86mm; margin: 0 !important; }
+    
+    /* Força a impressora a imprimir as duas faces em páginas separadas */
+    .cracha-card { 
+      -webkit-print-color-adjust: exact !important; 
+      print-color-adjust: exact !important; 
+      width: 54mm !important; 
+      height: 86mm !important; 
+      box-sizing: border-box !important; 
+      page-break-after: always !important; 
+      break-after: page !important; 
+      background-color: white !important;
+      margin: 0 !important;
+      border: none !important;
+    }
+    
+    .cracha-card:last-of-type { 
+      page-break-after: auto !important; 
+      break-after: auto !important; 
+    }
+  }
+`;
+
+// Componente estático que bloqueia o tremor da tela
+const GlobalStyles = React.memo(() => <style dangerouslySetInnerHTML={{ __html: globalCss }} />);
+
+// BLINDAGEM 2: Funções Utilitárias Seguras
 function obterOpcoesNome(nomeCompleto: any) {
   if (!nomeCompleto) return ["NOME INDEFINIDO"];
   const nomeStr = String(nomeCompleto).trim();
@@ -33,18 +108,16 @@ function obterDataHoraAtual() {
   } catch(e) { return ''; }
 }
 
-// BLINDAGEM 2: Previne "Object are not valid as React child"
 function textoSeguro(valor: any, fallback: string = '') {
   if (valor === null || valor === undefined) return fallback;
   return String(valor);
 }
 
+// ========================== O SISTEMA PRINCIPAL ==========================
 export default function PortalRH() {
-  // ========================== ESCUDO CONTRA A TELA BRANCA DA VERCEL ==========================
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => { setIsMounted(true); }, []);
 
-  // ========================== ESTADOS GLOBAIS DE UI ==========================
   const [toast, setToast] = useState({ ativo: false, mensagem: '', tipo: 'sucesso' });
   const [confirmDialog, setConfirmDialog] = useState({ ativo: false, mensagem: '', acao: () => {} });
 
@@ -53,7 +126,7 @@ export default function PortalRH() {
     setTimeout(() => setToast({ ativo: false, mensagem: '', tipo: 'sucesso' }), 4000);
   }
 
-  // ========================== ESTADOS DE AUTENTICAÇÃO E NAVEGAÇÃO ==========================
+  // ESTADOS DE AUTENTICAÇÃO E NAVEGAÇÃO
   const [usuarioAutenticado, setUsuarioAutenticado] = useState<any>(null);
   const [loginInput, setLoginInput] = useState('');
   const [senhaInput, setSenhaInput] = useState('');
@@ -98,10 +171,7 @@ export default function PortalRH() {
   }
   
   function handleLogout() { setUsuarioAutenticado(null); setAbaAtiva('colaboradores'); }
-
-  function handleEsqueceuSenha() {
-    mostrarToast("Acesso restrito. Solicite a redefinição de senha ao Administrador do Sistema.", "aviso");
-  }
+  function handleEsqueceuSenha() { mostrarToast("Acesso restrito. Solicite a redefinição de senha ao Administrador do Sistema.", "aviso"); }
 
   function getMenuItens() {
     if (!usuarioAutenticado) return [];
@@ -117,11 +187,11 @@ export default function PortalRH() {
   const activeMenuName = menuItens.find(m => m.id === abaAtiva)?.nome || 'Módulo Restrito';
   const podeEditarFuncao = usuarioAutenticado?.perfil === 'ADM' || usuarioAutenticado?.perfil === 'RH';
 
-  // ========================== ESTADOS DAS ABAS ==========================
-  
+  // ESTADOS DAS ABAS
   const [listaSolicitacoes, setListaSolicitacoes] = useState<any[]>([]);
   const [carregandoSolicitacoes, setCarregandoSolicitacoes] = useState(false);
   const [solicitacoesSupervisor, setListaSolicitacoesSupervisor] = useState<any[]>([]);
+  
   const [buscaTabela, setBuscaTabela] = useState('');
   const [resultadosBusca, setResultadosBusca] = useState<any[]>([]);
   const [carregandoLista, setCarregandoLista] = useState(false);
@@ -135,7 +205,6 @@ export default function PortalRH() {
   const [matriculaLote, setMatriculaLote] = useState('');
   const [carregandoLote, setCarregandoLote] = useState(false);
 
-  // ABA: EMISSÃO / CAPTURA
   const [colaborador, setColaborador] = useState<any>(null);
   const [buscaEmissao, setBuscaEmissao] = useState('');
   const [carregandoEmissao, setCarregandoEmissao] = useState(false);
@@ -151,7 +220,6 @@ export default function PortalRH() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const fotoAlterada = fotoCapturada && fotoCapturada !== colaborador?.foto_url;
 
-  // ABA: CADASTRO E ACESSOS
   const [formCadastro, setFormCadastro] = useState({ matricula: '', nome_completo: '', cpf: '', rg: '', desc_funcao: '' });
   const [salvandoCadastro, setSalvandoCadastro] = useState(false);
 
@@ -164,8 +232,7 @@ export default function PortalRH() {
   const [confirmarSenha, setConfirmarSenha] = useState('');
   const [erroSenha, setErroSenha] = useState('');
 
-  // ========================== FUNÇÕES DE BUSCA E SISTEMA ==========================
-  
+  // FUNÇÕES DE BUSCA E SISTEMA
   async function carregarSolicitacoes() {
     setCarregandoSolicitacoes(true);
     try {
@@ -273,7 +340,7 @@ export default function PortalRH() {
     } catch (e) { mostrarToast("Falha ao registar histórico.", "erro"); }
   }
 
-  // BLINDAGEM MÁXIMA NA FUNÇÃO DE BUSCA E VALIDAÇÃO DE VIA
+  // BUSCA INDIVIDUAL (BLINDADA CONTRA ERROS)
   async function buscarColaboradorParaEmissao(matriculaAlvo: string) {
     setRawFoto(null); 
     setCarregandoEmissao(true); 
@@ -421,6 +488,7 @@ export default function PortalRH() {
   if (!usuarioAutenticado) {
     return (
       <div className="flex h-screen bg-[#f4f7f6] font-sans items-center justify-center relative overflow-hidden">
+        <GlobalStyles />
         {toast.ativo && (<div className={`fixed top-8 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-full shadow-lg font-semibold text-sm flex items-center gap-3 animation-fade-in text-white hide-on-print ${toast.tipo === 'sucesso' ? 'bg-emerald-500' : toast.tipo === 'erro' ? 'bg-rose-500' : 'bg-amber-500'}`}><i className={`fas ${toast.tipo === 'sucesso' ? 'fa-check-circle' : toast.tipo === 'erro' ? 'fa-times-circle' : 'fa-exclamation-triangle'}`}></i> {toast.mensagem}</div>)}
         <div className="absolute top-0 left-0 w-full h-[40%] bg-[#023A58]"></div>
         <div className="z-10 w-full max-w-md px-4 sm:px-6">
@@ -445,7 +513,8 @@ export default function PortalRH() {
 
   // ========================== DASHBOARD PRINCIPAL ==========================
   return (
-    <div className="flex h-screen bg-slate-50 font-sans text-slate-800 overflow-hidden relative">
+    <div className="app-container flex h-screen bg-slate-50 font-sans text-slate-800 overflow-hidden relative">
+      <GlobalStyles />
       
       {/* COMPONENTES FLUTUANTES E MODAIS */}
       {toast.ativo && (<div className={`fixed top-8 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-full shadow-lg font-semibold text-sm flex items-center gap-3 animation-fade-in text-white hide-on-print ${toast.tipo === 'sucesso' ? 'bg-emerald-500' : toast.tipo === 'erro' ? 'bg-rose-500' : 'bg-amber-500'}`}><i className={`fas ${toast.tipo === 'sucesso' ? 'fa-check-circle' : toast.tipo === 'erro' ? 'fa-times-circle' : 'fa-exclamation-triangle'}`}></i> {toast.mensagem}</div>)}
@@ -610,21 +679,12 @@ export default function PortalRH() {
 
           {abaAtiva === 'emissao' && (
             <div className="max-w-full lg:max-w-6xl mx-auto flex flex-col gap-6 animation-fade-in">
-              <div className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 items-end">
-                <div className="flex-1 w-full">
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Matrícula do Colaborador</label>
-                  <input 
-                     type="text" 
-                     placeholder="Ex: 6294" 
-                     value={buscaEmissao} 
-                     onChange={(e) => setBuscaEmissao(textoSeguro(e.target.value))} 
-                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#023A58]" 
-                  />
-                </div>
-                <button onClick={() => buscarColaboradorParaEmissao(buscaEmissao)} disabled={carregandoEmissao || !buscaEmissao} className="w-full md:w-auto bg-[#023A58] text-white font-semibold px-8 py-3 rounded-xl hover:bg-[#035B8B] shadow-sm flex items-center justify-center gap-2">
+              <form onSubmit={(e) => { e.preventDefault(); buscarColaboradorParaEmissao(buscaEmissao); }} className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 items-end">
+                <div className="flex-1 w-full"><label className="block text-sm font-semibold text-slate-700 mb-2">Matrícula do Colaborador</label><input type="text" placeholder="Ex: 6294" value={buscaEmissao} onChange={(e) => setBuscaEmissao(textoSeguro(e.target.value))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#023A58]" /></div>
+                <button type="submit" disabled={carregandoEmissao} className="w-full md:w-auto bg-[#023A58] text-white font-semibold px-8 py-3 rounded-xl hover:bg-[#035B8B] shadow-sm flex items-center justify-center gap-2">
                   {carregandoEmissao ? <i className="fas fa-spinner fa-spin"></i> : <><i className="fas fa-search"></i> Buscar</>}
                 </button>
-              </div>
+              </form>
 
               {colaborador && (
                 <div className="flex flex-col lg:flex-row gap-6">
@@ -692,6 +752,7 @@ export default function PortalRH() {
 
                       <div className="flex flex-col md:flex-row justify-center bg-slate-50 p-6 rounded-xl border border-slate-100 overflow-x-auto gap-6 flex-1">
                         
+                        {/* CRACHÁ FRENTE */}
                         <div className="cracha-card w-[54mm] h-[86mm] bg-white relative flex flex-col items-center overflow-hidden box-border flex-shrink-0" style={{ border: '1px solid #ccc' }}>
                           <div className="mt-[4mm] w-[26mm] h-[35mm] flex items-center justify-center overflow-hidden z-10 border border-slate-300 bg-white">
                             {fotoCapturada ? <img src={fotoCapturada} className="w-full h-full object-cover" alt="Foto" /> : <div className="w-full h-full bg-white"></div>}
@@ -705,6 +766,7 @@ export default function PortalRH() {
                           <div className="absolute bottom-[13mm] left-[1mm] z-10 w-[24mm] h-[8mm] flex items-center justify-start"><img src="/dinamo.png" className="max-h-full max-w-full object-contain" alt="Dínamo" /></div>
                         </div>
                         
+                        {/* CRACHÁ VERSO */}
                         <div className="cracha-card w-[54mm] h-[86mm] bg-white relative p-[2mm] flex flex-col box-border flex-shrink-0" style={{ border: '1px solid #ccc' }}>
                           <div className="mt-[2mm] w-full flex flex-col gap-[2.5mm]">
                             <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span><div className="text-[7.5px] text-black font-semibold uppercase pt-[1mm]">{textoSeguro(colaborador?.nome_completo)}</div></div>
@@ -727,7 +789,7 @@ export default function PortalRH() {
                           <div className="absolute bottom-[1.5mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center">
                             <div className="text-[7px] text-black leading-[1.2] mb-[1.5mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div>
                             <div className="text-center w-full mb-[1mm]"><div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div><div className="text-[6px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div></div>
-                            <div className="text-[5.5px] text-black font-bold text-right w-full">Emitido em: {textoSeguro(obterDataHoraAtual())}</div>
+                            <div className="text-[5.5px] text-black font-bold text-right w-full">Emitido em: {textoSeguro(dataHoraAtual)}</div>
                           </div>
                         </div>
                       </div>
@@ -929,7 +991,7 @@ export default function PortalRH() {
                 <div className="absolute bottom-[1.5mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center">
                   <div className="text-[7px] text-black leading-[1.2] mb-[1.5mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div>
                   <div className="text-center w-full mb-[1mm]"><div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div><div className="text-[6px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div></div>
-                  <div className="text-[5.5px] text-black font-bold text-right w-full">Emitido em: {textoSeguro(obterDataHoraAtual())}</div>
+                  <div className="text-[5.5px] text-black font-bold text-right w-full">Emitido em: {textoSeguro(dataHoraAtual)}</div>
                 </div>
               </div>
            </React.Fragment>
@@ -937,73 +999,6 @@ export default function PortalRH() {
          })}
       </div>
       )}
-
-      <style dangerouslySetInnerHTML={{__html: `
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
-        @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css');
-        
-        .font-sans { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
-        
-        .animation-fade-in { animation: fadeIn 0.3s ease-out forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* PADRÃO OURO DE CSS PARA IMPRESSÃO DE CRACHÁS */
-        @media screen { 
-          .print-container { display: none !important; } 
-        }
-
-        @media print {
-          .hide-on-print, [role="status"], .fixed { 
-            display: none !important; 
-            visibility: hidden !important; 
-            opacity: 0 !important; 
-          }
-          
-          html, body, main, .print-padding-remove { 
-            width: 54mm !important; 
-            height: auto !important; 
-            overflow: visible !important; 
-            margin: 0 !important; 
-            padding: 0 !important; 
-            background: white !important; 
-            display: block !important; 
-          }
-          
-          .print-container { 
-            display: block !important; 
-            visibility: visible !important; 
-            position: relative !important; 
-            width: 54mm !important; 
-          }
-          
-          .print-container * { 
-            visibility: visible !important; 
-          }
-          
-          @page { size: 54mm 86mm; margin: 0 !important; }
-          
-          .cracha-card { 
-            -webkit-print-color-adjust: exact !important; 
-            print-color-adjust: exact !important; 
-            width: 54mm !important; 
-            height: 86mm !important; 
-            box-sizing: border-box !important; 
-            page-break-after: always !important; 
-            break-after: page !important; 
-            background-color: white !important;
-            margin: 0 !important;
-            border: none !important;
-          }
-          
-          .cracha-card:last-of-type { 
-            page-break-after: auto !important; 
-            break-after: auto !important; 
-          }
-        }
-      `}} />
     </div>
   );
 }
