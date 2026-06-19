@@ -4,15 +4,15 @@ import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
-// ESTA É A IDENTIDADE DO SEU SISTEMA!
+// PODE ALTERAR O TEXTO ENTRE AS ASPAS PARA O QUE QUISER!
 export const metadata: Metadata = {
-  title: "SGSO | Dínamo Engenharia",
-  description: "Portal Operacional e Emissão de Crachás - Dínamo Engenharia",
+  title: "Portal Crachás | Dínamo Engenharia",
+  description: "Sistema de Gestão e Emissão de Crachás",
 };
 
 export default function RootLayout({
   children,
-}: ReadType<{
+}: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
