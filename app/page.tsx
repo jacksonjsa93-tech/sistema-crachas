@@ -261,6 +261,13 @@ export default function PortalRH() {
   const handleCriarUsuario = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formUsuario.nome || !formUsuario.login || !formUsuario.senha) { mostrarToast('Preencha todos os campos.', 'erro'); return; }
+    
+    // BLINDAGEM: Impede que o RH crie um ADM forçando o sistema
+    if (usuarioAutenticado?.perfil !== 'ADM' && formUsuario.perfil === 'ADM') {
+      mostrarToast('Acesso Negado: Apenas Administradores podem criar novos Administradores.', 'erro');
+      return;
+    }
+
     setSalvandoUsuario(true);
     try {
       const response = await fetch(`${URL}/rest/v1/usuarios_sistema`, {
@@ -269,6 +276,7 @@ export default function PortalRH() {
         body: JSON.stringify(formUsuario)
       });
       if (!response.ok) {
+         const errData = await response.json().catch(() => ({}));
          if(response.status === 409) throw new Error('Login já em uso.');
          throw new Error(`Erro de sistema.`);
       }
@@ -318,11 +326,10 @@ export default function PortalRH() {
   const colaboradoresParaImprimir = abaAtiva === 'lote' ? listaLote : (colaborador && abaAtiva === 'emissao' ? [{ ...colaborador, foto_url: fotoCapturada || colaborador.foto_url }] : []);
   const navegarPara = (id: string) => { setAbaAtiva(id); setMenuAberto(false); };
 
-  // ========================== TELA DE LOGIN (CLEAN / FLAT) ==========================
+  // ========================== TELA DE LOGIN ==========================
   if (!usuarioAutenticado) {
     return (
       <div className="flex h-screen bg-[#f4f7f6] font-sans items-center justify-center relative overflow-hidden">
-        {/* TOAST NOTIFICATION NO LOGIN */}
         {toast.ativo && (
           <div className={`fixed top-8 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-full shadow-lg font-semibold text-sm flex items-center gap-3 animation-fade-in text-white ${toast.tipo === 'sucesso' ? 'bg-emerald-500' : toast.tipo === 'erro' ? 'bg-rose-500' : 'bg-amber-500'}`}>
             <i className={`fas ${toast.tipo === 'sucesso' ? 'fa-check-circle' : toast.tipo === 'erro' ? 'fa-times-circle' : 'fa-exclamation-triangle'}`}></i> {toast.mensagem}
@@ -390,14 +397,12 @@ export default function PortalRH() {
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-slate-800 overflow-hidden screen-only relative">
       
-      {/* TOAST GLOBAL PARA O SISTEMA INTERNO */}
       {toast.ativo && (
         <div className={`fixed top-8 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-full shadow-lg font-semibold text-sm flex items-center gap-3 animation-fade-in text-white ${toast.tipo === 'sucesso' ? 'bg-emerald-500' : toast.tipo === 'erro' ? 'bg-rose-500' : 'bg-amber-500'}`}>
           <i className={`fas ${toast.tipo === 'sucesso' ? 'fa-check-circle' : toast.tipo === 'erro' ? 'fa-times-circle' : 'fa-exclamation-triangle'}`}></i> {toast.mensagem}
         </div>
       )}
 
-      {/* MODAL DE CONFIRMAÇÃO ELEGANTE */}
       {confirmDialog.ativo && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[90] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animation-fade-in">
@@ -661,7 +666,7 @@ export default function PortalRH() {
                         <div className="absolute bottom-0 left-0 w-full h-[32mm] z-0"><img src="/Imagem1.png" className="w-full h-full object-fill" alt="Fundo" /></div>
                         <div className="absolute bottom-[13mm] left-[1mm] z-10 w-[24mm] h-[8mm] flex items-center justify-start"><img src="/dinamo.png" className="max-h-full max-w-full object-contain" alt="Dínamo" /></div>
                       </div>
-                      {/* CARTÃO VERSO (REMOVIDO VERMELHO DO SANGUE) */}
+                      {/* CARTÃO VERSO */}
                       <div className="cracha-card w-[54mm] h-[86mm] bg-white relative p-[2mm] flex flex-col box-border flex-shrink-0" style={{ border: '1px solid #ccc' }}>
                         <div className="mt-[2mm] w-full flex flex-col gap-[3mm]">
                           <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span><div className="text-[7.5px] text-black font-semibold uppercase">{colaborador.nome_completo}</div></div>
@@ -699,20 +704,20 @@ export default function PortalRH() {
 
           {/* ABA 4: CADASTRO MANUAL */}
           {abaAtiva === 'cadastro' && (usuarioAutenticado.perfil === 'ADM' || usuarioAutenticado.perfil === 'RH') && (
-            <div className="max-w-4xl mx-auto hide-on-print animation-fade-in">
+            <div className="max-w-3xl mx-auto hide-on-print animation-fade-in">
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200">
                 <div className="p-6 border-b border-slate-100"><h3 className="font-bold text-slate-800 text-lg">Cadastro Manual</h3></div>
                 <form onSubmit={handleCadastroManual} className="p-6 flex flex-col gap-5">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><label className="block text-xs font-semibold text-slate-500 mb-1">Matrícula *</label><input type="text" required value={formCadastro.matricula} onChange={e => setFormCadastro({...formCadastro, matricula: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#023A58]" /></div>
-                    <div><label className="block text-xs font-semibold text-slate-500 mb-1">Nome Completo *</label><input type="text" required value={formCadastro.nome_completo} onChange={e => setFormCadastro({...formCadastro, nome_completo: e.target.value.toUpperCase()})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#023A58]" /></div>
+                    <div><label className="block text-xs font-semibold text-slate-500 mb-1">Matrícula</label><input type="text" required value={formCadastro.matricula} onChange={e => setFormCadastro({...formCadastro, matricula: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#023A58]" /></div>
+                    <div><label className="block text-xs font-semibold text-slate-500 mb-1">Nome Completo</label><input type="text" required value={formCadastro.nome_completo} onChange={e => setFormCadastro({...formCadastro, nome_completo: e.target.value.toUpperCase()})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#023A58]" /></div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div><label className="block text-xs font-semibold text-slate-500 mb-1">CPF</label><input type="text" value={formCadastro.cpf} onChange={e => setFormCadastro({...formCadastro, cpf: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#023A58]" /></div>
                     <div><label className="block text-xs font-semibold text-slate-500 mb-1">RG</label><input type="text" value={formCadastro.rg} onChange={e => setFormCadastro({...formCadastro, rg: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#023A58]" /></div>
                     <div><label className="block text-xs font-semibold text-slate-500 mb-1">Cargo</label><input type="text" value={formCadastro.desc_funcao} onChange={e => setFormCadastro({...formCadastro, desc_funcao: e.target.value.toUpperCase()})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#023A58]" /></div>
                   </div>
-                  <button type="submit" disabled={salvandoCadastro} className="mt-4 w-full md:w-auto self-end bg-emerald-500 text-white font-semibold py-3 px-8 rounded-xl hover:bg-emerald-600 transition-colors">Cadastrar Colaborador</button>
+                  <button type="submit" disabled={salvandoCadastro} className="mt-4 bg-emerald-500 text-white font-semibold py-3 rounded-xl hover:bg-emerald-600">Cadastrar Colaborador</button>
                 </form>
               </div>
             </div>
@@ -720,29 +725,37 @@ export default function PortalRH() {
 
           {/* ABA 5: GESTÃO DE ACESSOS */}
           {abaAtiva === 'configuracoes' && (
-            <div className="max-w-full lg:max-w-6xl mx-auto hide-on-print animation-fade-in">
+            <div className="max-w-6xl mx-auto hide-on-print animation-fade-in">
               {(usuarioAutenticado?.perfil !== 'ADM' && usuarioAutenticado?.perfil !== 'RH') ? (
                  <div className="bg-white p-12 rounded-2xl border border-slate-200 shadow-sm text-center"><h2 className="text-xl font-bold text-slate-800">Acesso Restrito</h2></div>
               ) : (
-                <div className="flex flex-col lg:flex-row gap-6">
-                  <div className="w-full lg:w-1/3 bg-white rounded-2xl shadow-sm border border-slate-200 h-fit">
+                <div className="flex flex-col md:flex-row gap-6">
+                  <div className="md:w-1/3 bg-white rounded-2xl shadow-sm border border-slate-200 h-fit">
                     <div className="p-5 border-b border-slate-100"><h3 className="font-bold text-slate-800">Novo Acesso</h3></div>
                     <form onSubmit={handleCriarUsuario} className="p-5 flex flex-col gap-4">
                       <div><label className="text-xs font-semibold text-slate-500 block mb-1">Nome</label><input type="text" required value={formUsuario.nome} onChange={e => setFormUsuario({...formUsuario, nome: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#023A58]" /></div>
                       <div><label className="text-xs font-semibold text-slate-500 block mb-1">Login</label><input type="text" required value={formUsuario.login} onChange={e => setFormUsuario({...formUsuario, login: e.target.value.toLowerCase().replace(/\s/g, '')})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#023A58]" /></div>
                       <div><label className="text-xs font-semibold text-slate-500 block mb-1">Senha</label><input type="password" required value={formUsuario.senha} onChange={e => setFormUsuario({...formUsuario, senha: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#023A58]" /></div>
-                      <div><label className="text-xs font-semibold text-slate-500 block mb-1">Perfil</label><select value={formUsuario.perfil} onChange={e => setFormUsuario({...formUsuario, perfil: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#023A58]"><option value="RH">RH</option><option value="SESMT">SESMT</option><option value="ADM">Administrador</option></select></div>
+                      <div>
+                        <label className="text-xs font-semibold text-slate-500 block mb-1">Perfil</label>
+                        <select value={formUsuario.perfil} onChange={e => setFormUsuario({...formUsuario, perfil: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#023A58]">
+                          <option value="RH">RH</option>
+                          <option value="SESMT">SESMT</option>
+                          {/* BLINDAGEM VISUAL: Apenas o ADM vê a opção de criar outro ADM */}
+                          {usuarioAutenticado?.perfil === 'ADM' && <option value="ADM">Administrador</option>}
+                        </select>
+                      </div>
                       <button type="submit" className="w-full bg-[#023A58] text-white font-semibold py-2.5 rounded-lg mt-2 hover:bg-[#035B8B] transition-colors">Criar Utilizador</button>
                     </form>
                   </div>
-                  <div className="w-full lg:w-2/3 bg-white rounded-2xl shadow-sm border border-slate-200">
+                  <div className="md:w-2/3 bg-white rounded-2xl shadow-sm border border-slate-200">
                     <div className="p-5 border-b border-slate-100"><h3 className="font-bold text-slate-800">Equipa Ativa</h3></div>
-                    <div className="p-5 overflow-x-auto">
-                      <table className="w-full text-left whitespace-nowrap">
-                        <thead><tr className="text-xs text-slate-400 border-b border-slate-100"><th className="pb-2 pr-4">Nome</th><th className="pb-2 pr-4">Perfil</th><th className="pb-2 text-right">Ação</th></tr></thead>
+                    <div className="p-5">
+                      <table className="w-full text-left">
+                        <thead><tr className="text-xs text-slate-400 border-b border-slate-100"><th className="pb-2">Nome</th><th className="pb-2">Perfil</th><th className="pb-2">Ação</th></tr></thead>
                         <tbody className="text-sm">
                           {listaUsuarios.map((usr) => (
-                            <tr key={usr.id} className="border-b border-slate-50"><td className="py-3 font-medium text-slate-700 pr-4">{usr.nome}</td><td className="py-3 pr-4"><span className="bg-slate-100 px-2 py-1 rounded text-xs font-semibold">{usr.perfil}</span></td><td className="py-3 text-right">{usr.login !== 'admin' && <button onClick={() => tentarExcluirUsuario(usr.id, usr.login, usr.perfil)} className="text-rose-500 hover:text-rose-700 text-xs font-bold transition-colors"><i className="fas fa-trash-alt"></i> Excluir</button>}</td></tr>
+                            <tr key={usr.id} className="border-b border-slate-50"><td className="py-3 font-medium text-slate-700">{usr.nome}</td><td className="py-3"><span className="bg-slate-100 px-2 py-1 rounded text-xs font-semibold">{usr.perfil}</span></td><td className="py-3">{usr.login !== 'admin' && <button onClick={() => tentarExcluirUsuario(usr.id, usr.login, usr.perfil)} className="text-rose-500 text-xs hover:text-rose-700 font-bold transition-colors">Excluir</button>}</td></tr>
                           ))}
                         </tbody>
                       </table>
@@ -758,18 +771,18 @@ export default function PortalRH() {
         {/* MODAL EDIÇÃO COLABORADOR */}
         {colaboradorEditando && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden animation-fade-in">
-              <div className="p-5 border-b border-slate-100 flex justify-between"><h3 className="font-bold text-slate-800">Editar Complementos</h3><button onClick={() => setColaboradorEditando(null)}><i className="fas fa-times text-slate-400 hover:text-rose-500 transition-colors"></i></button></div>
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden">
+              <div className="p-5 border-b border-slate-100 flex justify-between"><h3 className="font-bold text-slate-800">Editar Complementos</h3><button onClick={() => setColaboradorEditando(null)}><i className="fas fa-times text-slate-400"></i></button></div>
               <form onSubmit={salvarEdicao} className="p-6 flex flex-col gap-4 bg-slate-50/50">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div><label className="text-xs font-semibold text-slate-500 block mb-1">Matrícula</label><input disabled value={colaboradorEditando.matricula} className="w-full bg-slate-100 border border-slate-200 rounded-xl p-3 text-sm text-slate-500" /></div>
                   <div><label className="text-xs font-semibold text-slate-500 block mb-1">Nome</label><input disabled value={colaboradorEditando.nome_completo} className="w-full bg-slate-100 border border-slate-200 rounded-xl p-3 text-sm text-slate-500" /></div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
-                  <div><label className="text-xs font-semibold text-rose-600 block mb-1">Tipo Sanguíneo</label><input type="text" value={colaboradorEditando.tipo_sanguineo || ''} onChange={e => setColaboradorEditando({...colaboradorEditando, tipo_sanguineo: e.target.value})} className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm uppercase focus:border-rose-400 focus:outline-none" placeholder="O+" /></div>
+                <div className="grid grid-cols-2 gap-4 mt-2">
+                  <div><label className="text-xs font-semibold text-slate-800 block mb-1">Tipo Sanguíneo</label><input type="text" value={colaboradorEditando.tipo_sanguineo || ''} onChange={e => setColaboradorEditando({...colaboradorEditando, tipo_sanguineo: e.target.value})} className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm uppercase focus:border-[#023A58] focus:outline-none" placeholder="O+" /></div>
                   <div><label className="text-xs font-semibold text-[#0a84ff] block mb-1">Link QR Code</label><input type="url" value={colaboradorEditando.link_qrcode || ''} onChange={e => setColaboradorEditando({...colaboradorEditando, link_qrcode: e.target.value})} className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:border-[#0a84ff] focus:outline-none" placeholder="https://" /></div>
                 </div>
-                <div className="flex justify-end gap-3 mt-4"><button type="button" onClick={() => setColaboradorEditando(null)} className="px-6 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancelar</button><button type="submit" disabled={salvandoEdicao} className="px-6 py-2.5 bg-orange-500 hover:bg-orange-600 rounded-xl text-sm font-semibold text-white transition-colors">Atualizar</button></div>
+                <div className="flex justify-end gap-3 mt-4"><button type="button" onClick={() => setColaboradorEditando(null)} className="px-6 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-semibold text-slate-600">Cancelar</button><button type="submit" disabled={salvandoEdicao} className="px-6 py-2.5 bg-orange-500 rounded-xl text-sm font-semibold text-white">Atualizar</button></div>
               </form>
             </div>
           </div>
@@ -778,66 +791,17 @@ export default function PortalRH() {
         {/* MODAL ALTERAR SENHA */}
         {mostrarModalSenha && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animation-fade-in">
-              <div className="p-5 border-b border-slate-100 flex justify-between"><h3 className="font-bold text-slate-800">Alterar Senha</h3><button onClick={() => setMostrarModalSenha(false)}><i className="fas fa-times text-slate-400 hover:text-rose-500"></i></button></div>
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
+              <div className="p-5 border-b border-slate-100 flex justify-between"><h3 className="font-bold text-slate-800">Alterar Senha</h3><button onClick={() => setMostrarModalSenha(false)}><i className="fas fa-times text-slate-400"></i></button></div>
               <form onSubmit={handleAlterarSenha} className="p-6 flex flex-col gap-4">
-                {erroSenha && <div className="text-xs text-rose-600 font-medium">{erroSenha}</div>}
                 <div><label className="text-xs font-semibold text-slate-500 block mb-1">Nova Senha</label><input type="password" required value={novaSenha} onChange={e => setNovaSenha(e.target.value)} className="w-full border border-slate-300 rounded-xl p-3 text-sm focus:outline-none focus:border-[#023A58]" placeholder="••••••••" /></div>
                 <div><label className="text-xs font-semibold text-slate-500 block mb-1">Confirmar Senha</label><input type="password" required value={confirmarSenha} onChange={e => setConfirmarSenha(e.target.value)} className="w-full border border-slate-300 rounded-xl p-3 text-sm focus:outline-none focus:border-[#023A58]" placeholder="••••••••" /></div>
-                <button type="submit" disabled={salvandoSenha} className="w-full bg-[#023A58] hover:bg-[#035B8B] text-white py-3 rounded-xl font-semibold mt-2 transition-colors">Alterar Senha</button>
+                <button type="submit" disabled={salvandoSenha} className="w-full bg-[#023A58] text-white py-3 rounded-xl font-semibold mt-2">Alterar Senha</button>
               </form>
             </div>
           </div>
         )}
 
-        {/* MOTOR DE IMPRESSÃO INVISÍVEL */}
-        <div className="print-container hidden">
-           {colaboradoresParaImprimir.map((c, index) => (
-             <React.Fragment key={index}>
-                <div className="cracha-card w-[54mm] h-[86mm] bg-white relative flex flex-col items-center overflow-hidden box-border" style={{ border: '1px solid #ccc' }}>
-                  <div className="mt-[4mm] w-[26mm] h-[35mm] flex items-center justify-center overflow-hidden z-10 border border-slate-300 bg-white">
-                    {c.foto_url ? <img src={c.foto_url} className="w-full h-full object-cover" alt="Foto" /> : <div className="w-full h-full bg-white"></div>}
-                  </div>
-                  <div className="mt-[2mm] text-center z-10 w-full px-2">
-                    <div className="text-[#051e42] font-black text-[18px] leading-[1.0]" style={{ fontFamily: 'Arial, sans-serif' }}>
-                      {formatarNomeCurto(c.nome_completo).split(' ')[0]}<br/>{formatarNomeCurto(c.nome_completo).split(' ')[1] || ''}
-                    </div>
-                  </div>
-                  <div className="absolute bottom-0 left-0 w-full h-[32mm] z-0"><img src="/Imagem1.png" className="w-full h-full object-fill" alt="Fundo" /></div>
-                  <div className="absolute bottom-[13mm] left-[1mm] z-10 w-[24mm] h-[8mm] flex items-center justify-start"><img src="/dinamo.png" className="max-h-full max-w-full object-contain" alt="Dínamo" /></div>
-                </div>
-
-                <div className="cracha-card w-[54mm] h-[86mm] bg-white relative p-[2mm] flex flex-col box-border" style={{ border: '1px solid #ccc' }}>
-                  <div className="mt-[2mm] w-full flex flex-col gap-[3mm]">
-                    <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span><div className="text-[7.5px] text-black font-semibold uppercase">{c.nome_completo}</div></div>
-                    <div className="flex w-full gap-[2mm]">
-                      <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex-1 flex items-center justify-center"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">CPF</span><div className="text-[8px] text-black font-semibold uppercase">{c.cpf || '000.000.000-00'}</div></div>
-                      <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] w-[14mm] flex items-center justify-center bg-white"><span className="absolute -top-[2.5mm] left-[1mm] bg-white px-[0.5mm] text-[5px] font-bold text-black leading-none">Tp. Sangue</span><div className="text-[8px] text-black font-black uppercase">{c.tipo_sanguineo || ''}</div></div>
-                    </div>
-                    <div className="flex w-full gap-[2mm] items-stretch h-[24mm]">
-                        <div className="flex flex-col flex-1 justify-between">
-                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Função</span><div className="text-[7px] text-black font-semibold uppercase truncate px-1">{c.desc_funcao}</div></div>
-                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Car. Identidade</span><div className="text-[8px] text-black font-semibold uppercase">{c.rg || '0000000000'}</div></div>
-                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Matrícula</span><div className="text-[8px] text-black font-semibold uppercase">{String(c.matricula).padStart(8, '0')}</div></div>
-                        </div>
-                        <div className="w-[21mm] flex-shrink-0 flex items-center justify-center border border-slate-100 p-[0.5mm] bg-white rounded-sm z-10">
-                          {c.link_qrcode ? <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(c.link_qrcode)}`} className="w-full h-full object-contain" alt="QR Code" /> : <div className="w-full h-full bg-white"></div>}
-                        </div>
-                    </div>
-                    <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Empresa</span><div className="text-[8px] text-black font-semibold uppercase">DINAMO ENGENHARIA</div></div>
-                  </div>
-                  <div className="absolute bottom-[2mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center p-b[2mm]">
-                    <div className="text-[7px] text-black leading-[1.3] mb-[3mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div>
-                    <div className="text-center w-full mb-[1mm]">
-                      <div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div>
-                      <div className="text-[6.5px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div>
-                    </div>
-                    <div className="text-[5.5px] text-black font-bold text-right w-full mt-[1mm]">Emitido em: {obterDataHoraAtual()}</div>
-                  </div>
-                </div>
-             </React.Fragment>
-           ))}
-        </div>
       </main>
 
       <style jsx global>{`
