@@ -16,6 +16,14 @@ export default function PortalRH() {
   const [menuAberto, setMenuAberto] = useState(false);
   const [cameraTraseira, setCameraTraseira] = useState(true);
 
+  // Estados para alteração de senha
+  const [mostrarModalSenha, setMostrarModalSenha] = useState(false);
+  const [novaSenha, setNovaSenha] = useState('');
+  const [confirmarSenha, setConfirmarSenha] = useState('');
+  const [erroSenha, setErroSenha] = useState('');
+  const [sucessoSenha, setSucessoSenha] = useState('');
+  const [salvandoSenha, setSalvandoSenha] = useState(false);
+
   const URL = "https://dpndtwutvkaxrxrkyeyw.supabase.co";
   const KEY = "sb_publishable_6Ss9lNdcbyeE2o3U5jcJ7w_qI61wmIr";
 
@@ -150,7 +158,15 @@ export default function PortalRH() {
     try {
       const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${matriculaAlvo}&select=*`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
       const data = await response.json();
-      if (data && data.length > 0) { setColaborador(data[0]); setFotoCapturada(data[0].foto_url || null); setAbaAtiva('emissao'); } else { setColaborador(null); setErroEmissao('Matrícula não encontrada.'); }
+      if (data && data.length > 0) { 
+        setColaborador(data[0]); 
+        setFotoCapturada(data[0].foto_url || null); 
+        setAbaAtiva('emissao'); 
+        setBuscaEmissao(''); // Limpa o campo após busca bem-sucedida
+      } else { 
+        setColaborador(null); 
+        setErroEmissao('Matrícula não encontrada.'); 
+      }
     } catch (error) { setErroEmissao('Erro de ligação.'); } finally { setCarregandoEmissao(false); }
   };
 
@@ -266,6 +282,52 @@ export default function PortalRH() {
     try { await fetch(`${URL}/rest/v1/usuarios_sistema?id=eq.${id}`, { method: 'DELETE', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } }); carregarUsuarios(); } catch (err) { alert("Erro ao excluir."); }
   };
 
+  // ========================== ALTERAÇÃO DE SENHA DO PRÓPRIO USUÁRIO ==========================
+  const abrirModalSenha = () => {
+    setMostrarModalSenha(true);
+    setNovaSenha('');
+    setConfirmarSenha('');
+    setErroSenha('');
+    setSucessoSenha('');
+  };
+
+  const handleAlterarSenha = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErroSenha('');
+    setSucessoSenha('');
+
+    if (!novaSenha || !confirmarSenha) {
+      setErroSenha('Preencha ambos os campos.');
+      return;
+    }
+    if (novaSenha !== confirmarSenha) {
+      setErroSenha('As senhas não coincidem.');
+      return;
+    }
+    if (novaSenha.length < 4) {
+      setErroSenha('A senha deve ter pelo menos 4 caracteres.');
+      return;
+    }
+
+    setSalvandoSenha(true);
+    try {
+      const response = await fetch(`${URL}/rest/v1/usuarios_sistema?id=eq.${usuarioAutenticado.id}`, {
+        method: 'PATCH',
+        headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ senha: novaSenha }),
+      });
+      if (!response.ok) throw new Error('Erro ao alterar senha.');
+      setSucessoSenha('Senha alterada com sucesso!');
+      setNovaSenha('');
+      setConfirmarSenha('');
+      setTimeout(() => setMostrarModalSenha(false), 1500);
+    } catch (err: any) {
+      setErroSenha(err.message || 'Erro ao alterar senha.');
+    } finally {
+      setSalvandoSenha(false);
+    }
+  };
+
   const formatarNomeCurto = (nomeCompleto: string) => { if (!nomeCompleto) return ""; const partes = nomeCompleto.trim().split(" "); return partes.length === 1 ? partes[0] : `${partes[0]} ${partes[partes.length - 1]}`; };
   const obterDataHoraAtual = () => { const data = new Date(); return `${data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })} ${data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`; };
   const colaboradoresParaImprimir = abaAtiva === 'lote' ? listaLote : (colaborador && abaAtiva === 'emissao' ? [{ ...colaborador, foto_url: fotoCapturada || colaborador.foto_url }] : []);
@@ -328,8 +390,8 @@ export default function PortalRH() {
       {/* OVERLAY MOBILE */}
       {menuAberto && <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 md:hidden transition-opacity" onClick={() => setMenuAberto(false)}></div>}
 
-      {/* MENU LATERAL */}
-      <aside className={`${menuAberto ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed md:relative z-50 w-72 h-full flex flex-col shadow-2xl transition-transform duration-300 ease-out hide-on-print border-r border-white/10`} style={{ background: 'linear-gradient(180deg, #023A58 0%, #012B40 100%)' }}>
+      {/* MENU LATERAL - SEM SOMBRA EXAGERADA */}
+      <aside className={`${menuAberto ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed md:relative z-50 w-72 h-full flex flex-col transition-transform duration-300 ease-out hide-on-print border-r border-white/10`} style={{ background: 'linear-gradient(180deg, #023A58 0%, #012B40 100%)' }}>
         <div className="h-24 flex items-center justify-between md:justify-center border-b border-white/10 px-6">
           <img src="/logodinamobranca.png" alt="Dínamo" className="max-h-12 object-contain drop-shadow-lg" />
           <button className="md:hidden text-white/70 hover:text-white text-2xl" onClick={() => setMenuAberto(false)}><i className="fas fa-times"></i></button>
@@ -339,7 +401,7 @@ export default function PortalRH() {
           {menuItens.map((item) => (
             <button key={item.id} onClick={() => navegarPara(item.id)}
               className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 font-semibold text-sm outline-none
-                ${abaAtiva === item.id ? 'bg-white/15 text-white shadow-lg shadow-white/10 ring-1 ring-white/20' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}>
+                ${abaAtiva === item.id ? 'bg-white/15 text-white ring-1 ring-white/20' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}>
               <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${abaAtiva === item.id ? 'bg-white/20' : 'bg-white/5'}`}>
                  <i className={`fas ${item.icone} text-center`}></i>
               </div>
@@ -380,6 +442,14 @@ export default function PortalRH() {
                 </span>
               </div>
             </div>
+            {/* Botão para alterar senha */}
+            <button 
+              onClick={abrirModalSenha}
+              className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-800 transition-colors flex items-center justify-center"
+              title="Alterar minha senha"
+            >
+              <i className="fas fa-key"></i>
+            </button>
           </div>
         </header>
 
@@ -612,7 +682,8 @@ export default function PortalRH() {
                           <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span><div className="text-[7.5px] text-black font-semibold uppercase">{colaborador.nome_completo}</div></div>
                           <div className="flex w-full gap-[2mm]">
                             <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex-1 flex items-center justify-center"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">CPF</span><div className="text-[8px] text-black font-semibold uppercase">{colaborador.cpf || '000.000.000-00'}</div></div>
-                            <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] w-[14mm] flex items-center justify-center bg-[#ffebee] border-[#e74c3c]"><span className="absolute -top-[2.5mm] left-[1mm] bg-white px-[0.5mm] text-[5px] font-bold text-[#c0392b] leading-none">Tp. Sangue</span><div className="text-[8px] text-[#c0392b] font-black uppercase">{colaborador.tipo_sanguineo || 'O+'}</div></div>
+                            {/* TIPO SANGUÍNEO PODE FICAR VAZIO */}
+                            <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] w-[14mm] flex items-center justify-center bg-[#ffebee] border-[#e74c3c]"><span className="absolute -top-[2.5mm] left-[1mm] bg-white px-[0.5mm] text-[5px] font-bold text-[#c0392b] leading-none">Tp. Sangue</span><div className="text-[8px] text-[#c0392b] font-black uppercase">{colaborador.tipo_sanguineo || ''}</div></div>
                           </div>
                           <div className="flex w-full gap-[2mm] items-stretch h-[24mm]">
                              <div className="flex flex-col flex-1 justify-between">
@@ -642,7 +713,7 @@ export default function PortalRH() {
             </div>
           )}
 
-          {/* ABA 4: CADASTRO MANUAL (SEM UPLOAD EM LOTE) */}
+          {/* ABA 4: CADASTRO MANUAL */}
           {abaAtiva === 'cadastro' && (usuarioAutenticado.perfil === 'ADM' || usuarioAutenticado.perfil === 'RH') && (
             <div className="max-w-4xl mx-auto hide-on-print flex flex-col gap-8">
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -808,6 +879,41 @@ export default function PortalRH() {
           </div>
         )}
 
+        {/* MODAL DE ALTERAÇÃO DE SENHA */}
+        {mostrarModalSenha && (
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hide-on-print">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border-t-4 border-[#0a84ff]">
+              <div className="bg-white border-b border-slate-200 p-6 flex justify-between items-center">
+                <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2"><i className="fas fa-key text-[#0a84ff]"></i>Alterar Minha Senha</h3>
+                <button onClick={() => setMostrarModalSenha(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-rose-100 hover:text-rose-600 transition-colors"><i className="fas fa-times"></i></button>
+              </div>
+              <form onSubmit={handleAlterarSenha} className="p-6 flex flex-col gap-5 bg-slate-50/50">
+                {erroSenha && (
+                  <div className="bg-rose-50 border border-rose-200 text-rose-600 p-3 rounded-xl text-sm font-medium flex items-start gap-2">
+                    <i className="fas fa-exclamation-triangle mt-0.5"></i> {erroSenha}
+                  </div>
+                )}
+                {sucessoSenha && (
+                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-600 p-3 rounded-xl text-sm font-medium flex items-start gap-2">
+                    <i className="fas fa-check-circle mt-0.5"></i> {sucessoSenha}
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Nova Senha</label>
+                  <input type="password" required value={novaSenha} onChange={e => setNovaSenha(e.target.value)} placeholder="••••••••" className="w-full bg-white border border-slate-300 rounded-2xl p-3.5 focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent transition-all" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Confirmar Nova Senha</label>
+                  <input type="password" required value={confirmarSenha} onChange={e => setConfirmarSenha(e.target.value)} placeholder="••••••••" className="w-full bg-white border border-slate-300 rounded-2xl p-3.5 focus:outline-none focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent transition-all" />
+                </div>
+                <button type="submit" disabled={salvandoSenha} className="mt-2 w-full bg-[#0a84ff] text-white font-semibold py-3.5 rounded-2xl hover:bg-blue-600 transition-all shadow-md flex justify-center items-center gap-2">
+                  {salvandoSenha ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-save"></i>} Alterar Senha
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* MOTOR DE IMPRESSÃO INVISÍVEL */}
         <div className="print-container hidden">
            {colaboradoresParaImprimir.map((c, index) => (
@@ -830,7 +936,7 @@ export default function PortalRH() {
                     <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span><div className="text-[7.5px] text-black font-semibold uppercase">{c.nome_completo}</div></div>
                     <div className="flex w-full gap-[2mm]">
                       <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] flex-1 flex items-center justify-center"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">CPF</span><div className="text-[8px] text-black font-semibold uppercase">{c.cpf || '000.000.000-00'}</div></div>
-                      <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] w-[14mm] flex items-center justify-center bg-[#ffebee] border-[#e74c3c]"><span className="absolute -top-[2.5mm] left-[1mm] bg-white px-[0.5mm] text-[5px] font-bold text-[#c0392b] leading-none">Tp. Sangue</span><div className="text-[8px] text-[#c0392b] font-black uppercase">{c.tipo_sanguineo || 'O+'}</div></div>
+                      <div className="relative border-[1.5px] border-black rounded-[4px] h-[7mm] w-[14mm] flex items-center justify-center bg-[#ffebee] border-[#e74c3c]"><span className="absolute -top-[2.5mm] left-[1mm] bg-white px-[0.5mm] text-[5px] font-bold text-[#c0392b] leading-none">Tp. Sangue</span><div className="text-[8px] text-[#c0392b] font-black uppercase">{c.tipo_sanguineo || ''}</div></div>
                     </div>
                     <div className="flex w-full gap-[2mm] items-stretch h-[24mm]">
                         <div className="flex flex-col flex-1 justify-between">
