@@ -26,6 +26,7 @@ function obterOpcoesNome(nomeCompleto: any) {
   return [...new Set(opcoes)];
 }
 
+// CORREÇÃO AQUI: Função do relógio
 function obterDataHoraAtual() { 
   try {
     const data = new Date(); 
@@ -119,14 +120,9 @@ export default function PortalRH() {
 
   // ========================== ESTADOS DAS ABAS ==========================
   
-  // ABA: SOLICITAÇÕES
   const [listaSolicitacoes, setListaSolicitacoes] = useState<any[]>([]);
   const [carregandoSolicitacoes, setCarregandoSolicitacoes] = useState(false);
-
-  // ABA: HISTÓRICO SUPERVISOR
   const [solicitacoesSupervisor, setListaSolicitacoesSupervisor] = useState<any[]>([]);
-  
-  // ABA: COLABORADORES
   const [buscaTabela, setBuscaTabela] = useState('');
   const [resultadosBusca, setResultadosBusca] = useState<any[]>([]);
   const [carregandoLista, setCarregandoLista] = useState(false);
@@ -136,7 +132,6 @@ export default function PortalRH() {
   const [historicoAberto, setHistoricoAberto] = useState<any[] | null>(null);
   const [nomeHistoricoAberto, setNomeHistoricoAberto] = useState('');
 
-  // ABA: LOTE
   const [listaLote, setListaLote] = useState<any[]>([]);
   const [matriculaLote, setMatriculaLote] = useState('');
   const [carregandoLote, setCarregandoLote] = useState(false);
@@ -157,11 +152,10 @@ export default function PortalRH() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const fotoAlterada = fotoCapturada && fotoCapturada !== colaborador?.foto_url;
 
-  // ABA: CADASTRO
+  // ABA: CADASTRO E ACESSOS
   const [formCadastro, setFormCadastro] = useState({ matricula: '', nome_completo: '', cpf: '', rg: '', desc_funcao: '' });
   const [salvandoCadastro, setSalvandoCadastro] = useState(false);
 
-  // ABA: CONFIGURAÇÕES
   const [listaUsuarios, setListaUsuarios] = useState<any[]>([]);
   const [formUsuario, setFormUsuario] = useState({ nome: '', login: '', senha: '', perfil: 'SUPERVISOR' });
   const [salvandoUsuario, setSalvandoUsuario] = useState(false);
@@ -280,7 +274,7 @@ export default function PortalRH() {
     } catch (e) { mostrarToast("Falha ao registar histórico.", "erro"); }
   }
 
-  // BLINDAGEM MÁXIMA NA FUNÇÃO DE BUSCA
+  // BLINDAGEM MÁXIMA NA FUNÇÃO DE BUSCA E VALIDAÇÃO DE VIA
   async function buscarColaboradorParaEmissao(matriculaAlvo: string) {
     setRawFoto(null); 
     setCarregandoEmissao(true); 
@@ -422,7 +416,7 @@ export default function PortalRH() {
   
   const colaboradoresParaImprimir = abaAtiva === 'lote' ? listaLote : (colaborador && abaAtiva === 'emissao' ? [{ ...colaborador, foto_url: fotoCapturada || colaborador?.foto_url, nome_cracha_frente: nomeCrachaIndividual }] : []);
 
-  // GARANTIA CONTRA TELA BRANCA DA VERCEL (Executa tudo apenas no lado do cliente)
+  // GARANTIA CONTRA TELA BRANCA DA VERCEL
   if (!isMounted) return null;
 
   // ========================== TELA DE LOGIN ==========================
@@ -595,7 +589,7 @@ export default function PortalRH() {
                           <tr key={colab.matricula} className="border-b border-slate-100 hover:bg-slate-50">
                             <td className="p-4 pl-6 font-semibold text-[#0a84ff]">{textoSeguro(colab.matricula)}</td>
                             <td className="p-4">
-                               <select value={colab.nome_cracha_frente} onChange={(e) => atualizarNomeLote(colab.matricula, textoSeguro(e.target.value))} className="w-full max-w-[200px] bg-slate-100 border border-slate-200 rounded-lg p-2 focus:border-[#0a84ff] focus:outline-none font-bold text-[#023A58] uppercase text-xs cursor-pointer">
+                               <select value={textoSeguro(colab.nome_cracha_frente)} onChange={(e) => atualizarNomeLote(colab.matricula, textoSeguro(e.target.value))} className="w-full max-w-[200px] bg-slate-100 border border-slate-200 rounded-lg p-2 focus:border-[#0a84ff] focus:outline-none font-bold text-[#023A58] uppercase text-xs cursor-pointer">
                                   {obterOpcoesNome(colab.nome_completo).map((opcao, idx) => ( <option key={idx} value={opcao}>{opcao}</option> ))}
                                </select>
                                <div className="mt-1">
@@ -726,7 +720,7 @@ export default function PortalRH() {
                           <div className="absolute bottom-[1.5mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center">
                             <div className="text-[7px] text-black leading-[1.2] mb-[1.5mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div>
                             <div className="text-center w-full mb-[1mm]"><div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div><div className="text-[6px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div></div>
-                            <div className="text-[5.5px] text-black font-bold text-right w-full">Emitido em: {textoSeguro(dataHoraAtual)}</div>
+                            <div className="text-[5.5px] text-black font-bold text-right w-full">Emitido em: {textoSeguro(obterDataHoraAtual())}</div>
                           </div>
                         </div>
                       </div>
@@ -902,7 +896,7 @@ export default function PortalRH() {
            <React.Fragment key={index}>
               <div className="cracha-card w-[54mm] h-[86mm] bg-white relative flex flex-col items-center overflow-hidden box-border" style={{ border: '1px solid #ccc' }}>
                 <div className="mt-[4mm] w-[26mm] h-[35mm] flex items-center justify-center overflow-hidden z-10 border border-slate-300 bg-white">{c?.foto_url && <img src={c.foto_url} className="w-full h-full object-cover" alt="Foto" />}</div>
-                <div className="mt-[2mm] text-center z-10 w-full px-2"><div className="text-[#051e42] font-black text-[18px] leading-[1.0]" style={{ fontFamily: 'Arial, sans-serif' }}>{nomeMostrar.split(' ')[0]}<br/>{nomeMostrar.split(' ').slice(1).join(' ')}</div></div>
+                <div className="mt-[2mm] text-center z-10 w-full px-2"><div className="text-[#051e42] font-black text-[18px] leading-[1.0]" style={{ fontFamily: 'Arial, sans-serif' }}>{(nomeMostrar || '').split(' ')[0]}<br/>{(nomeMostrar || '').split(' ').slice(1).join(' ')}</div></div>
                 <div className="absolute bottom-0 left-0 w-full h-[32mm] z-0"><img src="/Imagem1.png" className="w-full h-full object-fill" alt="Fundo" /></div>
                 <div className="absolute bottom-[13mm] left-[1mm] z-10 w-[24mm] h-[8mm] flex items-center justify-start"><img src="/dinamo.png" className="max-h-full max-w-full object-contain" alt="Dínamo" /></div>
               </div>
@@ -919,11 +913,17 @@ export default function PortalRH() {
                         <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Car. Identidade</span><div className="text-[8px] text-black font-semibold uppercase pt-[1mm]">{textoSeguro(c?.rg, '0000000000')}</div></div>
                         <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Matrícula</span><div className="text-[8px] text-black font-semibold uppercase pt-[1mm]">{textoSeguro(c?.matricula).padStart(8, '0')}</div></div>
                       </div>
-                      <div className="w-[21.5mm] flex-shrink-0 flex items-center justify-center border border-slate-200 p-[0.5mm] bg-white rounded-sm z-10">{c?.link_qrcode && <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(textoSeguro(c.link_qrcode))}`} className="w-full h-full object-contain" alt="QR Code" />}</div>
+                      <div className="w-[21.5mm] flex-shrink-0 flex items-center justify-center border border-slate-200 p-[0.5mm] bg-white rounded-sm z-10">
+                        {c?.link_qrcode ? <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(textoSeguro(c.link_qrcode))}`} className="w-full h-full object-contain" alt="QR Code" /> : <div className="w-full h-full bg-white"></div>}
+                      </div>
                   </div>
                   <div className="relative border-[1.5px] border-black rounded-[4px] h-[6.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Empresa</span><div className="text-[8px] text-black font-semibold uppercase pt-[1mm]">DINAMO ENGENHARIA</div></div>
                 </div>
-                <div className="absolute bottom-[1.5mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center"><div className="text-[7px] text-black leading-[1.2] mb-[1.5mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div><div className="text-center w-full mb-[1mm]"><div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div><div className="text-[6px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div></div><div className="text-[5.5px] text-black font-bold text-right w-full">Emitido em: {textoSeguro(dataHoraAtual)}</div></div>
+                <div className="absolute bottom-[1.5mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center">
+                  <div className="text-[7px] text-black leading-[1.2] mb-[1.5mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div>
+                  <div className="text-center w-full mb-[1mm]"><div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div><div className="text-[6px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div></div>
+                  <div className="text-[5.5px] text-black font-bold text-right w-full">Emitido em: {obterDataHoraAtual()}</div>
+                </div>
               </div>
            </React.Fragment>
            );
