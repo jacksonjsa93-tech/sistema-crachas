@@ -5,21 +5,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 
 export default function PortalRH() {
+  // ESCUDO CONTRA A VERCEL (Evita o erro de Prerendering)
+  const [isMounted, setIsMounted] = useState(false);
+  
   // ========================== ESTADOS GLOBAIS DE UI ==========================
   const [toast, setToast] = useState({ ativo: false, mensagem: '', tipo: 'sucesso' });
   const [confirmDialog, setConfirmDialog] = useState({ ativo: false, mensagem: '', acao: () => {} });
-
-  // Relógio protegido contra Erro de Hidratação da Vercel
-  const [dataHoraAtual, setDataHoraAtual] = useState('');
-  useEffect(() => {
-    const atualizarData = () => {
-      const data = new Date();
-      setDataHoraAtual(`${data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })} ${data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`);
-    };
-    atualizarData();
-    const intervalo = setInterval(atualizarData, 60000);
-    return () => clearInterval(intervalo);
-  }, []);
 
   const mostrarToast = (mensagem: string, tipo: 'sucesso' | 'erro' | 'aviso' = 'sucesso') => {
     setToast({ ativo: true, mensagem, tipo });
@@ -46,10 +37,11 @@ export default function PortalRH() {
   const KEY = "sb_publishable_6Ss9lNdcbyeE2o3U5jcJ7w_qI61wmIr";
 
   useEffect(() => {
+    setIsMounted(true); // Ativa o sistema apenas no navegador do utilizador
     try {
       const loginSalvo = localStorage.getItem('dinamo_lembrar_login');
       if (loginSalvo) { setLoginInput(loginSalvo); setLembrarLogin(true); }
-    } catch (e) { console.error("Acesso ao cache bloqueado"); }
+    } catch (e) {}
   }, []);
 
   const handleEsqueceuSenha = () => {
@@ -66,12 +58,12 @@ export default function PortalRH() {
       if (Array.isArray(data) && data.length > 0) {
         const user = data[0];
         setUsuarioAutenticado(user);
-        if (user?.perfil === 'SUPERVISOR') setAbaAtiva('emissao');
-        else if (user?.perfil === 'RH' || user?.perfil === 'ADM') setAbaAtiva('solicitacoes');
+        if (user.perfil === 'SUPERVISOR') setAbaAtiva('emissao');
+        else if (user.perfil === 'RH' || user.perfil === 'ADM') setAbaAtiva('solicitacoes');
         else setAbaAtiva('colaboradores');
         
         setSenhaInput('');
-        try { if (lembrarLogin) localStorage.setItem('dinamo_lembrar_login', loginInput); else localStorage.removeItem('dinamo_lembrar_login'); } catch (e) {}
+        try { if (lembrarLogin) localStorage.setItem('dinamo_lembrar_login', loginInput); else localStorage.removeItem('dinamo_lembrar_login'); } catch(e){}
       } else { setErroLogin('Credenciais inválidas. Tente novamente.'); }
     } catch (error) { setErroLogin('Erro de comunicação com o servidor.'); } finally { setCarregandoLogin(false); }
   };
@@ -80,7 +72,9 @@ export default function PortalRH() {
 
   const getMenuItens = () => {
     if (!usuarioAutenticado) return [];
-    if (usuarioAutenticado?.perfil === 'SUPERVISOR') { return [ { id: 'emissao', nome: 'Captura & Solicitação', icone: 'fa-camera' } ]; }
+    if (usuarioAutenticado?.perfil === 'SUPERVISOR') {
+      return [ { id: 'emissao', nome: 'Captura & Solicitação', icone: 'fa-camera' } ];
+    }
     const itensBasicos = [ { id: 'colaboradores', nome: 'Base de Colaboradores', icone: 'fa-users' }, { id: 'emissao', nome: 'Emissão Individual', icone: 'fa-id-badge' } ];
     if (usuarioAutenticado?.perfil === 'ADM' || usuarioAutenticado?.perfil === 'RH') {
       return [ { id: 'solicitacoes', nome: 'Caixa de Solicitações', icone: 'fa-inbox' }, ...itensBasicos, { id: 'lote', nome: 'Emissão em Lote', icone: 'fa-layer-group' }, { id: 'cadastro', nome: 'Cadastro Manual', icone: 'fa-user-plus' }, { id: 'configuracoes', nome: 'Gestão de Acessos', icone: 'fa-shield-alt' } ];
@@ -88,7 +82,6 @@ export default function PortalRH() {
     return itensBasicos;
   };
   const menuItens = getMenuItens();
-  const activeMenuName = menuItens.find(m => m.id === abaAtiva)?.nome || 'Módulo Restrito';
 
   const obterOpcoesNome = (nomeCompleto: string) => {
     if (!nomeCompleto) return ["NOME INDEFINIDO"];
@@ -101,6 +94,8 @@ export default function PortalRH() {
     return [...new Set(opcoes)];
   };
 
+  const obterDataHoraAtual = () => { const data = new Date(); return `${data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })} ${data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`; };
+
   // ========================== ABA: CAIXA DE SOLICITAÇÕES (RH/ADM) ==========================
   const [listaSolicitacoes, setListaSolicitacoes] = useState<any[]>([]);
   const [carregandoSolicitacoes, setCarregandoSolicitacoes] = useState(false);
@@ -109,8 +104,7 @@ export default function PortalRH() {
     setCarregandoSolicitacoes(true);
     try {
       const response = await fetch(`${URL}/rest/v1/solicitacoes_crachas?status=eq.PENDENTE&order=data_solicitacao.desc`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
-      const data = await response.json(); 
-      setListaSolicitacoes(Array.isArray(data) ? data : []);
+      const data = await response.json(); setListaSolicitacoes(Array.isArray(data) ? data : []);
     } catch (error) { mostrarToast("Erro ao carregar solicitações", "erro"); } finally { setCarregandoSolicitacoes(false); }
   };
 
@@ -129,8 +123,7 @@ export default function PortalRH() {
     if (!usuarioAutenticado || usuarioAutenticado?.perfil !== 'SUPERVISOR') return;
     try {
       const response = await fetch(`${URL}/rest/v1/solicitacoes_crachas?solicitado_por=eq.${encodeURIComponent(usuarioAutenticado?.nome || '')}&order=data_solicitacao.desc&limit=10`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
-      const data = await response.json(); 
-      setListaSolicitacoesSupervisor(Array.isArray(data) ? data : []);
+      const data = await response.json(); setListaSolicitacoesSupervisor(Array.isArray(data) ? data : []);
     } catch (e) {}
   };
 
@@ -143,7 +136,6 @@ export default function PortalRH() {
   const [pesquisaRealizada, setPesquisaRealizada] = useState(false);
   const [colaboradorEditando, setColaboradorEditando] = useState<any>(null);
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
-  
   const [historicoAberto, setHistoricoAberto] = useState<any[] | null>(null);
   const [nomeHistoricoAberto, setNomeHistoricoAberto] = useState('');
 
@@ -153,10 +145,7 @@ export default function PortalRH() {
     const isNum = /^\d+$/.test(buscaTabela.trim());
     let fetchUrl = `${URL}/rest/v1/colaboradores?select=*&limit=50`;
     if (buscaTabela.trim()) { if (isNum) fetchUrl += `&matricula=eq.${buscaTabela.trim()}`; else fetchUrl += `&nome_completo=ilike.*${buscaTabela.trim()}*`; }
-    try { 
-      const response = await fetch(fetchUrl, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } }); 
-      const data = await response.json(); 
-      setResultadosBusca(Array.isArray(data) ? data : []);
+    try { const response = await fetch(fetchUrl, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } }); const data = await response.json(); setResultadosBusca(Array.isArray(data) ? data : []);
     } catch (error) { mostrarToast("Erro ao buscar dados", "erro"); } finally { setCarregandoLista(false); }
   };
   
@@ -165,7 +154,7 @@ export default function PortalRH() {
   const salvarEdicao = async (e: React.FormEvent) => {
     e.preventDefault(); if (!colaboradorEditando) return; setSalvandoEdicao(true);
     try {
-      const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${colaboradorEditando.matricula}`, { 
+      const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${colaboradorEditando?.matricula}`, { 
         method: 'PATCH', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }, 
         body: JSON.stringify({ tipo_sanguineo: colaboradorEditando?.tipo_sanguineo || null, link_qrcode: colaboradorEditando?.link_qrcode || null, desc_funcao: colaboradorEditando?.desc_funcao }) 
       });
@@ -179,8 +168,7 @@ export default function PortalRH() {
     setNomeHistoricoAberto(nome);
     try {
       const response = await fetch(`${URL}/rest/v1/historico_impressoes?matricula_colaborador=eq.${matricula}&order=data_emissao.desc`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
-      const data = await response.json(); 
-      setHistoricoAberto(Array.isArray(data) ? data : []);
+      const data = await response.json(); setHistoricoAberto(Array.isArray(data) ? data : []);
     } catch (error) { mostrarToast("Erro ao carregar auditoria.", "erro"); }
   };
 
@@ -310,8 +298,7 @@ export default function PortalRH() {
     setCarregandoUsuarios(true);
     try { 
       const response = await fetch(`${URL}/rest/v1/usuarios_sistema?select=*&order=created_at.desc`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } }); 
-      const data = await response.json(); 
-      setListaUsuarios(Array.isArray(data) ? data : []);
+      const data = await response.json(); setListaUsuarios(Array.isArray(data) ? data : []);
     } catch (error) { mostrarToast("Erro ao carregar usuários", "erro"); } finally { setCarregandoUsuarios(false); }
   };
   useEffect(() => { if ((usuarioAutenticado?.perfil === 'ADM' || usuarioAutenticado?.perfil === 'RH') && abaAtiva === 'configuracoes') { carregarUsuarios(); } }, [abaAtiva, usuarioAutenticado]);
@@ -348,6 +335,9 @@ export default function PortalRH() {
 
   const colaboradoresParaImprimir = abaAtiva === 'lote' ? listaLote : (colaborador && abaAtiva === 'emissao' ? [{ ...colaborador, foto_url: fotoCapturada || colaborador.foto_url, nome_cracha_frente: nomeCrachaIndividual }] : []);
 
+  // PROTEÇÃO CONTRA PRERENDER DA VERCEL
+  if (!isMounted) return null;
+
   // ========================== TELA DE LOGIN ==========================
   if (!usuarioAutenticado) {
     return (
@@ -379,7 +369,7 @@ export default function PortalRH() {
     <div className="flex h-screen bg-slate-50 font-sans text-slate-800 overflow-hidden screen-only relative">
       
       {toast.ativo && (<div className={`fixed top-8 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-full shadow-lg font-semibold text-sm flex items-center gap-3 animation-fade-in text-white hide-on-print ${toast.tipo === 'sucesso' ? 'bg-emerald-500' : toast.tipo === 'erro' ? 'bg-rose-500' : 'bg-amber-500'}`}><i className={`fas ${toast.tipo === 'sucesso' ? 'fa-check-circle' : toast.tipo === 'erro' ? 'fa-times-circle' : 'fa-exclamation-triangle'}`}></i> {toast.mensagem}</div>)}
-      {confirmDialog.ativo && ( <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[90] flex items-center justify-center p-4 hide-on-print"><div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animation-fade-in"><div className="p-6 text-center"><div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl"><i className="fas fa-exclamation-triangle"></i></div><p className="text-sm text-slate-500 font-medium">{confirmDialog.mensagem}</p></div><div className="flex border-t border-slate-100"><button onClick={() => setConfirmDialog({ ativo: false, mensagem: '', acao: () => {} })} className="flex-1 py-4 font-semibold text-slate-500 hover:bg-slate-50 border-r border-slate-100">Cancelar</button><button onClick={() => { confirmDialog.acao(); setConfirmDialog({ ativo: false, mensagem: '', acao: () => {} }); }} className="flex-1 py-4 font-bold text-rose-500 hover:bg-rose-50">Sim, Excluir</button></div></div></div> )}
+      {confirmDialog.ativo && ( <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[90] flex items-center justify-center p-4 hide-on-print"><div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animation-fade-in"><div className="p-6 text-center"><div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl"><i className="fas fa-exclamation-triangle"></i></div><p className="text-sm text-slate-500 font-medium">{confirmDialog.mensagem}</p></div><div className="flex border-t border-slate-100"><button onClick={() => setConfirmDialog({ ativo: false, mensagem: '', acao: () => {} })} className="flex-1 py-4 font-semibold text-slate-500 hover:bg-slate-50 border-r border-slate-100 transition-colors">Cancelar</button><button onClick={() => { confirmDialog.acao(); setConfirmDialog({ ativo: false, mensagem: '', acao: () => {} }); }} className="flex-1 py-4 font-bold text-rose-500 hover:bg-rose-50 transition-colors">Sim, Excluir</button></div></div></div> )}
 
       <aside className={`w-72 h-full flex flex-col hide-on-print border-r border-slate-200 ${menuAberto ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed md:relative z-50 transition-transform duration-300`} style={{ background: '#023A58' }}>
         <div className="h-20 flex items-center justify-center border-b border-white/10 px-6"><img src="/logodinamobranca.png" alt="Dínamo" className="max-h-10 object-contain" /></div>
@@ -392,10 +382,16 @@ export default function PortalRH() {
 
       <main className="flex-1 flex flex-col relative overflow-hidden bg-slate-50">
         <header className="h-20 bg-white shadow-sm border-b border-slate-200 flex items-center justify-between px-6 lg:px-10 z-10 hide-on-print relative">
-          <h2 className="text-lg font-bold text-[#023A58]">{activeMenuName}</h2>
-          <div className="flex items-center gap-3 bg-white px-2 pr-4 py-1.5 rounded-full border border-slate-200 shadow-sm">
-            <div className="w-9 h-9 rounded-full bg-[#023A58] flex items-center justify-center text-white font-bold text-xs uppercase">{usuarioAutenticado?.nome?.substring(0, 2) || 'US'}</div>
-            <div className="flex flex-col"><span className="text-sm font-semibold text-slate-700 leading-tight">{usuarioAutenticado?.nome || 'Usuário'}</span><span className="text-[9px] font-bold uppercase tracking-widest text-[#0a84ff]">Perfil: {usuarioAutenticado?.perfil || 'N/A'}</span></div>
+          <div className="flex items-center gap-4">
+            <button className="md:hidden w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors" onClick={() => setMenuAberto(true)}><i className="fas fa-bars"></i></button>
+            <h2 className="text-lg md:text-xl font-bold text-[#023A58] hidden sm:flex items-center gap-2">{menuItens.find(m => m.id === abaAtiva)?.nome || 'Módulo Restrito'}</h2>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 bg-white px-2 pr-4 py-1.5 rounded-full border border-slate-200 shadow-sm hidden sm:flex">
+              <div className="w-9 h-9 rounded-full bg-[#023A58] flex items-center justify-center text-white font-bold text-xs uppercase">{usuarioAutenticado?.nome?.substring(0, 2) || 'US'}</div>
+              <div className="flex flex-col"><span className="text-sm font-semibold text-slate-700 leading-tight">{usuarioAutenticado?.nome || 'Usuário'}</span><span className="text-[9px] font-bold uppercase tracking-widest text-[#0a84ff]">Perfil: {usuarioAutenticado?.perfil || 'N/A'}</span></div>
+            </div>
+            <button onClick={abrirModalSenha} className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors flex items-center justify-center" title="Alterar Senha"><i className="fas fa-key"></i></button>
           </div>
         </header>
 
@@ -451,8 +447,8 @@ export default function PortalRH() {
                         <td className="p-4 pl-6 font-semibold text-slate-800">{colab?.nome_completo || ''}</td><td className="p-4 font-semibold text-[#0a84ff]">{colab?.matricula || ''}</td>
                         <td className="p-4 text-center">{colab?.foto_url ? "SIM" : "NÃO"}</td><td className="p-4 text-center">{colab?.link_qrcode ? "OK" : "VAZIO"}</td>
                         <td className="p-4 text-right pr-6 flex justify-end gap-2">
-                          <button onClick={() => abrirHistorico(colab.matricula, colab.nome_completo)} className="bg-slate-100 border border-slate-200 text-slate-600 hover:bg-slate-200 px-3 py-1.5 text-xs font-semibold rounded-lg"><i className="fas fa-history"></i> Histórico</button>
-                          <button onClick={() => buscarColaboradorParaEmissao(colab.matricula)} className="bg-white border border-slate-200 text-[#023A58] hover:bg-slate-100 px-3 py-1.5 text-xs font-semibold rounded-lg">Emitir</button>
+                          <button onClick={() => abrirHistorico(colab?.matricula, colab?.nome_completo)} className="bg-slate-100 border border-slate-200 text-slate-600 hover:bg-slate-200 px-3 py-1.5 text-xs font-semibold rounded-lg"><i className="fas fa-history"></i> Histórico</button>
+                          <button onClick={() => buscarColaboradorParaEmissao(colab?.matricula)} className="bg-white border border-slate-200 text-[#023A58] hover:bg-slate-100 px-3 py-1.5 text-xs font-semibold rounded-lg">Emitir</button>
                           <button onClick={() => abrirEdicao(colab)} className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 text-xs font-semibold rounded-lg">Editar</button>
                         </td>
                       </tr>
@@ -548,7 +544,7 @@ export default function PortalRH() {
                               <td className="py-3 text-slate-800 font-bold">{s?.nome_colaborador || ''}</td><td className="py-3 text-slate-500">{s?.matricula_colaborador || ''}</td><td className="py-3 text-slate-600">{s?.motivo || ''}</td>
                               <td className="py-3 text-slate-400">{new Date(s.data_solicitacao).toLocaleDateString('pt-BR')}</td>
                               <td className="py-3 text-right">
-                                <span className={`px-2 py-1 rounded-md font-bold text-[10px] ${s.status === 'PENDENTE' ? 'bg-amber-50 text-amber-500' : 'bg-emerald-50 text-emerald-600'}`}>{s.status === 'PENDENTE' ? 'AGUARDANDO IMPRESSÃO' : 'CONCLUÍDO / IMPRESSO'}</span>
+                                <span className={`px-2 py-1 rounded-md font-bold text-[10px] ${s.status === 'PENDENTE' ? 'bg-amber-50 text-amber-500' : 'bg-emerald-50 text-emerald-600'}`}>{s.status === 'PENDENTE' ? 'AGUARDANDO IMPRESSÃO' : 'CONCLUÍDO'}</span>
                               </td>
                             </tr>
                           ))}
@@ -618,7 +614,7 @@ export default function PortalRH() {
                   </div>
                   <div className="relative border-[1.5px] border-black rounded-[4px] h-[6.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Empresa</span><div className="text-[8px] text-black font-semibold uppercase pt-[0.5mm]">DINAMO ENGENHARIA</div></div>
                 </div>
-                <div className="absolute bottom-[1.5mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center"><div className="text-[7px] text-black leading-[1.2] mb-[1.5mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div><div className="text-center w-full mb-[1mm]"><div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div><div className="text-[6px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div></div><div className="text-[5.5px] text-black font-bold text-right w-full">Emitido em: {dataHoraAtual}</div></div>
+                <div className="absolute bottom-[1.5mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center"><div className="text-[7px] text-black leading-[1.2] mb-[1.5mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div><div className="text-center w-full mb-[1mm]"><div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div><div className="text-[6px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div></div><div className="text-[5.5px] text-black font-bold text-right w-full">Emitido em: {obterDataHoraAtual()}</div></div>
               </div>
            </React.Fragment>
            );
