@@ -76,16 +76,13 @@ export default function PortalRH() {
     const primeiro = partes[0];
     const ultimo = partes[partes.length - 1];
     
-    // Opção 1: Primeiro e Último Nome (O padrão mais usado)
     opcoes.push(`${primeiro} ${ultimo}`);
     
-    // Opção 2 em diante: Primeiro Nome + Nomes do meio (ignora de, da, dos)
     for (let i = 1; i < partes.length - 1; i++) {
       if (partes[i].length > 2) { 
         opcoes.push(`${primeiro} ${partes[i]}`);
       }
     }
-    // Remove duplicatas caso haja nomes iguais
     return [...new Set(opcoes)];
   };
 
@@ -118,7 +115,7 @@ export default function PortalRH() {
         body: JSON.stringify({ 
           tipo_sanguineo: colaboradorEditando.tipo_sanguineo || null, 
           link_qrcode: colaboradorEditando.link_qrcode || null,
-          desc_funcao: colaboradorEditando.desc_funcao // <--- Agora salva a função alterada
+          desc_funcao: colaboradorEditando.desc_funcao
         }) 
       });
       if (!response.ok) throw new Error('Erro');
@@ -144,7 +141,7 @@ export default function PortalRH() {
       const data = await response.json();
       if (data && data.length > 0) { 
         const novoColab = data[0]; 
-        novoColab.nome_cracha_frente = obterOpcoesNome(novoColab.nome_completo)[0]; // Pega a melhor opção por defeito
+        novoColab.nome_cracha_frente = obterOpcoesNome(novoColab.nome_completo)[0]; 
         setListaLote([...listaLote, novoColab]); setMatriculaLote(''); 
         if (!novoColab.foto_url) mostrarToast(`Atenção: ${novoColab.nome_completo} não possui foto!`, "aviso"); 
         if (!novoColab.link_qrcode) mostrarToast(`Atenção: ${novoColab.nome_completo} não possui Link QR!`, "aviso");
@@ -178,7 +175,7 @@ export default function PortalRH() {
       if (data && data.length > 0) { 
         setColaborador(data[0]); 
         setFotoCapturada(data[0].foto_url || null); 
-        setNomeCrachaIndividual(obterOpcoesNome(data[0].nome_completo)[0]); // Injeta a melhor opção
+        setNomeCrachaIndividual(obterOpcoesNome(data[0].nome_completo)[0]); 
         setAbaAtiva('emissao'); setBuscaEmissao('');
       } else { setColaborador(null); mostrarToast('Matrícula não encontrada.', "erro"); }
     } catch (error) { mostrarToast('Erro de ligação.', "erro"); } finally { setCarregandoEmissao(false); }
@@ -273,7 +270,6 @@ export default function PortalRH() {
   const colaboradoresParaImprimir = abaAtiva === 'lote' ? listaLote : (colaborador && abaAtiva === 'emissao' ? [{ ...colaborador, foto_url: fotoCapturada || colaborador.foto_url, nome_cracha_frente: nomeCrachaIndividual }] : []);
   const navegarPara = (id: string) => { setAbaAtiva(id); setMenuAberto(false); };
 
-  // Verifica se o usuário atual tem permissão para editar cargos
   const podeEditarFuncao = usuarioAutenticado?.perfil === 'ADM' || usuarioAutenticado?.perfil === 'RH';
 
   // ========================== TELA DE LOGIN ==========================
@@ -394,11 +390,8 @@ export default function PortalRH() {
                           <tr key={colab.matricula} className="border-b border-slate-100 hover:bg-slate-50">
                             <td className="p-4 pl-6 font-semibold text-[#0a84ff]">{colab.matricula}</td>
                             <td className="p-4">
-                               {/* DROPDOWN INTELIGENTE PARA SELECIONAR NOME NO LOTE */}
                                <select value={colab.nome_cracha_frente} onChange={(e) => atualizarNomeLote(colab.matricula, e.target.value)} className="w-full max-w-[200px] bg-slate-100 border border-slate-200 rounded-lg p-2 focus:border-[#0a84ff] focus:outline-none font-bold text-[#023A58] uppercase text-xs cursor-pointer">
-                                  {obterOpcoesNome(colab.nome_completo).map((opcao, idx) => (
-                                    <option key={idx} value={opcao}>{opcao}</option>
-                                  ))}
+                                  {obterOpcoesNome(colab.nome_completo).map((opcao, idx) => ( <option key={idx} value={opcao}>{opcao}</option> ))}
                                </select>
                                <div className="mt-1">
                                  {!colab.foto_url && <span className="mr-2 text-[9px] bg-rose-500 text-white px-2 py-0.5 rounded uppercase font-bold tracking-widest shadow-sm">Sem Foto</span>}
@@ -456,17 +449,10 @@ export default function PortalRH() {
                       <button onClick={() => window.print()} disabled={!fotoCapturada || !!rawFoto} className={`font-semibold px-5 py-2 rounded-lg text-sm ${fotoCapturada && !rawFoto ? 'bg-[#0a84ff] text-white' : 'bg-slate-100 text-slate-400'}`}>Imprimir</button>
                     </div>
                     
-                    {/* SELECT INTELIGENTE: NOME FRONTAL */}
                     <div className="mb-6 bg-blue-50 border border-blue-100 p-4 rounded-xl">
                       <label className="block text-[11px] font-bold text-[#0a84ff] uppercase tracking-widest mb-2">Nome de Guerra (Frente do Crachá)</label>
-                      <select 
-                        value={nomeCrachaIndividual} 
-                        onChange={(e) => setNomeCrachaIndividual(e.target.value)} 
-                        className="w-full bg-white border border-blue-200 rounded-lg p-3 text-sm font-bold text-[#023A58] focus:outline-none focus:border-[#0a84ff] uppercase shadow-sm cursor-pointer"
-                      >
-                        {obterOpcoesNome(colaborador.nome_completo).map((opcao, idx) => (
-                          <option key={idx} value={opcao}>{opcao}</option>
-                        ))}
+                      <select value={nomeCrachaIndividual} onChange={(e) => setNomeCrachaIndividual(e.target.value)} className="w-full bg-white border border-blue-200 rounded-lg p-3 text-sm font-bold text-[#023A58] focus:outline-none focus:border-[#0a84ff] uppercase shadow-sm cursor-pointer">
+                        {obterOpcoesNome(colaborador.nome_completo).map((opcao, idx) => ( <option key={idx} value={opcao}>{opcao}</option> ))}
                       </select>
                     </div>
 
@@ -485,51 +471,53 @@ export default function PortalRH() {
                         <div className="absolute bottom-[13mm] left-[1mm] z-10 w-[24mm] h-[8mm] flex items-center justify-start"><img src="/dinamo.png" className="max-h-full max-w-full object-contain" alt="Dínamo" /></div>
                       </div>
                       
-                      {/* CARTÃO VERSO (AJUSTADO HEIGHT PARA NÃO ESMAGAR TEXTO) */}
+                      {/* CARTÃO VERSO (AJUSTADO HEIGHT PARA EMPRESA E MARGENS) */}
                       <div className="cracha-card w-[54mm] h-[86mm] bg-white relative p-[2mm] flex flex-col box-border flex-shrink-0" style={{ border: '1px solid #ccc' }}>
-                        <div className="mt-[2mm] w-full flex flex-col gap-[2.5mm]">
-                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full">
+                        <div className="mt-[2mm] w-full flex flex-col gap-[2mm]">
+                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] flex items-center justify-center w-full">
                             <span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span>
-                            <div className="text-[7.5px] text-black font-semibold uppercase pt-[1mm]">{colaborador.nome_completo}</div>
+                            <div className="text-[7.5px] text-black font-semibold uppercase pt-[0.5mm]">{colaborador.nome_completo}</div>
                           </div>
                           <div className="flex w-full gap-[2mm]">
-                            <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex-1 flex items-center justify-center">
+                            <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] flex-1 flex items-center justify-center">
                               <span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">CPF</span>
-                              <div className="text-[8px] text-black font-semibold uppercase pt-[1mm]">{colaborador.cpf || '000.000.000-00'}</div>
+                              <div className="text-[8px] text-black font-semibold uppercase pt-[0.5mm]">{colaborador.cpf || '000.000.000-00'}</div>
                             </div>
-                            <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] w-[14mm] flex items-center justify-center bg-white">
+                            <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] w-[14mm] flex items-center justify-center bg-white">
                               <span className="absolute -top-[2.5mm] left-[1mm] bg-white px-[0.5mm] text-[5px] font-bold text-black leading-none">Tp. Sangue</span>
-                              <div className="text-[8px] text-black font-black uppercase pt-[1mm]">{colaborador.tipo_sanguineo || ''}</div>
+                              <div className="text-[8px] text-black font-black uppercase pt-[0.5mm]">{colaborador.tipo_sanguineo || ''}</div>
                             </div>
                           </div>
                           <div className="flex w-full gap-[2mm] items-stretch">
-                             <div className="flex flex-col flex-1 justify-between gap-[2.5mm]">
-                                <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full">
+                             <div className="flex flex-col flex-1 justify-between gap-[2mm]">
+                                <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] flex items-center justify-center w-full">
                                   <span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Função</span>
-                                  <div className="text-[7px] text-black font-semibold uppercase truncate px-1 pt-[1mm]">{colaborador.desc_funcao}</div>
+                                  <div className="text-[7px] text-black font-semibold uppercase truncate px-1 pt-[0.5mm]">{colaborador.desc_funcao}</div>
                                 </div>
-                                <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full">
+                                <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] flex items-center justify-center w-full">
                                   <span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Car. Identidade</span>
-                                  <div className="text-[8px] text-black font-semibold uppercase pt-[1mm]">{colaborador.rg || '0000000000'}</div>
+                                  <div className="text-[8px] text-black font-semibold uppercase pt-[0.5mm]">{colaborador.rg || '0000000000'}</div>
                                 </div>
-                                <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full">
+                                <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] flex items-center justify-center w-full">
                                   <span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Matrícula</span>
-                                  <div className="text-[8px] text-black font-semibold uppercase pt-[1mm]">{String(colaborador.matricula).padStart(8, '0')}</div>
+                                  <div className="text-[8px] text-black font-semibold uppercase pt-[0.5mm]">{String(colaborador.matricula).padStart(8, '0')}</div>
                                 </div>
                              </div>
                              <div className="w-[21.5mm] flex-shrink-0 flex items-center justify-center border border-slate-200 p-[0.5mm] bg-white rounded-sm z-10">
                                {colaborador.link_qrcode ? <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(colaborador.link_qrcode)}`} className="w-full h-full object-contain" alt="QR Code" /> : <div className="w-full h-full bg-white"></div>}
                              </div>
                           </div>
-                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full">
+                          {/* EMPRESA AJUSTADA */}
+                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[6.5mm] flex items-center justify-center w-full">
                             <span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Empresa</span>
-                            <div className="text-[8px] text-black font-semibold uppercase pt-[1mm]">DINAMO ENGENHARIA</div>
+                            <div className="text-[8px] text-black font-semibold uppercase pt-[0.5mm]">DINAMO ENGENHARIA</div>
                           </div>
                         </div>
-                        <div className="absolute bottom-[2mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center pb-[1mm]">
-                          <div className="text-[7px] text-black leading-[1.3] mb-[2mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div>
-                          <div className="text-center w-full mb-[1mm]"><div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div><div className="text-[6.5px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div></div>
-                          <div className="text-[5.5px] text-black font-bold text-right w-full mt-[1mm]">Emitido em: {obterDataHoraAtual()}</div>
+                        {/* FOOTER FIXADO EM BAIXO */}
+                        <div className="absolute bottom-[1.5mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center">
+                          <div className="text-[7px] text-black leading-[1.2] mb-[1.5mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div>
+                          <div className="text-center w-full mb-[1mm]"><div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div><div className="text-[6px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div></div>
+                          <div className="text-[5.5px] text-black font-bold text-right w-full">Emitido em: {obterDataHoraAtual()}</div>
                         </div>
                       </div>
                     </div>
@@ -668,28 +656,28 @@ export default function PortalRH() {
                 </div>
 
                 <div className="cracha-card w-[54mm] h-[86mm] bg-white relative p-[2mm] flex flex-col box-border" style={{ border: '1px solid #ccc' }}>
-                  <div className="mt-[2mm] w-full flex flex-col gap-[2.5mm]">
-                    <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span><div className="text-[7.5px] text-black font-semibold uppercase pt-[1mm]">{c.nome_completo}</div></div>
+                  <div className="mt-[2mm] w-full flex flex-col gap-[2mm]">
+                    <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Nome</span><div className="text-[7.5px] text-black font-semibold uppercase pt-[0.5mm]">{c.nome_completo}</div></div>
                     <div className="flex w-full gap-[2mm]">
-                      <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex-1 flex items-center justify-center"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">CPF</span><div className="text-[8px] text-black font-semibold uppercase pt-[1mm]">{c.cpf || '000.000.000-00'}</div></div>
-                      <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] w-[14mm] flex items-center justify-center bg-white"><span className="absolute -top-[2.5mm] left-[1mm] bg-white px-[0.5mm] text-[5px] font-bold text-black leading-none">Tp. Sangue</span><div className="text-[8px] text-black font-black uppercase pt-[1mm]">{c.tipo_sanguineo || ''}</div></div>
+                      <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] flex-1 flex items-center justify-center"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">CPF</span><div className="text-[8px] text-black font-semibold uppercase pt-[0.5mm]">{c.cpf || '000.000.000-00'}</div></div>
+                      <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] w-[14mm] flex items-center justify-center bg-white"><span className="absolute -top-[2.5mm] left-[1mm] bg-white px-[0.5mm] text-[5px] font-bold text-black leading-none">Tp. Sangue</span><div className="text-[8px] text-black font-black uppercase pt-[0.5mm]">{c.tipo_sanguineo || ''}</div></div>
                     </div>
                     <div className="flex w-full gap-[2mm] items-stretch">
-                        <div className="flex flex-col flex-1 justify-between gap-[2.5mm]">
-                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Função</span><div className="text-[7px] text-black font-semibold uppercase truncate px-1 pt-[1mm]">{c.desc_funcao}</div></div>
-                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Car. Identidade</span><div className="text-[8px] text-black font-semibold uppercase pt-[1mm]">{c.rg || '0000000000'}</div></div>
-                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Matrícula</span><div className="text-[8px] text-black font-semibold uppercase pt-[1mm]">{String(c.matricula).padStart(8, '0')}</div></div>
+                        <div className="flex flex-col flex-1 justify-between gap-[2mm]">
+                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Função</span><div className="text-[7px] text-black font-semibold uppercase truncate px-1 pt-[0.5mm]">{c.desc_funcao}</div></div>
+                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Car. Identidade</span><div className="text-[8px] text-black font-semibold uppercase pt-[0.5mm]">{c.rg || '0000000000'}</div></div>
+                          <div className="relative border-[1.5px] border-black rounded-[4px] h-[8mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Matrícula</span><div className="text-[8px] text-black font-semibold uppercase pt-[0.5mm]">{String(c.matricula).padStart(8, '0')}</div></div>
                         </div>
                         <div className="w-[21.5mm] flex-shrink-0 flex items-center justify-center border border-slate-200 p-[0.5mm] bg-white rounded-sm z-10">
                           {c.link_qrcode ? <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(c.link_qrcode)}`} className="w-full h-full object-contain" alt="QR Code" /> : <div className="w-full h-full bg-white"></div>}
                         </div>
                     </div>
-                    <div className="relative border-[1.5px] border-black rounded-[4px] h-[8.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Empresa</span><div className="text-[8px] text-black font-semibold uppercase pt-[1mm]">DINAMO ENGENHARIA</div></div>
+                    <div className="relative border-[1.5px] border-black rounded-[4px] h-[6.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Empresa</span><div className="text-[8px] text-black font-semibold uppercase pt-[0.5mm]">DINAMO ENGENHARIA</div></div>
                   </div>
-                  <div className="absolute bottom-[2mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center pb-[1mm]">
-                    <div className="text-[7px] text-black leading-[1.3] mb-[2mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div>
-                    <div className="text-center w-full mb-[1mm]"><div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div><div className="text-[6.5px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div></div>
-                    <div className="text-[5.5px] text-black font-bold text-right w-full mt-[1mm]">Emitido em: {obterDataHoraAtual()}</div>
+                  <div className="absolute bottom-[1.5mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center">
+                    <div className="text-[7px] text-black leading-[1.2] mb-[1.5mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div>
+                    <div className="text-center w-full mb-[1mm]"><div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div><div className="text-[6px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div></div>
+                    <div className="text-[5.5px] text-black font-bold text-right w-full">Emitido em: {obterDataHoraAtual()}</div>
                   </div>
                 </div>
              </React.Fragment>
