@@ -5,9 +5,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 
 export default function PortalRH() {
-  // ESCUDO CONTRA A VERCEL (Evita o erro de Prerendering)
-  const [isMounted, setIsMounted] = useState(false);
-  
   // ========================== ESTADOS GLOBAIS DE UI ==========================
   const [toast, setToast] = useState({ ativo: false, mensagem: '', tipo: 'sucesso' });
   const [confirmDialog, setConfirmDialog] = useState({ ativo: false, mensagem: '', acao: () => {} });
@@ -37,7 +34,6 @@ export default function PortalRH() {
   const KEY = "sb_publishable_6Ss9lNdcbyeE2o3U5jcJ7w_qI61wmIr";
 
   useEffect(() => {
-    setIsMounted(true); // Ativa o sistema apenas no navegador do utilizador
     try {
       const loginSalvo = localStorage.getItem('dinamo_lembrar_login');
       if (loginSalvo) { setLoginInput(loginSalvo); setLembrarLogin(true); }
@@ -58,8 +54,8 @@ export default function PortalRH() {
       if (Array.isArray(data) && data.length > 0) {
         const user = data[0];
         setUsuarioAutenticado(user);
-        if (user.perfil === 'SUPERVISOR') setAbaAtiva('emissao');
-        else if (user.perfil === 'RH' || user.perfil === 'ADM') setAbaAtiva('solicitacoes');
+        if (user?.perfil === 'SUPERVISOR') setAbaAtiva('emissao');
+        else if (user?.perfil === 'RH' || user?.perfil === 'ADM') setAbaAtiva('solicitacoes');
         else setAbaAtiva('colaboradores');
         
         setSenhaInput('');
@@ -82,6 +78,7 @@ export default function PortalRH() {
     return itensBasicos;
   };
   const menuItens = getMenuItens();
+  const activeMenuName = menuItens.find(m => m.id === abaAtiva)?.nome || 'Módulo Restrito';
 
   const obterOpcoesNome = (nomeCompleto: string) => {
     if (!nomeCompleto) return ["NOME INDEFINIDO"];
@@ -165,7 +162,7 @@ export default function PortalRH() {
   };
 
   const abrirHistorico = async (matricula: string, nome: string) => {
-    setNomeHistoricoAberto(nome);
+    setNomeHistoricoAberto(nome || 'Colaborador');
     try {
       const response = await fetch(`${URL}/rest/v1/historico_impressoes?matricula_colaborador=eq.${matricula}&order=data_emissao.desc`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
       const data = await response.json(); setHistoricoAberto(Array.isArray(data) ? data : []);
@@ -185,7 +182,7 @@ export default function PortalRH() {
       const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${matriculaLote.trim()}&select=*`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
       const data = await response.json();
       if (Array.isArray(data) && data.length > 0) { 
-        const novoColab = data[0]; novoColab.nome_cracha_frente = obterOpcoesNome(novoColab.nome_completo)[0]; 
+        const novoColab = data[0]; novoColab.nome_cracha_frente = obterOpcoesNome(novoColab?.nome_completo || '')[0]; 
         setListaLote([...listaLote, novoColab]); setMatriculaLote(''); 
       } else { mostrarToast('Matrícula não encontrada.', 'erro'); }
     } catch (error) { mostrarToast('Erro na base.', 'erro'); } finally { setCarregandoLote(false); }
@@ -196,7 +193,7 @@ export default function PortalRH() {
   const registrarImpressoesEmLote = async () => {
     if (listaLote.length === 0) return;
     try {
-      const registros = listaLote.map(c => ({ matricula_colaborador: c.matricula, nome_colaborador: c.nome_completo, emitido_por: usuarioAutenticado?.nome || 'Sistema', motivo: 'Emissão em Lote' }));
+      const registros = listaLote.map(c => ({ matricula_colaborador: c.matricula, nome_colaborador: c?.nome_completo || 'N/A', emitido_por: usuarioAutenticado?.nome || 'Sistema', motivo: 'Emissão em Lote' }));
       await fetch(`${URL}/rest/v1/historico_impressoes`, { method: 'POST', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify(registros) });
       window.print();
     } catch (e) { mostrarToast("Falha ao registar histórico.", "erro"); }
@@ -223,7 +220,7 @@ export default function PortalRH() {
       const response = await fetch(`${URL}/rest/v1/colaboradores?matricula=eq.${matriculaAlvo}&select=*`, { headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}` } });
       const data = await response.json();
       if (Array.isArray(data) && data.length > 0) { 
-        setColaborador(data[0]); setFotoCapturada(data[0].foto_url || null); setNomeCrachaIndividual(obterOpcoesNome(data[0].nome_completo)[0]); setAbaAtiva('emissao'); setBuscaEmissao('');
+        setColaborador(data[0]); setFotoCapturada(data[0]?.foto_url || null); setNomeCrachaIndividual(obterOpcoesNome(data[0]?.nome_completo || '')[0]); setAbaAtiva('emissao'); setBuscaEmissao('');
       } else { setColaborador(null); mostrarToast('Matrícula não encontrada.', "erro"); }
     } catch (error) { mostrarToast('Erro de ligação.', "erro"); } finally { setCarregandoEmissao(false); }
   };
@@ -261,7 +258,7 @@ export default function PortalRH() {
   const registrarEImprimir = async () => {
     if (!colaborador) return;
     try {
-      await fetch(`${URL}/rest/v1/historico_impressoes`, { method: 'POST', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ matricula_colaborador: colaborador.matricula, nome_colaborador: colaborador.nome_completo, emitido_por: usuarioAutenticado?.nome || 'Sistema', motivo: motivoAcao }) });
+      await fetch(`${URL}/rest/v1/historico_impressoes`, { method: 'POST', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ matricula_colaborador: colaborador.matricula, nome_colaborador: colaborador?.nome_completo || 'N/A', emitido_por: usuarioAutenticado?.nome || 'Sistema', motivo: motivoAcao }) });
       mostrarToast('Impressão auditada e registada.', 'sucesso');
       setTimeout(() => window.print(), 500);
     } catch (e) { mostrarToast("Falha na auditoria.", "erro"); }
@@ -271,7 +268,7 @@ export default function PortalRH() {
     if (!colaborador) return;
     if (!fotoCapturada) { mostrarToast("É obrigatório ter fotografia para solicitar o crachá.", "aviso"); return; }
     try {
-      await fetch(`${URL}/rest/v1/solicitacoes_crachas`, { method: 'POST', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ matricula_colaborador: colaborador.matricula, nome_colaborador: colaborador.nome_completo, solicitado_por: usuarioAutenticado?.nome || 'Sistema', motivo: motivoAcao, status: 'PENDENTE' }) });
+      await fetch(`${URL}/rest/v1/solicitacoes_crachas`, { method: 'POST', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ matricula_colaborador: colaborador.matricula, nome_colaborador: colaborador?.nome_completo || 'N/A', solicitado_por: usuarioAutenticado?.nome || 'Sistema', motivo: motivoAcao, status: 'PENDENTE' }) });
       mostrarToast('Solicitação enviada ao RH com sucesso!', 'sucesso');
       setColaborador(null); setBuscaEmissao(''); carregarHistoricoSupervisor();
     } catch (e) { mostrarToast("Erro ao enviar solicitação.", "erro"); }
@@ -335,9 +332,6 @@ export default function PortalRH() {
 
   const colaboradoresParaImprimir = abaAtiva === 'lote' ? listaLote : (colaborador && abaAtiva === 'emissao' ? [{ ...colaborador, foto_url: fotoCapturada || colaborador.foto_url, nome_cracha_frente: nomeCrachaIndividual }] : []);
 
-  // PROTEÇÃO CONTRA PRERENDER DA VERCEL
-  if (!isMounted) return null;
-
   // ========================== TELA DE LOGIN ==========================
   if (!usuarioAutenticado) {
     return (
@@ -369,7 +363,8 @@ export default function PortalRH() {
     <div className="flex h-screen bg-slate-50 font-sans text-slate-800 overflow-hidden screen-only relative">
       
       {toast.ativo && (<div className={`fixed top-8 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-full shadow-lg font-semibold text-sm flex items-center gap-3 animation-fade-in text-white hide-on-print ${toast.tipo === 'sucesso' ? 'bg-emerald-500' : toast.tipo === 'erro' ? 'bg-rose-500' : 'bg-amber-500'}`}><i className={`fas ${toast.tipo === 'sucesso' ? 'fa-check-circle' : toast.tipo === 'erro' ? 'fa-times-circle' : 'fa-exclamation-triangle'}`}></i> {toast.mensagem}</div>)}
-      {confirmDialog.ativo && ( <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[90] flex items-center justify-center p-4 hide-on-print"><div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animation-fade-in"><div className="p-6 text-center"><div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl"><i className="fas fa-exclamation-triangle"></i></div><p className="text-sm text-slate-500 font-medium">{confirmDialog.mensagem}</p></div><div className="flex border-t border-slate-100"><button onClick={() => setConfirmDialog({ ativo: false, mensagem: '', acao: () => {} })} className="flex-1 py-4 font-semibold text-slate-500 hover:bg-slate-50 border-r border-slate-100 transition-colors">Cancelar</button><button onClick={() => { confirmDialog.acao(); setConfirmDialog({ ativo: false, mensagem: '', acao: () => {} }); }} className="flex-1 py-4 font-bold text-rose-500 hover:bg-rose-50 transition-colors">Sim, Excluir</button></div></div></div> )}
+      {confirmDialog.ativo && ( <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[90] flex items-center justify-center p-4 hide-on-print"><div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animation-fade-in"><div className="p-6 text-center"><div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl"><i className="fas fa-exclamation-triangle"></i></div><p className="text-sm text-slate-500 font-medium">{confirmDialog.mensagem}</p></div><div className="flex border-t border-slate-100"><button onClick={() => setConfirmDialog({ ativo: false, mensagem: '', acao: () => {} })} className="flex-1 py-4 font-semibold text-slate-500 hover:bg-slate-50 transition-colors border-r border-slate-100">Cancelar</button><button onClick={() => { confirmDialog.acao(); setConfirmDialog({ ativo: false, mensagem: '', acao: () => {} }); }} className="flex-1 py-4 font-bold text-rose-500 hover:bg-rose-50 transition-colors">Sim, Excluir</button></div></div></div> )}
+      {menuAberto && <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 md:hidden transition-opacity hide-on-print" onClick={() => setMenuAberto(false)}></div>}
 
       <aside className={`w-72 h-full flex flex-col hide-on-print border-r border-slate-200 ${menuAberto ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed md:relative z-50 transition-transform duration-300`} style={{ background: '#023A58' }}>
         <div className="h-20 flex items-center justify-center border-b border-white/10 px-6"><img src="/logodinamobranca.png" alt="Dínamo" className="max-h-10 object-contain" /></div>
@@ -384,7 +379,7 @@ export default function PortalRH() {
         <header className="h-20 bg-white shadow-sm border-b border-slate-200 flex items-center justify-between px-6 lg:px-10 z-10 hide-on-print relative">
           <div className="flex items-center gap-4">
             <button className="md:hidden w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors" onClick={() => setMenuAberto(true)}><i className="fas fa-bars"></i></button>
-            <h2 className="text-lg md:text-xl font-bold text-[#023A58] hidden sm:flex items-center gap-2">{menuItens.find(m => m.id === abaAtiva)?.nome || 'Módulo Restrito'}</h2>
+            <h2 className="text-lg md:text-xl font-bold text-[#023A58] hidden sm:flex items-center gap-2">{activeMenuName}</h2>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-3 bg-white px-2 pr-4 py-1.5 rounded-full border border-slate-200 shadow-sm hidden sm:flex">
@@ -614,7 +609,7 @@ export default function PortalRH() {
                   </div>
                   <div className="relative border-[1.5px] border-black rounded-[4px] h-[6.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Empresa</span><div className="text-[8px] text-black font-semibold uppercase pt-[0.5mm]">DINAMO ENGENHARIA</div></div>
                 </div>
-                <div className="absolute bottom-[1.5mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center"><div className="text-[7px] text-black leading-[1.2] mb-[1.5mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div><div className="text-center w-full mb-[1mm]"><div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div><div className="text-[6px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div></div><div className="text-[5.5px] text-black font-bold text-right w-full">Emitido em: {obterDataHoraAtual()}</div></div>
+                <div className="absolute bottom-[1.5mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center"><div className="text-[7px] text-black leading-[1.2] mb-[1.5mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div><div className="text-center w-full mb-[1mm]"><div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div><div className="text-[6px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div></div><div className="text-[5.5px] text-black font-bold text-right w-full">Emitido em: {dataHoraAtual}</div></div>
               </div>
            </React.Fragment>
            );
