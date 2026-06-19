@@ -38,7 +38,6 @@ export default function PortalRH() {
     if (loginSalvo) { setLoginInput(loginSalvo); setLembrarLogin(true); }
   }, []);
 
-  // CORREÇÃO DO ERRO DA VERCEL: Função definida no topo
   const handleEsqueceuSenha = () => {
     mostrarToast("Acesso restrito. Solicite a redefinição de senha ao Administrador do Sistema.", "aviso");
   };
@@ -53,7 +52,6 @@ export default function PortalRH() {
       if (data && data.length > 0) {
         const user = data[0];
         setUsuarioAutenticado(user);
-        // Inteligência de redirecionamento por perfil
         if (user.perfil === 'SUPERVISOR') setAbaAtiva('emissao');
         else if (user.perfil === 'RH' || user.perfil === 'ADM') setAbaAtiva('solicitacoes');
         else setAbaAtiva('colaboradores');
@@ -278,7 +276,7 @@ export default function PortalRH() {
   // ========================== ABA: CONFIGURAÇÕES ==========================
   const [listaUsuarios, setListaUsuarios] = useState<any[]>([]);
   const [carregandoUsuarios, setCarregandoUsuarios] = useState(false);
-  const [formUsuario, setFormUsuario] = useState({ nome: '', login: '', senha: '', perfil: 'SUPERVISOR' });
+  const [formUsuario, setFormUsuario] = useState({ nome: '', login: '', senha: '', perfil: 'RH' });
   const [salvandoUsuario, setSalvandoUsuario] = useState(false);
 
   const carregarUsuarios = async () => {
@@ -295,7 +293,7 @@ export default function PortalRH() {
     try {
       const response = await fetch(`${URL}/rest/v1/usuarios_sistema`, { method: 'POST', headers: { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }, body: JSON.stringify(formUsuario) });
       if (!response.ok) { const errData = await response.json().catch(() => ({})); if(response.status === 409) throw new Error('Login já em uso.'); throw new Error(`Erro de sistema.`); }
-      mostrarToast('Utilizador criado com sucesso!', 'sucesso'); setFormUsuario({ nome: '', login: '', senha: '', perfil: 'SUPERVISOR' }); carregarUsuarios();
+      mostrarToast('Utilizador criado com sucesso!', 'sucesso'); setFormUsuario({ nome: '', login: '', senha: '', perfil: 'RH' }); carregarUsuarios();
     } catch (err: any) { mostrarToast(err.message, 'erro'); } finally { setSalvandoUsuario(false); }
   };
   
@@ -325,7 +323,7 @@ export default function PortalRH() {
   if (!usuarioAutenticado) {
     return (
       <div className="flex h-screen bg-[#f4f7f6] font-sans items-center justify-center relative overflow-hidden">
-        {toast.ativo && (<div className={`fixed top-8 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-full shadow-lg font-semibold text-sm flex items-center gap-3 animation-fade-in text-white ${toast.tipo === 'sucesso' ? 'bg-emerald-500' : toast.tipo === 'erro' ? 'bg-rose-500' : 'bg-amber-500'}`}><i className={`fas ${toast.tipo === 'sucesso' ? 'fa-check-circle' : toast.tipo === 'erro' ? 'fa-times-circle' : 'fa-exclamation-triangle'}`}></i> {toast.mensagem}</div>)}
+        {toast.ativo && (<div className={`fixed top-8 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-full shadow-lg font-semibold text-sm flex items-center gap-3 animation-fade-in text-white hide-on-print ${toast.tipo === 'sucesso' ? 'bg-emerald-500' : toast.tipo === 'erro' ? 'bg-rose-500' : 'bg-amber-500'}`}><i className={`fas ${toast.tipo === 'sucesso' ? 'fa-check-circle' : toast.tipo === 'erro' ? 'fa-times-circle' : 'fa-exclamation-triangle'}`}></i> {toast.mensagem}</div>)}
         <div className="absolute top-0 left-0 w-full h-[40%] bg-[#023A58]"></div>
         <div className="z-10 w-full max-w-md px-4 sm:px-6">
           <div className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-xl">
@@ -351,9 +349,9 @@ export default function PortalRH() {
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-slate-800 overflow-hidden screen-only relative">
       
-      {toast.ativo && (<div className={`fixed top-8 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-full shadow-lg font-semibold text-sm flex items-center gap-3 animation-fade-in text-white ${toast.tipo === 'sucesso' ? 'bg-emerald-500' : toast.tipo === 'erro' ? 'bg-rose-500' : 'bg-amber-500'}`}><i className={`fas ${toast.tipo === 'sucesso' ? 'fa-check-circle' : toast.tipo === 'erro' ? 'fa-times-circle' : 'fa-exclamation-triangle'}`}></i> {toast.mensagem}</div>)}
-      {confirmDialog.ativo && ( <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[90] flex items-center justify-center p-4"><div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animation-fade-in"><div className="p-6 text-center"><div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl"><i className="fas fa-exclamation-triangle"></i></div><h3 className="text-lg font-bold text-slate-800 mb-2">Atenção</h3><p className="text-sm text-slate-500 font-medium">{confirmDialog.mensagem}</p></div><div className="flex border-t border-slate-100"><button onClick={() => setConfirmDialog({ ativo: false, mensagem: '', acao: () => {} })} className="flex-1 py-4 font-semibold text-slate-500 hover:bg-slate-50 transition-colors border-r border-slate-100">Cancelar</button><button onClick={() => { confirmDialog.acao(); setConfirmDialog({ ativo: false, mensagem: '', acao: () => {} }); }} className="flex-1 py-4 font-bold text-rose-500 hover:bg-rose-50 transition-colors">Sim, Excluir</button></div></div></div> )}
-      {menuAberto && <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 md:hidden transition-opacity" onClick={() => setMenuAberto(false)}></div>}
+      {toast.ativo && (<div className={`fixed top-8 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-full shadow-lg font-semibold text-sm flex items-center gap-3 animation-fade-in text-white hide-on-print ${toast.tipo === 'sucesso' ? 'bg-emerald-500' : toast.tipo === 'erro' ? 'bg-rose-500' : 'bg-amber-500'}`}><i className={`fas ${toast.tipo === 'sucesso' ? 'fa-check-circle' : toast.tipo === 'erro' ? 'fa-times-circle' : 'fa-exclamation-triangle'}`}></i> {toast.mensagem}</div>)}
+      {confirmDialog.ativo && ( <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[90] flex items-center justify-center p-4 hide-on-print"><div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animation-fade-in"><div className="p-6 text-center"><div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl"><i className="fas fa-exclamation-triangle"></i></div><h3 className="text-lg font-bold text-slate-800 mb-2">Atenção</h3><p className="text-sm text-slate-500 font-medium">{confirmDialog.mensagem}</p></div><div className="flex border-t border-slate-100"><button onClick={() => setConfirmDialog({ ativo: false, mensagem: '', acao: () => {} })} className="flex-1 py-4 font-semibold text-slate-500 hover:bg-slate-50 transition-colors border-r border-slate-100">Cancelar</button><button onClick={() => { confirmDialog.acao(); setConfirmDialog({ ativo: false, mensagem: '', acao: () => {} }); }} className="flex-1 py-4 font-bold text-rose-500 hover:bg-rose-50 transition-colors">Sim, Excluir</button></div></div></div> )}
+      {menuAberto && <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 md:hidden transition-opacity hide-on-print" onClick={() => setMenuAberto(false)}></div>}
 
       <aside className={`${menuAberto ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed md:relative z-50 w-72 h-full flex flex-col transition-transform duration-300 ease-out hide-on-print border-r border-slate-200`} style={{ background: '#023A58' }}>
         <div className="h-20 flex items-center justify-between md:justify-center border-b border-white/10 px-6"><img src="/logodinamobranca.png" alt="Dínamo" className="max-h-10 object-contain drop-shadow-sm" /><button className="md:hidden text-white/70 hover:text-white text-xl" onClick={() => setMenuAberto(false)}><i className="fas fa-times"></i></button></div>
@@ -443,7 +441,7 @@ export default function PortalRH() {
                             <td className="p-4 text-center">{colab.foto_url ? <span className="text-emerald-600 bg-emerald-50 px-2 py-1 rounded text-[10px] font-bold"><i className="fas fa-check"></i> SIM</span> : <span className="text-rose-500 bg-rose-50 px-2 py-1 rounded text-[10px] font-bold"><i className="fas fa-times"></i> NÃO</span>}</td>
                             <td className="p-4 text-center">{colab.link_qrcode ? <span className="text-[#0a84ff] bg-blue-50 px-2 py-1 rounded text-[10px] font-bold"><i className="fas fa-link"></i> OK</span> : <span className="text-slate-400 bg-slate-100 px-2 py-1 rounded text-[10px] font-bold">VAZIO</span>}</td>
                             <td className="p-4 text-right pr-6 flex justify-end gap-2">
-                              {/* NOVO: Botão de Histórico */}
+                              {/* Botão de Histórico */}
                               <button onClick={() => abrirHistorico(colab.matricula, colab.nome_completo)} className="bg-slate-100 border border-slate-200 text-slate-600 hover:bg-slate-200 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors" title="Ver Histórico de Impressões"><i className="fas fa-history"></i></button>
                               
                               <button onClick={() => { setBuscaEmissao(colab.matricula); buscarColaboradorParaEmissao(colab.matricula); }} className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors">Emitir</button>
@@ -504,7 +502,7 @@ export default function PortalRH() {
             </div>
           )}
 
-          {/* ABA 3: EMISSÃO INDIVIDUAL & SOLICITAÇÃO (INTELIGÊNCIA DE PERFIL) */}
+          {/* ABA 3: EMISSÃO INDIVIDUAL OU SOLICITAÇÃO (INTELIGÊNCIA DE PERFIL) */}
           {abaAtiva === 'emissao' && (
             <div className="max-w-full lg:max-w-6xl mx-auto hide-on-print animation-fade-in">
               <form onSubmit={(e) => { e.preventDefault(); buscarColaboradorParaEmissao(buscaEmissao); }} className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 mb-6 flex flex-col md:flex-row gap-4 items-end">
@@ -693,7 +691,7 @@ export default function PortalRH() {
 
         {/* MODAL EDIÇÃO COLABORADOR */}
         {colaboradorEditando && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hide-on-print">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden animation-fade-in">
               <div className="p-5 border-b border-slate-100 flex justify-between"><h3 className="font-bold text-slate-800">Editar Complementos</h3><button onClick={() => setColaboradorEditando(null)}><i className="fas fa-times text-slate-400 hover:text-rose-500 transition-colors"></i></button></div>
               <form onSubmit={salvarEdicao} className="p-6 flex flex-col gap-4 bg-slate-50/50">
@@ -717,7 +715,7 @@ export default function PortalRH() {
 
         {/* MODAL HISTÓRICO DE IMPRESSÕES */}
         {historicoAberto && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[80] flex items-center justify-center p-4 hide-on-print">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden animation-fade-in flex flex-col max-h-[80vh]">
               <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                 <div>
@@ -756,7 +754,7 @@ export default function PortalRH() {
 
         {/* MODAL ALTERAR SENHA */}
         {mostrarModalSenha && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 hide-on-print">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animation-fade-in border-t-4 border-[#0a84ff]">
               <div className="p-5 border-b border-slate-100 flex justify-between"><h3 className="font-bold text-slate-800 flex items-center gap-2"><i className="fas fa-key text-[#0a84ff]"></i>Alterar Senha</h3><button onClick={() => setMostrarModalSenha(false)}><i className="fas fa-times text-slate-400 hover:text-rose-500"></i></button></div>
               <form onSubmit={handleAlterarSenha} className="p-6 flex flex-col gap-4">
@@ -808,8 +806,8 @@ export default function PortalRH() {
                     <div className="relative border-[1.5px] border-black rounded-[4px] h-[6.5mm] flex items-center justify-center w-full"><span className="absolute -top-[2.5mm] left-[2mm] bg-white px-[1mm] text-[6px] font-bold text-black leading-none">Empresa</span><div className="text-[8px] text-black font-semibold uppercase pt-[1mm]">DINAMO ENGENHARIA</div></div>
                   </div>
                   <div className="absolute bottom-[1.5mm] left-[2mm] right-[2mm] z-0 flex flex-col items-center pb-[1mm]">
-                    <div className="text-[7px] text-black leading-[1.3] mb-[2mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div>
-                    <div className="text-center w-full mb-[1mm]"><div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div><div className="text-[6.5px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div></div>
+                    <div className="text-[7px] text-black leading-[1.2] mb-[1.5mm] text-center font-medium w-[47mm]">Em caso de extravio/perda, favor comunicar ao<br/>Departamento Pessoal.</div>
+                    <div className="text-center w-full mb-[1mm]"><div className="text-[7.5px] font-bold text-black mb-[0.5mm]">www.dinamo.srv.br</div><div className="text-[6px] text-black">Pass Xingu, Coqueiro| Belém-PA |CEP 66823-335</div></div>
                     <div className="text-[5.5px] text-black font-bold text-right w-full mt-[1mm]">Emitido em: {obterDataHoraAtual()}</div>
                   </div>
                 </div>
